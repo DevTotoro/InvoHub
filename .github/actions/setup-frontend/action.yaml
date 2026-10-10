@@ -4,9 +4,6 @@ description: "Check out code, setup node, pnpm, and install cached dependencies"
 runs:
   using: "composite"
   steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v7
-
     - name: Set up Node.js & pnpm
       uses: pnpm/setup@v3
       with:

@@ -15,8 +15,11 @@ jobs:
       backend: ${{ steps.filter.outputs.backend }}
       frontend: ${{ steps.filter.outputs.frontend }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: dorny/paths-filter@v3
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+
+      - name: Filter Changes
+        uses: dorny/paths-filter@v3
         id: filter
         with:
           filters: |
@@ -35,6 +38,8 @@ jobs:
       run:
         working-directory: backend
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
       - uses: ./.github/actions/setup-backend
       - run: ./gradlew check --no-daemon
 
@@ -47,6 +52,8 @@ jobs:
       run:
         working-directory: backend
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
       - uses: ./.github/actions/setup-backend
       - run: ./gradlew test --no-daemon
 
@@ -60,6 +67,8 @@ jobs:
       run:
         working-directory: frontend
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
       - uses: ./.github/actions/setup-frontend
       - run: pnpm check && pnpm lint
 
@@ -72,6 +81,8 @@ jobs:
       run:
         working-directory: frontend
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
       - uses: ./.github/actions/setup-frontend
       - run: pnpm exec playwright install --with-deps
       - run: pnpm test:unit -- --run
@@ -85,6 +96,8 @@ jobs:
       run:
         working-directory: frontend
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
       - uses: ./.github/actions/setup-frontend
       - run: pnpm build
 
@@ -97,6 +110,8 @@ jobs:
       run:
         working-directory: frontend
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
       - uses: ./.github/actions/setup-frontend
       - run: pnpm exec playwright install --with-deps
       - run: pnpm exec playwright test
