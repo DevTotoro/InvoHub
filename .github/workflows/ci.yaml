@@ -114,6 +114,7 @@ jobs:
         frontend-e2e,
       ]
     if: always()
+    name: CI Success
     runs-on: ubuntu-latest
     steps:
       - name: Verify job statuses
