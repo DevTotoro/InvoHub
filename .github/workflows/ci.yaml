@@ -1,0 +1,170 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+
+      - name: Filter Changes
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+            frontend:
+              - 'frontend/**'
+
+  # Backend Jobs
+  backend-lint-and-check:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    name: BE - Lint & Check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+      - name: Setup Environment
+        uses: ./.github/actions/setup-backend
+      - name: Run Lint and Check
+        run: ./gradlew check --no-daemon
+
+  backend-unit-test:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    name: BE - Unit Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+      - name: Setup Environment
+        uses: ./.github/actions/setup-backend
+      - name: Run Unit Tests
+        run: ./gradlew test --no-daemon
+
+  # Frontend Jobs
+  frontend-lint-and-check:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    name: FE - Lint & Typecheck
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+      - name: Setup Environment
+        uses: ./.github/actions/setup-frontend
+      - name: Run Lint and Typecheck
+        run: pnpm check && pnpm lint
+
+  frontend-unit-test:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    name: FE - Unit Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+      - name: Setup Environment
+        uses: ./.github/actions/setup-frontend
+      - name: Install Playwright
+        run: pnpm exec playwright install --with-deps
+      - name: Run Unit Tests
+        run: pnpm test:unit -- --run
+
+  frontend-build:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    name: FE - Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+      - name: Setup Environment
+        uses: ./.github/actions/setup-frontend
+      - name: Run Build
+        run: pnpm build
+
+  frontend-e2e:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    name: FE - E2E Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+      - name: Setup Environment
+        uses: ./.github/actions/setup-frontend
+      - name: Install Playwright
+        run: pnpm exec playwright install --with-deps
+      - name: Run E2E Tests
+        run: pnpm exec playwright test
+
+  # Gatekeeper Job
+  ci-success:
+    needs:
+      [
+        changes,
+        backend-lint-and-check,
+        backend-unit-test,
+        frontend-lint-and-check,
+        frontend-unit-test,
+        frontend-build,
+        frontend-e2e,
+      ]
+    if: always()
+    name: CI Success
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify job statuses
+        run: |
+          passed=true
+          for result in "${{ needs.backend-lint-and-check.result }}" \
+                        "${{ needs.backend-unit-test.result }}" \
+                        "${{ needs.frontend-lint-and-check.result }}" \
+                        "${{ needs.frontend-unit-test.result }}" \
+                        "${{ needs.frontend-build.result }}" \
+                        "${{ needs.frontend-e2e.result }}"; do
+            if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
+              passed=false
+            fi
+          done
+
+          if [ "$passed" = true ]; then
+            echo "All checks passed or were safely skipped."
+            exit 0
+          else
+            echo "One or more checks failed."
+            exit 1
+          fi

@@ -1,0 +1,13 @@
+name: "Setup BE"
+description: "Check out code, setup Java, and install cached dependencies"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Java
+      uses: actions/setup-java@v6
+      with:
+        java-version: "25"
+        distribution: "temurin"
+        cache: "gradle"
+        cache-dependency-path: backend/gradle/libs.versions.toml

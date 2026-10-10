@@ -1,0 +1,16 @@
+name: "Setup FE"
+description: "Check out code, setup node, pnpm, and install cached dependencies"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Node.js & pnpm
+      uses: pnpm/setup@v3
+      with:
+        version: "^12.0.0"
+        runtime: "node"
+        install: false
+
+    - name: Install Dependencies
+      shell: bash
+      run: pnpm install --frozen-lockfile
