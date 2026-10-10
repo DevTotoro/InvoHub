@@ -1,0 +1,16 @@
+name: "Setup Backend"
+description: "Check out code, setup Java, and install cached dependencies"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v7
+
+    - name: Set up Java
+      uses: actions/setup-java@v6
+      with:
+        java-version: "25"
+        distribution: "temurin"
+        cache: "gradle"
+        cache-dependency-path: backend/gradle/libs.versions.toml

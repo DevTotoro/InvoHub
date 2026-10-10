@@ -1,0 +1,139 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+            frontend:
+              - 'frontend/**'
+
+  # Backend Jobs
+  backend-lint-and-check:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    name: Backend Lint & Check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: ./.github/actions/setup-backend
+      - run: ./gradlew check --no-daemon
+
+  backend-unit-test:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    name: Backend Unit Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: ./.github/actions/setup-backend
+      - run: ./gradlew test --no-daemon
+
+  # Frontend Jobs
+  frontend-lint-and-check:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    name: Frontend Lint & Typecheck
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: ./.github/actions/setup-frontend
+      - run: pnpm check && pnpm lint
+
+  frontend-unit-test:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    name: Frontend Unit Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: ./.github/actions/setup-frontend
+      - run: pnpm exec playwright install --with-deps
+      - run: pnpm test:unit -- --run
+
+  frontend-build:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    name: Frontend Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: ./.github/actions/setup-frontend
+      - run: pnpm build
+
+  frontend-e2e:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    name: Frontend E2E Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: ./.github/actions/setup-frontend
+      - run: pnpm exec playwright install --with-deps
+      - run: pnpm exec playwright test
+
+  # Gatekeeper Job
+  ci-success:
+    needs:
+      [
+        changes,
+        backend-lint-and-check,
+        backend-unit-test,
+        frontend-lint-and-check,
+        frontend-unit-test,
+        frontend-build,
+        frontend-e2e,
+      ]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify job statuses
+        run: |
+          passed=true
+          for result in "${{ needs.backend-lint-and-check.result }}" \
+                        "${{ needs.backend-unit-test.result }}" \
+                        "${{ needs.frontend-lint-and-check.result }}" \
+                        "${{ needs.frontend-unit-test.result }}" \
+                        "${{ needs.frontend-build.result }}" \
+                        "${{ needs.frontend-e2e.result }}"; do
+            if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
+              passed=false
+            fi
+          done
+
+          if [ "$passed" = true ]; then
+            echo "All checks passed or were safely skipped."
+            exit 0
+          else
+            echo "One or more checks failed."
+            exit 1
+          fi
