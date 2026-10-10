@@ -13,9 +13,9 @@ on:
       - 'backend/**'
 
 jobs:
-  build-and-test:
+  build-lint-test:
+    name: Build, Lint and Test Backend
     runs-on: ubuntu-latest
-
     defaults:
       run:
         working-directory: backend
