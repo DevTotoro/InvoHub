@@ -1,4 +1,4 @@
-name: "Setup Backend"
+name: "Setup BE"
 description: "Check out code, setup Java, and install cached dependencies"
 
 runs:

@@ -1,4 +1,4 @@
-name: "Setup Frontend"
+name: "Setup FE"
 description: "Check out code, setup node, pnpm, and install cached dependencies"
 
 runs:
