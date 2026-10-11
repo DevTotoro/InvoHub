@@ -51,7 +51,7 @@ class AuthControllerTest {
 
     @Test
     fun `a locked user is refused without revealing the lock reason`() {
-        userRepository.save(User("locked@example.com", locked = true, lockReason = "internal fraud note"))
+        userRepository.save(User("locked@example.com").apply { lock("internal fraud note") })
         requestLink("locked@example.com")
 
         verify(emailPort.sent.single().rawToken).andExpect {
