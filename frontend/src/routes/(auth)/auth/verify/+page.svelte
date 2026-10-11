@@ -5,6 +5,7 @@
   import { page } from '$app/state';
   import { verifyMagicLink } from '#lib/api/auth.ts';
   import { ApiError } from '#lib/api/client.ts';
+  import { consumeRedirect } from '#lib/auth/redirect.ts';
 
   type Status = 'verifying' | 'invalid' | 'locked' | 'error';
 
@@ -15,7 +16,7 @@
   onMount(async () => {
     const token = page.url.searchParams.get('token');
     // Keep the token out of the address bar and history
-    replaceState(resolve('/auth/verify'), {});
+    replaceState(resolve('/(auth)/auth/verify'), {});
 
     if (!token) {
       status = 'invalid';
@@ -24,7 +25,6 @@
 
     try {
       await verifyMagicLink(token);
-      await goto(resolve('/'), { replaceState: true });
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) {
         status = 'invalid';
@@ -33,21 +33,35 @@
       } else {
         status = 'error';
       }
+      return;
     }
+
+    // invalidateAll: the session is new, so everything loaded so far was loaded signed out.
+    // resolve() only takes route IDs; this is a stored path that consumeRedirect() already validated.
+    // eslint-disable-next-line svelte/no-navigation-without-resolve
+    await goto(consumeRedirect(), { replaceState: true, invalidateAll: true });
   });
 </script>
 
-<main class="container mx-auto px-4 py-16 text-center">
-  {#if status === 'verifying'}
-    <p>Signing you in…</p>
-  {:else if status === 'invalid'}
-    <h2 class="text-xl font-semibold">This sign-in link is invalid or has expired</h2>
-    <p class="mt-2">Request a new sign-in link and try again.</p>
-  {:else if status === 'locked'}
-    <h2 class="text-xl font-semibold">This account is locked</h2>
-    <p class="mt-2">Please contact support.</p>
-  {:else}
-    <h2 class="text-xl font-semibold">Something went wrong</h2>
-    <p class="mt-2">Please try the link again in a moment.</p>
-  {/if}
-</main>
+<svelte:head>
+  <title>Signing in · InvoHub</title>
+</svelte:head>
+
+{#if status === 'verifying'}
+  <p class="text-center text-gray-600">Signing you in…</p>
+{:else if status === 'invalid'}
+  <h2 class="text-xl font-semibold">This sign-in link is invalid or has expired</h2>
+  <p class="mt-2 text-sm text-gray-600">Links work once and expire after a while. Request a new one to sign in.</p>
+  <a
+    href={resolve('/(auth)/login')}
+    class="mt-6 inline-block text-sm font-medium text-indigo-600 hover:text-indigo-500"
+  >
+    Request a new link
+  </a>
+{:else if status === 'locked'}
+  <h2 class="text-xl font-semibold">This account is locked</h2>
+  <p class="mt-2 text-sm text-gray-600">Please contact support.</p>
+{:else}
+  <h2 class="text-xl font-semibold">Something went wrong</h2>
+  <p class="mt-2 text-sm text-gray-600">Please open the link again in a moment.</p>
+{/if}
