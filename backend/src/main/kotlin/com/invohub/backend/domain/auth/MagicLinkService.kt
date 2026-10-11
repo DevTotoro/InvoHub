@@ -2,6 +2,7 @@ package com.invohub.backend.domain.auth
 
 import com.invohub.backend.domain.user.User
 import com.invohub.backend.domain.user.UserService
+import com.invohub.backend.domain.user.normalizeEmail
 import org.springframework.stereotype.Service
 import org.springframework.web.util.UriComponentsBuilder
 import java.net.URI
@@ -27,7 +28,9 @@ class MagicLinkService(
      * Issues a new magic link token and emails it. While a token for this email is active, no new token is
      * issued and no email is sent, so the endpoint can't be used to flood someone's inbox.
      */
-    fun requestToken(email: String) {
+    fun requestToken(rawEmail: String) {
+        val email = normalizeEmail(rawEmail)
+
         // Atomic, so concurrent requests can't both pass and send two links
         if (!tokenStore.tryLock(email, properties.magicLinkTtl)) {
             return

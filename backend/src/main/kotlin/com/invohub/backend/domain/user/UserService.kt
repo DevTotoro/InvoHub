@@ -6,5 +6,8 @@ import org.springframework.stereotype.Service
 class UserService(
     private val userRepository: UserRepository,
 ) {
-    fun getOrCreateUser(email: String) = userRepository.findByEmail(email) ?: userRepository.save(User(email))
+    fun getOrCreateUser(email: String): User {
+        val normalized = normalizeEmail(email)
+        return userRepository.findByEmail(normalized) ?: userRepository.save(User(normalized))
+    }
 }

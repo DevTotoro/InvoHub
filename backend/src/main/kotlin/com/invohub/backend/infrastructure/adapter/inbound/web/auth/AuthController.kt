@@ -1,7 +1,6 @@
 package com.invohub.backend.infrastructure.adapter.inbound.web.auth
 
 import com.invohub.backend.domain.auth.MagicLinkService
-import com.invohub.backend.domain.user.UserService
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Email
 import jakarta.validation.constraints.NotBlank
@@ -21,17 +20,15 @@ data class VerifyMagicLinkRequestDto(
 @RequestMapping("/auth")
 class AuthController(
     private val magicLinkService: MagicLinkService,
-    private val userService: UserService,
 ) {
     @PostMapping("/request")
     fun requestMagicLink(
         @Valid @RequestBody request: MagicLinkRequestDto,
     ): ResponseEntity<Map<String, String>> {
-        val normalizedEmail = request.email.lowercase()
+        magicLinkService.requestToken(request.email)
 
-        magicLinkService.requestToken(normalizedEmail)
-
-        return ResponseEntity.ok(mapOf("message" to "If an account exists, a link has been sent."))
+        // Same response whether or not a link was sent just now, so it reveals nothing about the address
+        return ResponseEntity.ok(mapOf("message" to "Check your inbox for a sign-in link."))
     }
 
     /**

@@ -53,6 +53,15 @@ class MagicLinkServiceTest {
     }
 
     @Test
+    fun `normalizes the email so case variants share one lock and one account`() {
+        service.requestToken("  Jane@Example.COM ")
+        service.requestToken(email)
+
+        verify(exactly = 1) { emailPort.sendMagicLink(email, any(), any()) }
+        assertEquals(email, service.verifyToken(sentTokens.single())?.email)
+    }
+
+    @Test
     fun `does not issue another token while one is active`() {
         service.requestToken(email)
         service.requestToken(email)
