@@ -25,7 +25,8 @@ spring:
 server:
   servlet:
     session:
-      timeout: 7d
+      # Inactivity timeout: a session ends after a day without requests; each request resets it
+      timeout: 1d
       cookie:
         http-only: true
         same-site: lax

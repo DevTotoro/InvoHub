@@ -7,13 +7,18 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.web.server.LocalServerPort
 import org.springframework.context.annotation.Import
+import org.springframework.data.redis.core.StringRedisTemplate
 import org.springframework.test.context.ActiveProfiles
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+import java.time.Duration
+import java.util.Base64
+import java.util.concurrent.TimeUnit
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /**
  * Runs against real Tomcat: without an embedded server (MockMvc), Spring Boot takes the session cookie
@@ -29,6 +34,9 @@ class SessionCookieTest {
 
     @Autowired
     private lateinit var emailPort: CapturingEmailPort
+
+    @Autowired
+    private lateinit var redisTemplate: StringRedisTemplate
 
     private val client = HttpClient.newHttpClient()
 
@@ -71,6 +79,29 @@ class SessionCookieTest {
         assertContains(sessionCookie, "HttpOnly")
         assertContains(sessionCookie, "SameSite=Lax")
         assertContains(sessionCookie, "Secure")
+    }
+
+    @Test
+    fun `a session expires after a day of inactivity`() {
+        val csrf = fetchCsrfToken()
+        send(postJson("/api/auth/request", """{"email": "ttl@example.com"}""", csrf))
+        val token = emailPort.sent.last { it.email == "ttl@example.com" }.rawToken
+        val verified = send(postJson("/api/auth/verify", """{"token": "$token"}""", csrf))
+
+        // The cookie holds the Base64-encoded session ID, which keys the session in Redis
+        val cookieValue =
+            verified
+                .setCookies()
+                .single {
+                    it.startsWith(
+                        "SESSION=",
+                    )
+                }.substringAfter("=")
+                .substringBefore(";")
+        val sessionId = String(Base64.getDecoder().decode(cookieValue))
+        val ttl = redisTemplate.getExpire("invohub:session:sessions:$sessionId", TimeUnit.SECONDS)
+
+        assertTrue(ttl in Duration.ofHours(23).seconds..Duration.ofDays(1).seconds, "session TTL was ${ttl}s")
     }
 
     private fun fetchCsrfToken() =
