@@ -2,76 +2,68 @@ package com.invohub.backend.domain.auth
 
 import com.invohub.backend.domain.user.User
 import com.invohub.backend.domain.user.UserService
-import org.springframework.data.redis.core.StringRedisTemplate
 import org.springframework.stereotype.Service
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.time.Duration
 import java.util.Base64
+import java.util.HexFormat
 
 @Service
 class MagicLinkService(
-    private val redisTemplate: StringRedisTemplate,
+    private val tokenStore: MagicLinkTokenStore,
     private val emailPort: EmailPort,
     private val userService: UserService,
 ) {
     companion object {
         private val TOKEN_TTL = Duration.ofHours(1)
+        private val RESEND_COOLDOWN = Duration.ofSeconds(60)
+        private const val TOKEN_BYTES = 32
 
-        private fun getActiveKey(email: String) = "magic_link:active:$email"
-
-        private fun getTokenKey(tokenHash: String) = "magic_link:token:$tokenHash"
+        private val secureRandom = SecureRandom()
     }
 
     /**
-     * Attempts to create and store a magic link token. If a link is successfully
-     * generated, an email is sent to the provided email.
+     * Issues a new magic link token and emails it, unless one was sent to this email within the resend
+     * cooldown. A new token invalidates any earlier one for the same email.
      */
     fun requestToken(email: String) {
-        val activeKey = getActiveKey(email)
-
-        // If an active token already exists, do not regenerate or spam a new email
-        if (redisTemplate.hasKey(activeKey) == true) {
+        // Atomic, so concurrent requests can't both pass and send two links
+        if (!tokenStore.tryStartCooldown(email, RESEND_COOLDOWN)) {
             return
         }
 
-        val secureRandom = SecureRandom()
-        val bytes = ByteArray(32).apply { secureRandom.nextBytes(this) }
-        val rawToken = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
+        val rawToken = generateToken()
         val tokenHash = hashToken(rawToken)
+        tokenStore.replaceToken(email, tokenHash, TOKEN_TTL)
 
-        val tokenKey = getTokenKey(tokenHash)
-
-        // Anti-spam lock for email
-        redisTemplate.opsForValue().set(activeKey, tokenHash, TOKEN_TTL)
-        // Token to email map for verification
-        redisTemplate.opsForValue().set(tokenKey, email, TOKEN_TTL)
-
-        emailPort.sendMagicLink(email, rawToken)
+        try {
+            emailPort.sendMagicLink(email, rawToken)
+        } catch (e: EmailDeliveryException) {
+            // Roll back, so the user isn't left holding a token they never received and can retry right away
+            tokenStore.removeToken(email, tokenHash)
+            tokenStore.clearCooldown(email)
+            throw e
+        }
     }
 
     /**
-     * Verifies the token and deletes it.
-     * @return Newly-created or pre-existing User associated with the token
+     * Consumes the token, so it works at most once even under concurrent requests.
+     * @return Newly-created or pre-existing User associated with the token, or null if it is invalid or expired
      */
     fun verifyToken(rawToken: String): User? {
-        val tokenHash = hashToken(rawToken)
-        val tokenKey = getTokenKey(tokenHash)
-
-        // Retrieve email associated with this token hash
-        val email = redisTemplate.opsForValue().get(tokenKey) ?: return null
-
-        val activeKey = getActiveKey(email)
-
-        redisTemplate.delete(tokenKey)
-        redisTemplate.delete(activeKey)
+        val email = tokenStore.consumeToken(hashToken(rawToken)) ?: return null
 
         return userService.getOrCreateUser(email)
     }
 
+    private fun generateToken(): String {
+        val bytes = ByteArray(TOKEN_BYTES).also(secureRandom::nextBytes)
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
+    }
+
     private fun hashToken(token: String): String {
-        val digest = MessageDigest.getInstance("SHA-256")
-        val hashBytes = digest.digest(token.toByteArray(Charsets.UTF_8))
-        return hashBytes.joinToString("") { "%02x".format(it) }
+        val hashBytes = MessageDigest.getInstance("SHA-256").digest(token.toByteArray(Charsets.UTF_8))
+        return HexFormat.of().formatHex(hashBytes)
     }
 }

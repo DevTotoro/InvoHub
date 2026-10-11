@@ -6,6 +6,7 @@ ktlint-gradle = "14.2.0"
 kotlin-logging = "7.0.3"
 postgresql = "42.7.14"
 tsid-creator = "2.1.4"
+mockk = "1.14.11"
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
@@ -45,3 +46,4 @@ spring-boot-testcontainers = { module = "org.springframework.boot:spring-boot-te
 testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgresql" }
 kotlin-test-junit5 = { module = "org.jetbrains.kotlin:kotlin-test-junit5" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+mockk = { module = "io.mockk:mockk", version.ref = "mockk" }

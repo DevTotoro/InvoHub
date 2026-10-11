@@ -1,7 +1,9 @@
 package com.invohub.backend.infrastructure.adapter.outbound.email
 
+import com.invohub.backend.domain.auth.EmailDeliveryException
 import com.invohub.backend.domain.auth.EmailPort
 import io.github.oshai.kotlinlogging.KotlinLogging
+import org.springframework.mail.MailException
 import org.springframework.mail.SimpleMailMessage
 import org.springframework.mail.javamail.JavaMailSender
 import org.springframework.stereotype.Component
@@ -31,9 +33,9 @@ class SmtpEmailAdapter(
 
         try {
             mailSender.send(message)
-        } catch (e: Exception) {
+        } catch (e: MailException) {
             logger.error(e) { "Failed to send magic link" }
-            throw RuntimeException("Failed to send magic link email", e)
+            throw EmailDeliveryException("Failed to send magic link email", e)
         }
     }
 }
