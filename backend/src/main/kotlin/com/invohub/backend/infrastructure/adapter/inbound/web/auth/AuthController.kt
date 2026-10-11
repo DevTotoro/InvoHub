@@ -1,0 +1,68 @@
+package com.invohub.backend.infrastructure.adapter.inbound.web.auth
+
+import com.invohub.backend.domain.auth.MagicLinkService
+import jakarta.servlet.http.HttpServletRequest
+import jakarta.servlet.http.HttpServletResponse
+import jakarta.validation.Valid
+import jakarta.validation.constraints.Email
+import jakarta.validation.constraints.NotBlank
+import org.springframework.http.HttpStatus
+import org.springframework.http.ResponseEntity
+import org.springframework.security.web.csrf.CsrfToken
+import org.springframework.web.bind.annotation.*
+import org.springframework.web.server.ResponseStatusException
+
+data class MagicLinkRequestDto(
+    @field:NotBlank @field:Email val email: String,
+)
+
+data class VerifyMagicLinkRequestDto(
+    @field:NotBlank val token: String,
+)
+
+@RestController
+@RequestMapping("/auth")
+class AuthController(
+    private val magicLinkService: MagicLinkService,
+    private val sessionAuthenticator: SessionAuthenticator,
+) {
+    /** Issues the XSRF-TOKEN cookie. Call once before the first POST; the cookie is then sent back as a header. */
+    @GetMapping("/csrf")
+    fun csrfToken(token: CsrfToken): ResponseEntity<Void> {
+        // The token is deferred; reading it is what makes the repository write the cookie
+        token.token
+        return ResponseEntity.noContent().build()
+    }
+
+    @PostMapping("/request")
+    fun requestMagicLink(
+        @Valid @RequestBody request: MagicLinkRequestDto,
+    ): ResponseEntity<Map<String, String>> {
+        magicLinkService.requestToken(request.email)
+
+        // Same response whether or not a link was sent just now, so it reveals nothing about the address
+        return ResponseEntity.ok(mapOf("message" to "Check your inbox for a sign-in link."))
+    }
+
+    /**
+     * POST, not GET: email security scanners prefetch links in emails, and a GET would let them consume the
+     * single-use token before the user clicks. The link opens a frontend page that posts the token here.
+     */
+    @PostMapping("/verify")
+    fun verifyMagicLink(
+        @Valid @RequestBody request: VerifyMagicLinkRequestDto,
+        httpRequest: HttpServletRequest,
+        httpResponse: HttpServletResponse,
+    ): ResponseEntity<Void> {
+        val user =
+            magicLinkService.verifyToken(request.token)
+                ?: throw ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED,
+                    "This sign-in link is invalid or has expired.",
+                )
+
+        sessionAuthenticator.signIn(user, httpRequest, httpResponse)
+
+        return ResponseEntity.noContent().build()
+    }
+}

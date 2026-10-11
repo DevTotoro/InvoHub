@@ -1,3 +1,9 @@
 type Query {
-    greeting(name: String): String
+    "The signed-in user"
+    me: User
+}
+
+type User {
+    id: ID!
+    email: String!
 }

@@ -1,5 +1,5 @@
 name: "Setup BE"
-description: "Check out code, setup Java, and install cached dependencies"
+description: "Set up Java with cached Gradle dependencies"
 
 runs:
   using: "composite"
@@ -10,4 +10,7 @@ runs:
         java-version: "25"
         distribution: "temurin"
         cache: "gradle"
-        cache-dependency-path: backend/gradle/libs.versions.toml
+        cache-dependency-path: |
+          backend/*.gradle.kts
+          backend/gradle/libs.versions.toml
+          backend/gradle/wrapper/gradle-wrapper.properties

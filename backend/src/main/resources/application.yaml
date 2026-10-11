@@ -1,7 +1,37 @@
+# Base configuration: production-safe defaults. Connection settings have no defaults here and must be
+# provided by the environment (e.g. SPRING_DATASOURCE_URL), so a misconfigured deployment fails fast.
 spring:
   application:
     name: backend
 
+  datasource:
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+
   graphql:
-    graphiql:
-      enabled: true
+    http:
+      path: /api/graphql
+
+  session:
+    data:
+      redis:
+        namespace: invohub:session
+        # The default repository needs no CONFIG, keyspace notifications or PSUBSCRIBE, none of which
+        # ElastiCache Serverless allows; RedisUserSessions keeps track of each user's sessions instead
+        configure-action: none
+
+server:
+  servlet:
+    session:
+      # Inactivity timeout: a session ends after 2 hours without requests; each request resets it.
+      # Separately, no session outlives invohub.auth.session-max-age (7 days) however active it is.
+      timeout: 2h
+      cookie:
+        http-only: true
+        same-site: lax
+        secure: true

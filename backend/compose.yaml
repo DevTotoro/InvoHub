@@ -1,0 +1,33 @@
+name: "invohub"
+
+services:
+  postgres:
+    image: postgres:18
+    container_name: invohub_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "${DB_PORT}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+
+  redis:
+    image: redis:8
+    container_name: invohub_redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT}:6379"
+
+  mailpit:
+    image: axllent/mailpit:v1.31
+    container_name: invohub_mailpit
+    restart: unless-stopped
+    ports:
+      - "8025:8025"
+      - "${MAILPIT_SMTP_PORT}:1025"
+
+volumes:
+  postgres_data:

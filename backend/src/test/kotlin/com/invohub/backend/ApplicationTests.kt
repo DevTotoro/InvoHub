@@ -1,9 +1,9 @@
 package com.invohub.backend
 
+import com.invohub.backend.support.IntegrationTest
 import org.junit.jupiter.api.Test
-import org.springframework.boot.test.context.SpringBootTest
 
-@SpringBootTest
+@IntegrationTest
 class ApplicationTests {
     @Test
     fun contextLoads() {
