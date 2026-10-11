@@ -15,6 +15,10 @@ export default defineConfig({
       adapter: adapter()
     })
   ],
+  server: {
+    // Serve the API from the same origin in development, so the session and CSRF cookies just work
+    proxy: { '/api': 'http://localhost:8080' }
+  },
   test: {
     expect: { requireAssertions: true },
     projects: [
