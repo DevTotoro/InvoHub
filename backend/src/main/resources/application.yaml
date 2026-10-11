@@ -1,13 +1,8 @@
+# Base configuration: production-safe defaults. Connection settings have no defaults here and must be
+# provided by the environment (e.g. SPRING_DATASOURCE_URL), so a misconfigured deployment fails fast.
 spring:
   application:
     name: backend
-
-  profiles:
-    active: local
-
-  graphql:
-    graphiql:
-      enabled: true
 
   datasource:
     driver-class-name: org.postgresql.Driver
@@ -17,3 +12,7 @@ spring:
       ddl-auto: validate
   flyway:
     enabled: true
+
+  graphql:
+    http:
+      path: /api/graphql

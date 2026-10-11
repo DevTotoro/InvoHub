@@ -70,3 +70,8 @@ tasks.withType<Test> {
 
     jvmArgs("-XX:+EnableDynamicAgentLoading", "--enable-native-access=ALL-UNNAMED")
 }
+
+tasks.bootRun {
+    // bootRun is for local development; an explicitly set profile still wins
+    environment("SPRING_PROFILES_ACTIVE", System.getenv("SPRING_PROFILES_ACTIVE") ?: "local")
+}

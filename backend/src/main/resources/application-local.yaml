@@ -1,6 +1,26 @@
 spring:
+  config:
+    # Reuse the same .env file docker compose reads; defaults below match .env.example
+    import: optional:file:.env[.properties]
+
+  datasource:
+    url: jdbc:postgresql://${HOST:localhost}:${DB_PORT:5432}/${DB_NAME:postgres}
+    username: ${DB_USER:root}
+    password: ${DB_PASSWORD:root}
+  data:
+    redis:
+      host: ${HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  mail:
+    host: ${HOST:localhost}
+    port: ${MAILPIT_SMTP_PORT:1025}
+
   jpa:
     show-sql: true
     properties:
       hibernate:
         format_sql: true
+
+  graphql:
+    graphiql:
+      enabled: true
