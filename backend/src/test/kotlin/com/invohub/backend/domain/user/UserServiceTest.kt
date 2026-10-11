@@ -6,6 +6,8 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.jdbc.core.JdbcTemplate
+import java.util.concurrent.Callable
+import java.util.concurrent.Executors
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
@@ -37,6 +39,19 @@ class UserServiceTest {
         val found = userService.getOrCreateUser("JANE@example.com")
 
         assertEquals(created.id, found.id)
+        assertEquals(1, userRepository.count())
+    }
+
+    @Test
+    fun `concurrent first logins resolve to one user`() {
+        val ids =
+            Executors.newFixedThreadPool(8).use { pool ->
+                pool
+                    .invokeAll(List(8) { Callable { userService.getOrCreateUser("jane@example.com").id } })
+                    .map { it.get() }
+            }
+
+        assertEquals(1, ids.toSet().size)
         assertEquals(1, userRepository.count())
     }
 
