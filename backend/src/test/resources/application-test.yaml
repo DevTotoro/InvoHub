@@ -1,0 +1,4 @@
+spring:
+  mail:
+    # Never contacted: tests replace the email adapter, but JavaMailSender needs a host to be created
+    host: localhost
