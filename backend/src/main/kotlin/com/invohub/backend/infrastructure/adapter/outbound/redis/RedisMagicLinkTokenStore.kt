@@ -7,53 +7,40 @@ import java.time.Duration
 
 /**
  * Keys:
- * - `magic_link:cooldown:{email}`: present while a resend is not allowed
- * - `magic_link:latest:{email}`: hash of the newest token, used to invalidate it when a new one is issued
+ * - `magic_link:active:{email}`: present while a token for the email is active
  * - `magic_link:token:{hash}`: the email a token was issued for
- *
- * Replacing a token touches several keys without a transaction; that is safe because callers only
- * replace a token while holding the email's cooldown, which serializes issuance per email.
  */
 @Component
 class RedisMagicLinkTokenStore(
     private val redisTemplate: StringRedisTemplate,
 ) : MagicLinkTokenStore {
     companion object {
-        private fun cooldownKey(email: String) = "magic_link:cooldown:$email"
-
-        private fun latestKey(email: String) = "magic_link:latest:$email"
+        private fun activeKey(email: String) = "magic_link:active:$email"
 
         private fun tokenKey(tokenHash: String) = "magic_link:token:$tokenHash"
     }
 
     private val values = redisTemplate.opsForValue()
 
-    override fun tryStartCooldown(
+    override fun tryLock(
         email: String,
-        cooldown: Duration,
-    ): Boolean = values.setIfAbsent(cooldownKey(email), "1", cooldown) == true
+        duration: Duration,
+    ): Boolean = values.setIfAbsent(activeKey(email), "1", duration) == true
 
-    override fun clearCooldown(email: String) {
-        redisTemplate.delete(cooldownKey(email))
+    override fun unlock(email: String) {
+        redisTemplate.delete(activeKey(email))
     }
 
-    override fun replaceToken(
-        email: String,
+    override fun saveToken(
         tokenHash: String,
+        email: String,
         ttl: Duration,
     ) {
         values.set(tokenKey(tokenHash), email, ttl)
-        val previousHash = values.setGet(latestKey(email), tokenHash, ttl)
-        if (previousHash != null && previousHash != tokenHash) {
-            redisTemplate.delete(tokenKey(previousHash))
-        }
     }
 
-    override fun removeToken(
-        email: String,
-        tokenHash: String,
-    ) {
-        redisTemplate.delete(listOf(tokenKey(tokenHash), latestKey(email)))
+    override fun removeToken(tokenHash: String) {
+        redisTemplate.delete(tokenKey(tokenHash))
     }
 
     override fun consumeToken(tokenHash: String): String? = values.getAndDelete(tokenKey(tokenHash))

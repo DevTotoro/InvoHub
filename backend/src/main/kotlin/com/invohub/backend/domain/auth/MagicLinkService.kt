@@ -17,32 +17,31 @@ class MagicLinkService(
 ) {
     companion object {
         private val TOKEN_TTL = Duration.ofHours(1)
-        private val RESEND_COOLDOWN = Duration.ofSeconds(60)
         private const val TOKEN_BYTES = 32
 
         private val secureRandom = SecureRandom()
     }
 
     /**
-     * Issues a new magic link token and emails it, unless one was sent to this email within the resend
-     * cooldown. A new token invalidates any earlier one for the same email.
+     * Issues a new magic link token and emails it. While a token for this email is active, no new token is
+     * issued and no email is sent, so the endpoint can't be used to flood someone's inbox.
      */
     fun requestToken(email: String) {
         // Atomic, so concurrent requests can't both pass and send two links
-        if (!tokenStore.tryStartCooldown(email, RESEND_COOLDOWN)) {
+        if (!tokenStore.tryLock(email, TOKEN_TTL)) {
             return
         }
 
         val rawToken = generateToken()
         val tokenHash = hashToken(rawToken)
-        tokenStore.replaceToken(email, tokenHash, TOKEN_TTL)
+        tokenStore.saveToken(tokenHash, email, TOKEN_TTL)
 
         try {
             emailPort.sendMagicLink(email, rawToken)
         } catch (e: EmailDeliveryException) {
-            // Roll back, so the user isn't left holding a token they never received and can retry right away
-            tokenStore.removeToken(email, tokenHash)
-            tokenStore.clearCooldown(email)
+            // Nothing was sent, so release the lock rather than make the user wait out the full TTL
+            tokenStore.removeToken(tokenHash)
+            tokenStore.unlock(email)
             throw e
         }
     }
@@ -53,6 +52,8 @@ class MagicLinkService(
      */
     fun verifyToken(rawToken: String): User? {
         val email = tokenStore.consumeToken(hashToken(rawToken)) ?: return null
+        // The active token is used up, so allow requesting a new one (e.g. to sign in on another device)
+        tokenStore.unlock(email)
 
         return userService.getOrCreateUser(email)
     }

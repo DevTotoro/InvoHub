@@ -9,7 +9,6 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
 
 class MagicLinkServiceTest {
@@ -42,7 +41,7 @@ class MagicLinkServiceTest {
     }
 
     @Test
-    fun `does not send another email during the resend cooldown`() {
+    fun `does not issue another token while one is active`() {
         service.requestToken(email)
         service.requestToken(email)
 
@@ -50,15 +49,13 @@ class MagicLinkServiceTest {
     }
 
     @Test
-    fun `a new token invalidates the previous one`() {
+    fun `a new token can be requested once the active one is used`() {
         service.requestToken(email)
-        tokenStore.clearCooldown(email) // cooldown elapsed
+        service.verifyToken(sentTokens.single())
+
         service.requestToken(email)
 
-        val (first, second) = sentTokens
-        assertNotEquals(first, second)
-        assertNull(service.verifyToken(first))
-        assertEquals(email, service.verifyToken(second)?.email)
+        assertEquals(2, sentTokens.size)
     }
 
     @Test

@@ -30,25 +30,25 @@ class RedisMagicLinkTokenStoreTest {
     }
 
     @Test
-    fun `only one concurrent request can start the cooldown`() {
-        val results = concurrently(16) { store.tryStartCooldown(email, ttl) }
+    fun `only one concurrent request can take the lock`() {
+        val results = concurrently(16) { store.tryLock(email, ttl) }
 
         assertEquals(1, results.count { it })
     }
 
     @Test
-    fun `cooldown can be started again once cleared`() {
-        assertTrue(store.tryStartCooldown(email, ttl))
-        assertFalse(store.tryStartCooldown(email, ttl))
+    fun `lock can be taken again once released`() {
+        assertTrue(store.tryLock(email, ttl))
+        assertFalse(store.tryLock(email, ttl))
 
-        store.clearCooldown(email)
+        store.unlock(email)
 
-        assertTrue(store.tryStartCooldown(email, ttl))
+        assertTrue(store.tryLock(email, ttl))
     }
 
     @Test
     fun `only one concurrent request can consume a token`() {
-        store.replaceToken(email, "hash", ttl)
+        store.saveToken("hash", email, ttl)
 
         val results = concurrently(16) { store.consumeToken("hash") }
 
@@ -56,27 +56,18 @@ class RedisMagicLinkTokenStoreTest {
     }
 
     @Test
-    fun `replacing a token invalidates the previous one`() {
-        store.replaceToken(email, "old", ttl)
-        store.replaceToken(email, "new", ttl)
-
-        assertNull(store.consumeToken("old"))
-        assertEquals(email, store.consumeToken("new"))
-    }
-
-    @Test
     fun `removing a token invalidates it`() {
-        store.replaceToken(email, "hash", ttl)
+        store.saveToken("hash", email, ttl)
 
-        store.removeToken(email, "hash")
+        store.removeToken("hash")
 
         assertNull(store.consumeToken("hash"))
     }
 
     @Test
     fun `keys expire`() {
-        store.tryStartCooldown(email, ttl)
-        store.replaceToken(email, "hash", ttl)
+        store.tryLock(email, ttl)
+        store.saveToken("hash", email, ttl)
 
         redisTemplate.keys("magic_link:*").forEach { key ->
             assertTrue(redisTemplate.getExpire(key) > 0, "$key has no TTL")

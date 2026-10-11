@@ -4,34 +4,28 @@ import java.time.Duration
 
 /** Test double with the same semantics as the Redis store, minus expiry. */
 class InMemoryMagicLinkTokenStore : MagicLinkTokenStore {
-    private val cooldowns = mutableSetOf<String>()
-    private val latest = mutableMapOf<String, String>()
+    private val locked = mutableSetOf<String>()
     private val tokens = mutableMapOf<String, String>()
 
-    override fun tryStartCooldown(
+    override fun tryLock(
         email: String,
-        cooldown: Duration,
-    ) = cooldowns.add(email)
+        duration: Duration,
+    ) = locked.add(email)
 
-    override fun clearCooldown(email: String) {
-        cooldowns.remove(email)
+    override fun unlock(email: String) {
+        locked.remove(email)
     }
 
-    override fun replaceToken(
-        email: String,
+    override fun saveToken(
         tokenHash: String,
+        email: String,
         ttl: Duration,
     ) {
         tokens[tokenHash] = email
-        latest.put(email, tokenHash)?.let(tokens::remove)
     }
 
-    override fun removeToken(
-        email: String,
-        tokenHash: String,
-    ) {
+    override fun removeToken(tokenHash: String) {
         tokens.remove(tokenHash)
-        latest.remove(email)
     }
 
     override fun consumeToken(tokenHash: String) = tokens.remove(tokenHash)
