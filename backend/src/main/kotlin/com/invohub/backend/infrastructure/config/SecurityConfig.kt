@@ -1,11 +1,14 @@
 package com.invohub.backend.infrastructure.config
 
+import com.invohub.backend.domain.user.UserService
+import com.invohub.backend.infrastructure.adapter.inbound.web.auth.ActiveAccountFilter
 import com.invohub.backend.infrastructure.adapter.inbound.web.error.ProblemDetailWriter
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.http.HttpStatus
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.web.SecurityFilterChain
+import org.springframework.security.web.access.intercept.AuthorizationFilter
 import org.springframework.security.web.authentication.logout.HttpStatusReturningLogoutSuccessHandler
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository
 import org.springframework.security.web.context.SecurityContextRepository
@@ -29,6 +32,7 @@ class SecurityConfig {
         http: HttpSecurity,
         securityContextRepository: SecurityContextRepository,
         problemDetailWriter: ProblemDetailWriter,
+        userService: UserService,
     ): SecurityFilterChain =
         http
             .authorizeHttpRequests {
@@ -44,6 +48,8 @@ class SecurityConfig {
                     .authenticated()
             }.csrf { it.spa() }
             .securityContext { it.securityContextRepository(securityContextRepository) }
+            // Before authorization, so a locked or deleted user's session never reaches any endpoint
+            .addFilterBefore(ActiveAccountFilter(userService, problemDetailWriter), AuthorizationFilter::class.java)
             .exceptionHandling {
                 it
                     .authenticationEntryPoint { _, response, _ ->

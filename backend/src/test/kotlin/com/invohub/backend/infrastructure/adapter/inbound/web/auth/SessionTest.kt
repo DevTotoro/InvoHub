@@ -17,6 +17,7 @@ import org.springframework.test.web.servlet.ResultActions
 import org.springframework.test.web.servlet.ResultActionsDsl
 import org.springframework.test.web.servlet.ResultHandler
 import org.springframework.test.web.servlet.ResultMatcher
+import org.springframework.test.web.servlet.get
 import org.springframework.test.web.servlet.post
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch
 import kotlin.test.assertNotEquals
@@ -90,6 +91,53 @@ class SessionTest {
         assertNotEquals(plantedSession.value, victimSession.value)
         me(plantedSession).andExpect { status { isUnauthorized() } }
         me(victimSession).andExpect { jsonPath("$.data.me.email") { value("victim@example.com") } }
+    }
+
+    @Test
+    fun `locking a signed-in user ends their session and blocks every endpoint`() {
+        val session = sessionCookie(signIn("jane@example.com"))
+        userRepository.save(userRepository.findByEmail("jane@example.com")!!.apply { lock("chargeback") })
+
+        me(session).andExpect {
+            status { isForbidden() }
+            jsonPath("$.code") { value("account_locked") }
+        }
+        // The session is gone: even public endpoints no longer see a signed-in user
+        mockMvc.get("/api/auth/csrf") { cookie(session) }.andExpect { status { isNoContent() } }
+        me(session).andExpect { status { isUnauthorized() } }
+    }
+
+    @Test
+    fun `a locked user's session is refused on public endpoints too`() {
+        val session = sessionCookie(signIn("jane@example.com"))
+        userRepository.save(userRepository.findByEmail("jane@example.com")!!.apply { lock("chargeback") })
+
+        mockMvc.get("/api/auth/csrf") { cookie(session) }.andExpect {
+            status { isForbidden() }
+            jsonPath("$.code") { value("account_locked") }
+        }
+    }
+
+    @Test
+    fun `deleting a signed-in user ends their session`() {
+        val session = sessionCookie(signIn("jane@example.com"))
+        userRepository.deleteAll()
+
+        me(session).andExpect {
+            status { isUnauthorized() }
+            content { contentType(MediaType.APPLICATION_PROBLEM_JSON) }
+        }
+    }
+
+    @Test
+    fun `unlocking does not revive an ended session`() {
+        val session = sessionCookie(signIn("jane@example.com"))
+        val user = userRepository.save(userRepository.findByEmail("jane@example.com")!!.apply { lock("review") })
+        me(session).andExpect { status { isForbidden() } }
+
+        userRepository.save(user.apply { unlock() })
+
+        me(session).andExpect { status { isUnauthorized() } }
     }
 
     private fun signIn(
