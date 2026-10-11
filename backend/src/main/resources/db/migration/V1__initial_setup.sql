@@ -1,0 +1,13 @@
+CREATE TABLE users (
+    id BIGINT NOT NULL,
+    --
+    email VARCHAR(255) NOT NULL,
+    locked BOOLEAN NOT NULL DEFAULT FALSE,
+    lock_reason VARCHAR(255),
+    --
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    --
+    CONSTRAINT pk_users PRIMARY KEY (id),
+    CONSTRAINT uq_users_email UNIQUE (email)
+);
