@@ -31,7 +31,7 @@ class MagicLinkServiceTest {
         every { emailPort.sendMagicLink(any(), capture(sentLinks), any()) } returns Unit
         userService = mockk()
         every { userService.getOrCreateUser(any()) } answers { User(firstArg()) }
-        val properties = AuthProperties(URI("https://app.example.com"), Duration.ofHours(1))
+        val properties = AuthProperties(URI("https://app.example.com"), Duration.ofHours(1), Duration.ofDays(7))
         service = MagicLinkService(tokenStore, emailPort, userService, properties)
     }
 

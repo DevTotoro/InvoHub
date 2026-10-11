@@ -99,8 +99,7 @@ class SessionCookieTest {
                 }.substringAfter("=")
                 .substringBefore(";")
         val sessionId = String(Base64.getDecoder().decode(cookieValue))
-        // The indexed repository keeps the session data a few minutes past expiry; this key carries the expiry itself
-        val ttl = redisTemplate.getExpire("invohub:session:sessions:expires:$sessionId", TimeUnit.SECONDS)
+        val ttl = redisTemplate.getExpire("invohub:session:sessions:$sessionId", TimeUnit.SECONDS)
 
         assertTrue(ttl in Duration.ofHours(23).seconds..Duration.ofDays(1).seconds, "session TTL was ${ttl}s")
     }

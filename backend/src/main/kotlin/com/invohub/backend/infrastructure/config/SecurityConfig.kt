@@ -1,5 +1,7 @@
 package com.invohub.backend.infrastructure.config
 
+import com.invohub.backend.domain.auth.AuthProperties
+import com.invohub.backend.infrastructure.adapter.inbound.web.auth.SessionMaxAgeFilter
 import com.invohub.backend.infrastructure.adapter.inbound.web.error.ProblemDetailWriter
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -8,6 +10,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.logout.HttpStatusReturningLogoutSuccessHandler
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository
+import org.springframework.security.web.context.SecurityContextHolderFilter
 import org.springframework.security.web.context.SecurityContextRepository
 import org.springframework.security.web.csrf.CsrfException
 import org.springframework.security.web.savedrequest.NullRequestCache
@@ -29,6 +32,7 @@ class SecurityConfig {
         http: HttpSecurity,
         securityContextRepository: SecurityContextRepository,
         problemDetailWriter: ProblemDetailWriter,
+        authProperties: AuthProperties,
     ): SecurityFilterChain =
         http
             .authorizeHttpRequests {
@@ -44,6 +48,8 @@ class SecurityConfig {
                     .authenticated()
             }.csrf { it.spa() }
             .securityContext { it.securityContextRepository(securityContextRepository) }
+            // Before the security context is loaded, so an expired session is never seen as signed in
+            .addFilterBefore(SessionMaxAgeFilter(authProperties.sessionMaxAge), SecurityContextHolderFilter::class.java)
             .exceptionHandling {
                 it
                     .authenticationEntryPoint { _, response, _ ->

@@ -7,7 +7,7 @@ import java.io.Serializable
  * The principal stored in the session. Sessions live in Redis with Java serialization, so keep this small
  * and bump serialVersionUID when its shape changes (existing sessions then fail to load and users sign in again).
  *
- * Its name is the user ID: Spring Session indexes sessions by it, which is how [UserSessions] finds them.
+ * Its name (Spring Security's authentication name, e.g. in logs) is the user ID.
  */
 data class AuthenticatedUser(
     val userId: Long,

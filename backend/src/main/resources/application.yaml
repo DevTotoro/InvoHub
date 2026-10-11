@@ -21,10 +21,9 @@ spring:
     data:
       redis:
         namespace: invohub:session
-        # Indexes sessions by user, so locking an account can end all of them (UserService.lockUser).
-        # On startup it enables Redis keyspace notifications with CONFIG SET; managed Redis that blocks
-        # CONFIG needs configure-action: none and notifications turned on in the provider instead.
-        repository-type: indexed
+        # The default repository needs no CONFIG, keyspace notifications or PSUBSCRIBE, none of which
+        # ElastiCache Serverless allows; RedisUserSessions keeps track of each user's sessions instead
+        configure-action: none
 
 server:
   servlet:
