@@ -2,18 +2,24 @@
   import { requestMagicLink } from '#lib/api/auth.ts';
   import { ApiError } from '#lib/api/client.ts';
   import { rememberRedirect } from '#lib/auth/redirect.ts';
+  import Button from '#lib/components/ui/Button.svelte';
+  import Input from '#lib/components/ui/Input.svelte';
   import type { PageProps } from './$types';
 
   let { data }: PageProps = $props();
 
   let email = $state('');
   let status: 'idle' | 'sending' | 'sent' = $state('idle');
-  let errorMessage: string | undefined = $state();
+  /** A problem with the email itself, shown on the field */
+  let emailError: string | undefined = $state();
+  /** Anything else, e.g. the API being unreachable */
+  let formError: string | undefined = $state();
 
   async function submit(event: SubmitEvent) {
     event.preventDefault();
     status = 'sending';
-    errorMessage = undefined;
+    emailError = undefined;
+    formError = undefined;
 
     try {
       // The link opens in a new tab, so remember where to go once it is used
@@ -23,9 +29,9 @@
     } catch (e) {
       status = 'idle';
       if (e instanceof ApiError && e.status === 400) {
-        errorMessage = 'Enter a valid email address.';
+        emailError = 'Enter a valid email address.';
       } else {
-        errorMessage = e instanceof ApiError ? e.message : 'Something went wrong. Please try again.';
+        formError = e instanceof ApiError ? e.message : 'Something went wrong. Please try again.';
       }
     }
   }
@@ -43,13 +49,7 @@
   <p class="mt-4 text-sm text-gray-600">
     Asked for one recently? That link still works, so look for it first, and check your spam folder.
   </p>
-  <button
-    type="button"
-    class="mt-6 text-sm font-medium text-indigo-600 hover:text-indigo-500"
-    onclick={() => (status = 'idle')}
-  >
-    Use a different email
-  </button>
+  <Button variant="link" class="mt-6" onclick={() => (status = 'idle')}>Use a different email</Button>
 {:else}
   <h2 class="text-xl font-semibold">Sign in to InvoHub</h2>
   <p class="mt-2 text-sm text-gray-600">
@@ -57,28 +57,22 @@
   </p>
 
   <form class="mt-6 space-y-4" onsubmit={submit}>
-    <label class="block">
-      <span class="text-sm font-medium">Email</span>
-      <input
-        type="email"
-        name="email"
-        required
-        autocomplete="email"
-        bind:value={email}
-        class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none"
-      />
-    </label>
+    <Input
+      label="Email"
+      type="email"
+      name="email"
+      required
+      autocomplete="email"
+      bind:value={email}
+      error={emailError}
+    />
 
-    {#if errorMessage}
-      <p class="text-sm text-red-600" role="alert">{errorMessage}</p>
+    {#if formError}
+      <p class="text-sm text-red-600" role="alert">{formError}</p>
     {/if}
 
-    <button
-      type="submit"
-      disabled={status === 'sending'}
-      class="w-full rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white hover:bg-indigo-500 disabled:opacity-60"
-    >
+    <Button type="submit" fullWidth loading={status === 'sending'}>
       {status === 'sending' ? 'Sending…' : 'Email me a sign-in link'}
-    </button>
+    </Button>
   </form>
 {/if}

@@ -6,6 +6,7 @@
   import { verifyMagicLink } from '#lib/api/auth.ts';
   import { ApiError } from '#lib/api/client.ts';
   import { consumeRedirect } from '#lib/auth/redirect.ts';
+  import Link from '#lib/components/ui/Link.svelte';
 
   type Status = 'verifying' | 'invalid' | 'locked' | 'error';
 
@@ -52,12 +53,7 @@
 {:else if status === 'invalid'}
   <h2 class="text-xl font-semibold">This sign-in link is invalid or has expired</h2>
   <p class="mt-2 text-sm text-gray-600">Links work once and expire after a while. Request a new one to sign in.</p>
-  <a
-    href={resolve('/(auth)/login')}
-    class="mt-6 inline-block text-sm font-medium text-indigo-600 hover:text-indigo-500"
-  >
-    Request a new link
-  </a>
+  <Link href={resolve('/(auth)/login')} class="mt-6">Request a new link</Link>
 {:else if status === 'locked'}
   <h2 class="text-xl font-semibold">This account is locked</h2>
   <p class="mt-2 text-sm text-gray-600">Please contact support.</p>

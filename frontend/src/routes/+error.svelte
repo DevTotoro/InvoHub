@@ -1,6 +1,7 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
+  import Link from '#lib/components/ui/Link.svelte';
 
   const notFound = $derived(page.status === 404);
 </script>
@@ -14,7 +15,5 @@
   <p class="mt-2 text-gray-600">
     {notFound ? "The page you're looking for doesn't exist." : page.error?.message}
   </p>
-  <a href={resolve('/(app)')} class="mt-6 inline-block text-sm font-medium text-indigo-600 hover:text-indigo-500">
-    Go to InvoHub
-  </a>
+  <Link href={resolve('/(app)')} class="mt-6">Go to InvoHub</Link>
 </main>
