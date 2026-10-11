@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.data.redis.core.StringRedisTemplate
 import org.springframework.http.MediaType
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.get
 import org.springframework.test.web.servlet.post
@@ -85,6 +86,7 @@ class AuthControllerTest {
     fun `an invalid email is rejected with the offending field`() {
         mockMvc
             .post("/api/auth/request") {
+                with(csrf())
                 contentType = MediaType.APPLICATION_JSON
                 content = """{"email": "not-an-email"}"""
             }.andExpect {
@@ -100,6 +102,7 @@ class AuthControllerTest {
     fun `malformed JSON is rejected`() {
         mockMvc
             .post("/api/auth/request") {
+                with(csrf())
                 contentType = MediaType.APPLICATION_JSON
                 content = "{"
             }.andExpect {
@@ -114,6 +117,7 @@ class AuthControllerTest {
 
         mockMvc
             .post("/api/auth/request") {
+                with(csrf())
                 contentType = MediaType.APPLICATION_JSON
                 content = """{"email": "jane@example.com"}"""
             }.andExpect {
@@ -126,12 +130,14 @@ class AuthControllerTest {
     private fun requestLink(email: String) =
         mockMvc
             .post("/api/auth/request") {
+                with(csrf())
                 contentType = MediaType.APPLICATION_JSON
                 content = """{"email": "$email"}"""
             }.andExpect { status { isOk() } }
 
     private fun verify(token: String) =
         mockMvc.post("/api/auth/verify") {
+            with(csrf())
             contentType = MediaType.APPLICATION_JSON
             content = """{"token": "$token"}"""
         }

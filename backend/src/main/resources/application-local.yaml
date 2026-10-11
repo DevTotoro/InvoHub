@@ -28,3 +28,10 @@ spring:
 invohub:
   auth:
     frontend-url: http://localhost:5173
+
+server:
+  servlet:
+    session:
+      cookie:
+        # Local development runs on plain http
+        secure: false

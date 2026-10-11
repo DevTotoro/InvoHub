@@ -16,3 +16,16 @@ spring:
   graphql:
     http:
       path: /api/graphql
+
+  session:
+    redis:
+      namespace: invohub:session
+
+server:
+  servlet:
+    session:
+      timeout: 7d
+      cookie:
+        http-only: true
+        same-site: lax
+        secure: true

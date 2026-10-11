@@ -1,11 +1,14 @@
 package com.invohub.backend.infrastructure.adapter.inbound.web.auth
 
 import com.invohub.backend.domain.auth.MagicLinkService
+import jakarta.servlet.http.HttpServletRequest
+import jakarta.servlet.http.HttpServletResponse
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Email
 import jakarta.validation.constraints.NotBlank
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.security.web.csrf.CsrfToken
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.server.ResponseStatusException
 
@@ -21,7 +24,16 @@ data class VerifyMagicLinkRequestDto(
 @RequestMapping("/auth")
 class AuthController(
     private val magicLinkService: MagicLinkService,
+    private val sessionAuthenticator: SessionAuthenticator,
 ) {
+    /** Issues the XSRF-TOKEN cookie. Call once before the first POST; the cookie is then sent back as a header. */
+    @GetMapping("/csrf")
+    fun csrfToken(token: CsrfToken): ResponseEntity<Void> {
+        // The token is deferred; reading it is what makes the repository write the cookie
+        token.token
+        return ResponseEntity.noContent().build()
+    }
+
     @PostMapping("/request")
     fun requestMagicLink(
         @Valid @RequestBody request: MagicLinkRequestDto,
@@ -39,6 +51,8 @@ class AuthController(
     @PostMapping("/verify")
     fun verifyMagicLink(
         @Valid @RequestBody request: VerifyMagicLinkRequestDto,
+        httpRequest: HttpServletRequest,
+        httpResponse: HttpServletResponse,
     ): ResponseEntity<Void> {
         val user =
             magicLinkService.verifyToken(request.token)
@@ -47,7 +61,7 @@ class AuthController(
                     "This sign-in link is invalid or has expired.",
                 )
 
-        // TODO: Establish session / set secure HTTP-only cookie for the authenticated `user`
+        sessionAuthenticator.signIn(user, httpRequest, httpResponse)
 
         return ResponseEntity.noContent().build()
     }

@@ -32,6 +32,8 @@ dependencies {
     implementation(libs.spring.boot.starter.flyway)
     implementation(libs.spring.boot.starter.mail)
     implementation(libs.spring.boot.starter.data.redis)
+    implementation(libs.spring.boot.starter.security)
+    implementation(libs.spring.boot.starter.session.data.redis)
 
     // Database
     implementation(libs.flyway.database.postgresql)
@@ -50,6 +52,7 @@ dependencies {
     // Test
     testImplementation(libs.spring.boot.starter.test)
     testImplementation(libs.spring.boot.starter.webmvc.test)
+    testImplementation(libs.spring.boot.starter.security.test)
     testImplementation(libs.spring.boot.testcontainers)
     testImplementation(libs.testcontainers.postgresql)
     testImplementation(libs.kotlin.test.junit5)

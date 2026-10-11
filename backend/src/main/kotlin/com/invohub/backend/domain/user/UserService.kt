@@ -7,6 +7,8 @@ import org.springframework.stereotype.Service
 class UserService(
     private val userRepository: UserRepository,
 ) {
+    fun findById(id: Long): User? = userRepository.findById(id).orElse(null)
+
     /**
      * Not @Transactional on purpose: the insert must run in its own transaction, so that losing a race
      * to a concurrent insert leaves nothing rolled back and the existing user can be read instead.
