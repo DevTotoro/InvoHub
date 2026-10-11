@@ -1,5 +1,9 @@
 package com.invohub.backend.domain.auth
 
+import com.invohub.backend.domain.audit.AuditAction
+import com.invohub.backend.domain.audit.AuditEvent
+import com.invohub.backend.domain.audit.AuditLog
+import com.invohub.backend.domain.audit.AuditTarget
 import com.invohub.backend.domain.user.User
 import com.invohub.backend.domain.user.UserService
 import com.invohub.backend.domain.user.normalizeEmail
@@ -17,6 +21,7 @@ class MagicLinkService(
     private val emailPort: EmailPort,
     private val userService: UserService,
     private val properties: AuthProperties,
+    private val auditLog: AuditLog,
 ) {
     companion object {
         private const val TOKEN_BYTES = 32
@@ -62,8 +67,20 @@ class MagicLinkService(
 
         val user = userService.getOrCreateUser(email)
         if (user.suspended) {
+            auditLog.recordStandalone(
+                AuditEvent(
+                    AuditAction.USER_SIGN_IN_REFUSED,
+                    actorUserId = user.id,
+                    target = AuditTarget.user(user.id),
+                    details = mapOf("reason" to "suspended"),
+                ),
+            )
             throw AccountSuspendedException()
         }
+
+        auditLog.recordStandalone(
+            AuditEvent(AuditAction.USER_SIGNED_IN, actorUserId = user.id, target = AuditTarget.user(user.id)),
+        )
         return user
     }
 

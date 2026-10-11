@@ -1,5 +1,7 @@
 package com.invohub.backend.domain.auth
 
+import com.invohub.backend.domain.audit.AuditAction
+import com.invohub.backend.domain.audit.AuditLog
 import com.invohub.backend.domain.user.User
 import com.invohub.backend.domain.user.UserService
 import io.mockk.every
@@ -19,6 +21,7 @@ class MagicLinkServiceTest {
     private lateinit var tokenStore: InMemoryMagicLinkTokenStore
     private lateinit var emailPort: EmailPort
     private lateinit var userService: UserService
+    private lateinit var auditLog: AuditLog
     private lateinit var service: MagicLinkService
 
     private val sentLinks = mutableListOf<URI>()
@@ -31,8 +34,9 @@ class MagicLinkServiceTest {
         every { emailPort.sendMagicLink(any(), capture(sentLinks), any()) } returns Unit
         userService = mockk()
         every { userService.getOrCreateUser(any()) } answers { User(firstArg()) }
+        auditLog = mockk(relaxed = true)
         val properties = AuthProperties(URI("https://app.example.com"), Duration.ofHours(1), Duration.ofDays(7))
-        service = MagicLinkService(tokenStore, emailPort, userService, properties)
+        service = MagicLinkService(tokenStore, emailPort, userService, properties, auditLog)
     }
 
     @Test
@@ -90,11 +94,34 @@ class MagicLinkServiceTest {
     }
 
     @Test
-    fun `a suspended user cannot sign in`() {
+    fun `a suspended user cannot sign in, and the refusal is recorded`() {
         every { userService.getOrCreateUser(email) } returns User(email).apply { suspend("chargeback") }
         service.requestToken(email)
 
         assertFailsWith<AccountSuspendedException> { service.verifyToken(sentTokens.single()) }
+
+        verify { auditLog.recordStandalone(match { it.action == AuditAction.USER_SIGN_IN_REFUSED }) }
+        verify(exactly = 0) { auditLog.recordStandalone(match { it.action == AuditAction.USER_SIGNED_IN }) }
+    }
+
+    @Test
+    fun `a sign-in is recorded`() {
+        service.requestToken(email)
+
+        val user = service.verifyToken(sentTokens.single())!!
+
+        verify {
+            auditLog.recordStandalone(
+                match { it.action == AuditAction.USER_SIGNED_IN && it.actorUserId == user.id },
+            )
+        }
+    }
+
+    @Test
+    fun `an unusable link records nothing`() {
+        service.verifyToken("not-a-real-token")
+
+        verify(exactly = 0) { auditLog.recordStandalone(any()) }
     }
 
     @Test

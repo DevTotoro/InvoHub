@@ -1,6 +1,8 @@
 package com.invohub.backend.infrastructure.config
 
+import com.invohub.backend.domain.audit.AuditLog
 import com.invohub.backend.domain.auth.AuthProperties
+import com.invohub.backend.infrastructure.adapter.inbound.web.auth.AuditingLogoutHandler
 import com.invohub.backend.infrastructure.adapter.inbound.web.auth.SessionMaxAgeFilter
 import com.invohub.backend.infrastructure.adapter.inbound.web.error.ProblemDetailWriter
 import org.springframework.context.annotation.Bean
@@ -33,6 +35,7 @@ class SecurityConfig {
         securityContextRepository: SecurityContextRepository,
         problemDetailWriter: ProblemDetailWriter,
         authProperties: AuthProperties,
+        auditLog: AuditLog,
     ): SecurityFilterChain =
         http
             .authorizeHttpRequests {
@@ -65,6 +68,7 @@ class SecurityConfig {
             .logout {
                 it
                     .logoutUrl("/api/auth/logout")
+                    .addLogoutHandler(AuditingLogoutHandler(auditLog))
                     .logoutSuccessHandler(HttpStatusReturningLogoutSuccessHandler(HttpStatus.NO_CONTENT))
             }.formLogin { it.disable() }
             .httpBasic { it.disable() }
