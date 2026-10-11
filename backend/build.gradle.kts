@@ -5,7 +5,7 @@ plugins {
     alias(libs.plugins.spring.boot)
     alias(libs.plugins.spring.dependency.management)
     alias(libs.plugins.ktlint)
-    kotlin("kapt") version "2.3.21"
+    alias(libs.plugins.kotlin.kapt)
 }
 
 group = "com.invohub"
@@ -24,8 +24,7 @@ repositories {
 
 dependencies {
     // Spring Core
-    implementation(libs.spring.boot.starter)
-    implementation(libs.spring.boot.starter.web)
+    implementation(libs.spring.boot.starter.webmvc)
     implementation(libs.spring.boot.starter.graphql)
     implementation(libs.spring.boot.starter.validation)
     implementation(libs.spring.boot.starter.data.jpa)
@@ -33,7 +32,7 @@ dependencies {
     implementation(libs.spring.boot.starter.mail)
     implementation(libs.spring.boot.starter.data.redis)
 
-    // Database=
+    // Database
     implementation(libs.flyway.database.postgresql)
     runtimeOnly(libs.postgresql)
 
@@ -45,13 +44,12 @@ dependencies {
 
     // Development Profiling tools
     developmentOnly(libs.spring.boot.devtools)
-    annotationProcessor(libs.spring.boot.configuration.processor)
+    kapt(libs.spring.boot.configuration.processor)
 
     // Test
     testImplementation(libs.spring.boot.starter.test)
     testImplementation(libs.kotlin.test.junit5)
     testRuntimeOnly(libs.junit.platform.launcher)
-    testImplementation(kotlin("test"))
 }
 
 kotlin {
