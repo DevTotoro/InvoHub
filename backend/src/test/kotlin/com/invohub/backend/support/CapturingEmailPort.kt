@@ -27,13 +27,21 @@ class CapturingEmailPort : EmailPort {
 
     val sent = CopyOnWriteArrayList<SentMagicLink>()
 
+    /** When set, sending fails with this exception instead of recording the link. */
+    @Volatile
+    var failure: Exception? = null
+
     override fun sendMagicLink(
         email: String,
         link: URI,
         validFor: Duration,
     ) {
+        failure?.let { throw it }
         sent += SentMagicLink(email, link)
     }
 
-    fun clear() = sent.clear()
+    fun clear() {
+        sent.clear()
+        failure = null
+    }
 }

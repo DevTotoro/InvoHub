@@ -1,7 +1,9 @@
 package com.invohub.backend.infrastructure.adapter.inbound.web.auth
 
+import com.invohub.backend.domain.auth.EmailDeliveryException
 import com.invohub.backend.support.CapturingEmailPort
 import com.invohub.backend.support.IntegrationTest
+import org.hamcrest.Matchers.containsString
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -41,8 +43,13 @@ class AuthControllerTest {
     }
 
     @Test
-    fun `an unknown token is rejected`() {
-        verify("not-a-real-token").andExpect { status { isUnauthorized() } }
+    fun `an unknown token is rejected with a problem detail`() {
+        verify("not-a-real-token").andExpect {
+            status { isUnauthorized() }
+            content { contentType(MediaType.APPLICATION_PROBLEM_JSON) }
+            jsonPath("$.detail") { value("This sign-in link is invalid or has expired.") }
+            jsonPath("$.requestId") { isNotEmpty() }
+        }
     }
 
     @Test
@@ -56,14 +63,45 @@ class AuthControllerTest {
     }
 
     @Test
-    fun `an invalid email is rejected`() {
+    fun `an invalid email is rejected with the offending field`() {
         mockMvc
             .post("/api/auth/request") {
                 contentType = MediaType.APPLICATION_JSON
                 content = """{"email": "not-an-email"}"""
-            }.andExpect { status { isBadRequest() } }
+            }.andExpect {
+                status { isBadRequest() }
+                content { contentType(MediaType.APPLICATION_PROBLEM_JSON) }
+                jsonPath("$.errors[0].field") { value("email") }
+            }
 
         assertEquals(0, emailPort.sent.size)
+    }
+
+    @Test
+    fun `malformed JSON is rejected`() {
+        mockMvc
+            .post("/api/auth/request") {
+                contentType = MediaType.APPLICATION_JSON
+                content = "{"
+            }.andExpect {
+                status { isBadRequest() }
+                content { contentType(MediaType.APPLICATION_PROBLEM_JSON) }
+            }
+    }
+
+    @Test
+    fun `an email delivery failure is reported as 503`() {
+        emailPort.failure = EmailDeliveryException("SMTP down")
+
+        mockMvc
+            .post("/api/auth/request") {
+                contentType = MediaType.APPLICATION_JSON
+                content = """{"email": "jane@example.com"}"""
+            }.andExpect {
+                status { isServiceUnavailable() }
+                content { contentType(MediaType.APPLICATION_PROBLEM_JSON) }
+                jsonPath("$.detail") { value(containsString("try again")) }
+            }
     }
 
     private fun requestLink(email: String) =

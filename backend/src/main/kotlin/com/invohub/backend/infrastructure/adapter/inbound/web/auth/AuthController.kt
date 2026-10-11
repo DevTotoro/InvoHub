@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotBlank
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
+import org.springframework.web.server.ResponseStatusException
 
 data class MagicLinkRequestDto(
     @field:NotBlank @field:Email val email: String,
@@ -41,7 +42,10 @@ class AuthController(
     ): ResponseEntity<Void> {
         val user =
             magicLinkService.verifyToken(request.token)
-                ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
+                ?: throw ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED,
+                    "This sign-in link is invalid or has expired.",
+                )
 
         // TODO: Establish session / set secure HTTP-only cookie for the authenticated `user`
 

@@ -17,7 +17,7 @@ import java.util.UUID
 class RequestIdFilter : Filter {
     companion object {
         private const val REQUEST_ID_HEADER = "X-Request-ID"
-        private const val MDC_KEY = "requestId"
+        const val MDC_KEY = "requestId"
     }
 
     override fun doFilter(
