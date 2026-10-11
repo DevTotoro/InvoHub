@@ -3,7 +3,8 @@
   import { goto, replaceState } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
-  import { postJson } from '#lib/api.ts';
+  import { verifyMagicLink } from '#lib/api/auth.ts';
+  import { ApiError } from '#lib/api/client.ts';
 
   type Status = 'verifying' | 'invalid' | 'locked' | 'error';
 
@@ -22,18 +23,16 @@
     }
 
     try {
-      const response = await postJson('/api/auth/verify', { token });
-      if (response.ok) {
-        await goto(resolve('/'), { replaceState: true });
-      } else if (response.status === 401) {
+      await verifyMagicLink(token);
+      await goto(resolve('/'), { replaceState: true });
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) {
         status = 'invalid';
-      } else if (response.status === 403 && (await response.json()).detail === 'This account is locked.') {
+      } else if (e instanceof ApiError && e.code === 'account_locked') {
         status = 'locked';
       } else {
         status = 'error';
       }
-    } catch {
-      status = 'error';
     }
   });
 </script>
