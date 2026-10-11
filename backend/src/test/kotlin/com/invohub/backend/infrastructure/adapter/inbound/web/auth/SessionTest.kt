@@ -97,31 +97,31 @@ class SessionTest {
     }
 
     @Test
-    fun `locking a user ends all their sessions`() {
+    fun `suspending a user ends all their sessions`() {
         val laptop = sessionCookie(signIn("jane@example.com"))
         val phone = sessionCookie(signIn("jane@example.com"))
 
-        userService.lockUser(userRepository.findByEmail("jane@example.com")!!.id, "chargeback")
+        userService.suspendUser(userRepository.findByEmail("jane@example.com")!!.id, "chargeback")
 
         me(laptop).andExpect { status { isUnauthorized() } }
         me(phone).andExpect { status { isUnauthorized() } }
     }
 
     @Test
-    fun `locking a user leaves other users signed in`() {
+    fun `suspending a user leaves other users signed in`() {
         val jane = sessionCookie(signIn("jane@example.com"))
         val john = sessionCookie(signIn("john@example.com"))
 
-        userService.lockUser(userRepository.findByEmail("jane@example.com")!!.id, "chargeback")
+        userService.suspendUser(userRepository.findByEmail("jane@example.com")!!.id, "chargeback")
 
         me(jane).andExpect { status { isUnauthorized() } }
         me(john).andExpect { jsonPath("$.data.me.email") { value("john@example.com") } }
     }
 
     @Test
-    fun `a locked user cannot sign back in`() {
+    fun `a suspended user cannot sign back in`() {
         signIn("jane@example.com")
-        userService.lockUser(userRepository.findByEmail("jane@example.com")!!.id, "chargeback")
+        userService.suspendUser(userRepository.findByEmail("jane@example.com")!!.id, "chargeback")
 
         mockMvc
             .post("/api/auth/request") {
@@ -136,7 +136,7 @@ class SessionTest {
                 content = """{"token": "${emailPort.sent.last().rawToken}"}"""
             }.andExpect {
                 status { isForbidden() }
-                jsonPath("$.code") { value("account_locked") }
+                jsonPath("$.code") { value("account_suspended") }
             }
     }
 

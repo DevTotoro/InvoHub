@@ -26,13 +26,13 @@ test('an invalid or expired link says so', async ({ page, baseURL }) => {
   await expect(page.getByRole('link', { name: 'Request a new link' })).toHaveAttribute('href', '/login');
 });
 
-test('a locked account says so', async ({ page, baseURL }) => {
-  await mockApi(page, baseURL!, { verify: 'locked' });
+test('a suspended account says so', async ({ page, baseURL }) => {
+  await mockApi(page, baseURL!, { verify: 'suspended' });
 
   await page.goto('/auth/verify?token=abc');
   await page.getByRole('button', { name: 'Continue' }).click();
 
-  await expect(page.getByRole('heading', { level: 2 })).toHaveText('This account is locked');
+  await expect(page.getByRole('heading', { level: 2 })).toHaveText('This account is suspended');
 });
 
 test('opening the link does not sign in until the user continues', async ({ page, baseURL }) => {

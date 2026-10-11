@@ -17,22 +17,25 @@ class User(
     var email: String = normalizeEmail(email)
         protected set
 
-    @Column(name = "locked", nullable = false)
-    var locked: Boolean = false
+    @Column(name = "suspended", nullable = false)
+    var suspended: Boolean = false
         protected set
 
-    @Column(name = "lock_reason", nullable = true)
-    var lockReason: String? = null
+    @Column(name = "suspension_reason", nullable = true)
+    var suspensionReason: String? = null
         protected set
 
-    /** Prevents the user from signing in. [reason] is an internal note and is never shown to the user. */
-    fun lock(reason: String) {
-        locked = true
-        lockReason = reason
+    /**
+     * Stops the user from signing in, in every company. An InvoHub staff action (fraud, abuse, a stolen
+     * account), not something companies do. [reason] is an internal note and is never shown to the user.
+     */
+    fun suspend(reason: String) {
+        suspended = true
+        suspensionReason = reason
     }
 
-    fun unlock() {
-        locked = false
-        lockReason = null
+    fun unsuspend() {
+        suspended = false
+        suspensionReason = null
     }
 }

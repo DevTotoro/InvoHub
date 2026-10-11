@@ -3,7 +3,7 @@ export interface ProblemDetail {
   status: number;
   title?: string;
   detail?: string;
-  /** Stable identifier for problems clients need to tell apart, e.g. `account_locked` */
+  /** Stable identifier for problems clients need to tell apart, e.g. `account_suspended` */
   code?: string;
   /** Identifies the request in the backend logs */
   requestId?: string;

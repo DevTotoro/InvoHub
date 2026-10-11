@@ -8,7 +8,7 @@
 
   let { children }: LayoutProps = $props();
 
-  // If any API call finds the session gone (expired, signed out elsewhere, account locked), leave the app
+  // If any API call finds the session gone (expired, signed out elsewhere, user suspended), leave the app
   // right away rather than leaving stale data on screen. Registered only while an (app) page is shown.
   onMount(() =>
     onSessionLost(() => {

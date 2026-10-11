@@ -13,7 +13,7 @@ export async function requestMagicLink(email: string): Promise<void> {
 
 /**
  * Exchanges the token from a magic link for a session.
- * @throws ApiError 401 if the link is invalid or expired, 403 with code `account_locked` if the account is locked
+ * @throws ApiError 401 if the link is invalid or expired, 403 with code `account_suspended` if the user is suspended
  */
 export async function verifyMagicLink(token: string): Promise<void> {
   await request('/api/auth/verify', { method: 'POST', json: { token } });

@@ -9,7 +9,7 @@
   import Button from '#lib/components/ui/Button.svelte';
   import Link from '#lib/components/ui/Link.svelte';
 
-  type Status = 'ready' | 'verifying' | 'invalid' | 'locked' | 'error';
+  type Status = 'ready' | 'verifying' | 'invalid' | 'suspended' | 'error';
 
   // Read once: the address bar is cleared right away, but the token stays here until the user continues
   const token = page.url.searchParams.get('token');
@@ -30,8 +30,8 @@
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) {
         status = 'invalid';
-      } else if (e instanceof ApiError && e.code === 'account_locked') {
-        status = 'locked';
+      } else if (e instanceof ApiError && e.code === 'account_suspended') {
+        status = 'suspended';
       } else {
         status = 'error';
       }
@@ -59,8 +59,8 @@
   <h2 class="text-xl font-semibold">This sign-in link is invalid or has expired</h2>
   <p class="mt-2 text-sm text-gray-600">Links work once and expire after a while. Request a new one to sign in.</p>
   <Link href={resolve('/(auth)/login')} class="mt-6">Request a new link</Link>
-{:else if status === 'locked'}
-  <h2 class="text-xl font-semibold">This account is locked</h2>
+{:else if status === 'suspended'}
+  <h2 class="text-xl font-semibold">This account is suspended</h2>
   <p class="mt-2 text-sm text-gray-600">Please contact support.</p>
 {:else}
   <h2 class="text-xl font-semibold">Something went wrong</h2>
