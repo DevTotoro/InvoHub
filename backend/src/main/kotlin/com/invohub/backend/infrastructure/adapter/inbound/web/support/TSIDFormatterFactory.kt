@@ -6,7 +6,9 @@ import org.springframework.format.Parser
 import org.springframework.format.Printer
 
 class TSIDFormatterFactory : AnnotationFormatterFactory<TSIDParam> {
-    override fun getFieldTypes(): Set<Class<*>> = setOf(Long::class.java)
+    // Boxed on purpose: Long::class.java is the primitive long, and the conversion service looks converters
+    // up by the boxed type, so registering the primitive would never match any parameter
+    override fun getFieldTypes(): Set<Class<*>> = setOf(Long::class.javaObjectType)
 
     override fun getPrinter(
         annotation: TSIDParam,
