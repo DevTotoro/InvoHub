@@ -23,12 +23,12 @@ test('signed-in users see the home page and can sign out', async ({ page, baseUR
   await expect(page.getByRole('button', { name: 'Sign out' })).toHaveCount(0);
 });
 
-test('a user locked while signed in is signed out', async ({ page, baseURL }) => {
+test('a user suspended while signed in is signed out', async ({ page, baseURL }) => {
   const api = await mockApi(page, baseURL!, { user: TEST_USER });
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 2 })).toHaveText(`Welcome, ${TEST_USER.email}`);
 
-  api.lock();
+  api.suspend();
   await page.reload();
 
   await expect(page).toHaveURL('/login?redirectTo=%2F');

@@ -19,7 +19,7 @@ let sessionLostHandler: (() => void) | undefined;
 
 /**
  * Registers what to do when any API call finds the session gone (401): it expired, the user signed out
- * elsewhere, or the account was locked, which ends all its sessions. Only one handler is active at a time.
+ * elsewhere, or the user was suspended, which ends all their sessions. Only one handler is active at a time.
  * Returns a function that removes it.
  */
 export function onSessionLost(handler: () => void): () => void {

@@ -1,6 +1,6 @@
 package com.invohub.backend.infrastructure.adapter.inbound.web.error
 
-import com.invohub.backend.domain.auth.AccountLockedException
+import com.invohub.backend.domain.auth.AccountSuspendedException
 import com.invohub.backend.domain.auth.EmailDeliveryException
 import com.invohub.backend.infrastructure.adapter.inbound.web.filter.RequestIdFilter
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -38,13 +38,13 @@ class ApiExceptionHandler : ResponseEntityExceptionHandler() {
             request,
         )
 
-    // lockReason is deliberately not exposed: it is an internal note, not a message for the user
-    @ExceptionHandler(AccountLockedException::class)
-    fun handleAccountLocked(
-        e: AccountLockedException,
+    // suspensionReason is deliberately not exposed: it is an internal note, not a message for the user
+    @ExceptionHandler(AccountSuspendedException::class)
+    fun handleAccountSuspended(
+        e: AccountSuspendedException,
         request: WebRequest,
     ): ResponseEntity<Any>? =
-        problem(e, HttpStatus.FORBIDDEN, "This account is locked.", request, code = "account_locked")
+        problem(e, HttpStatus.FORBIDDEN, "This account is suspended.", request, code = "account_suspended")
 
     // Raised when a save is based on a stale version of the row (see BaseEntity.version)
     @ExceptionHandler(OptimisticLockingFailureException::class)

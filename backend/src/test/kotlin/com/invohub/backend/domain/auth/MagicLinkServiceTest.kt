@@ -90,11 +90,11 @@ class MagicLinkServiceTest {
     }
 
     @Test
-    fun `a locked user cannot sign in`() {
-        every { userService.getOrCreateUser(email) } returns User(email).apply { lock("chargeback") }
+    fun `a suspended user cannot sign in`() {
+        every { userService.getOrCreateUser(email) } returns User(email).apply { suspend("chargeback") }
         service.requestToken(email)
 
-        assertFailsWith<AccountLockedException> { service.verifyToken(sentTokens.single()) }
+        assertFailsWith<AccountSuspendedException> { service.verifyToken(sentTokens.single()) }
     }
 
     @Test

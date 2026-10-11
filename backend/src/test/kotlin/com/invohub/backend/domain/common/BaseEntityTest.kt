@@ -94,9 +94,9 @@ class BaseEntityTest {
         val first = userRepository.findById(user.id).get()
         val second = userRepository.findById(user.id).get()
 
-        first.lock("first")
+        first.suspend("first")
         userRepository.save(first)
-        second.lock("second")
+        second.suspend("second")
 
         assertFailsWith<OptimisticLockingFailureException> { userRepository.save(second) }
     }

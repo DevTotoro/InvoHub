@@ -51,14 +51,14 @@ class AuthControllerTest {
     }
 
     @Test
-    fun `a locked user is refused without revealing the lock reason`() {
-        userRepository.save(User("locked@example.com").apply { lock("internal fraud note") })
-        requestLink("locked@example.com")
+    fun `a suspended user is refused without revealing the reason`() {
+        userRepository.save(User("suspended@example.com").apply { suspend("internal fraud note") })
+        requestLink("suspended@example.com")
 
         verify(emailPort.sent.single().rawToken).andExpect {
             status { isForbidden() }
-            jsonPath("$.detail") { value("This account is locked.") }
-            jsonPath("$.code") { value("account_locked") }
+            jsonPath("$.detail") { value("This account is suspended.") }
+            jsonPath("$.code") { value("account_suspended") }
             content { string(not(containsString("fraud"))) }
         }
     }

@@ -11,6 +11,8 @@ import java.util.concurrent.Executors
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 @IntegrationTest
@@ -58,19 +60,31 @@ class UserServiceTest {
     }
 
     @Test
-    fun `locking a user records the lock`() {
+    fun `suspending a user records the suspension`() {
         val user = userService.getOrCreateUser("jane@example.com")
 
-        userService.lockUser(user.id, "chargeback")
+        userService.suspendUser(user.id, "chargeback")
 
-        val locked = userRepository.findById(user.id).get()
-        assertTrue(locked.locked)
-        assertEquals("chargeback", locked.lockReason)
+        val suspended = userRepository.findById(user.id).get()
+        assertTrue(suspended.suspended)
+        assertEquals("chargeback", suspended.suspensionReason)
     }
 
     @Test
-    fun `locking an unknown user fails`() {
-        assertFailsWith<NoSuchElementException> { userService.lockUser(42, "chargeback") }
+    fun `unsuspending a user lifts the suspension`() {
+        val user = userService.getOrCreateUser("jane@example.com")
+        userService.suspendUser(user.id, "chargeback")
+
+        userService.unsuspendUser(user.id)
+
+        val restored = userRepository.findById(user.id).get()
+        assertFalse(restored.suspended)
+        assertNull(restored.suspensionReason)
+    }
+
+    @Test
+    fun `suspending an unknown user fails`() {
+        assertFailsWith<NoSuchElementException> { userService.suspendUser(42, "chargeback") }
     }
 
     @Test

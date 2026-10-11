@@ -29,21 +29,27 @@ class UserService(
     }
 
     /**
-     * Locks the account and signs the user out everywhere. Always lock through here: setting `locked`
+     * Suspends the user and signs them out everywhere. Always suspend through here: setting `suspended`
      * directly in the database blocks new sign-ins, but leaves existing sessions running until they expire.
      *
-     * The sessions are ended inside the transaction, so if that fails the lock is rolled back and can be
-     * retried, rather than leaving a locked user signed in.
+     * The sessions are ended inside the transaction, so if that fails the suspension is rolled back and can
+     * be retried, rather than leaving a suspended user signed in.
      *
      * @throws NoSuchElementException if there is no such user
      */
     @Transactional
-    fun lockUser(
+    fun suspendUser(
         id: Long,
         reason: String,
     ) {
         val user = userRepository.findById(id).orElseThrow()
-        user.lock(reason)
+        user.suspend(reason)
         userSessions.endAll(id)
+    }
+
+    /** @throws NoSuchElementException if there is no such user */
+    @Transactional
+    fun unsuspendUser(id: Long) {
+        userRepository.findById(id).orElseThrow().unsuspend()
     }
 }

@@ -7,7 +7,7 @@ export interface MockApiOptions {
   /** Signed in from the start */
   user?: User | null;
   /** How POST /api/auth/verify answers */
-  verify?: 'ok' | 'invalid' | 'locked';
+  verify?: 'ok' | 'invalid' | 'suspended';
 }
 
 const problem = (status: number, detail: string, code?: string) => ({
@@ -36,7 +36,7 @@ export async function mockApi(page: Page, baseURL: string, { user = null, verify
   );
   await page.route('**/api/auth/verify', (route) => {
     if (verify === 'invalid') return route.fulfill(problem(401, 'This sign-in link is invalid or has expired.'));
-    if (verify === 'locked') return route.fulfill(problem(403, 'This account is locked.', 'account_locked'));
+    if (verify === 'suspended') return route.fulfill(problem(403, 'This account is suspended.', 'account_suspended'));
     currentUser = TEST_USER;
     return route.fulfill({ status: 204 });
   });
@@ -46,8 +46,8 @@ export async function mockApi(page: Page, baseURL: string, { user = null, verify
   });
 
   return {
-    /** Locks the signed-in user's account, as an admin would: like the backend, this ends their session */
-    lock: () => {
+    /** Suspends the signed-in user, as InvoHub staff would: like the backend, this ends their session */
+    suspend: () => {
       currentUser = null;
     }
   };

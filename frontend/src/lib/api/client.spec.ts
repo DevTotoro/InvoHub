@@ -82,7 +82,7 @@ describe('request', () => {
     const browser = fakeBrowser();
     browser.fetch.mockResolvedValue(
       jsonResponse(
-        { status: 403, detail: 'This account is locked.', code: 'account_locked' },
+        { status: 403, detail: 'This account is suspended.', code: 'account_suspended' },
         403,
         'application/problem+json'
       )
@@ -91,8 +91,8 @@ describe('request', () => {
     const error = await failure(request('/api/thing'));
 
     expect(error.status).toBe(403);
-    expect(error.code).toBe('account_locked');
-    expect(error.message).toBe('This account is locked.');
+    expect(error.code).toBe('account_suspended');
+    expect(error.message).toBe('This account is suspended.');
   });
 
   it('throws an ApiError for error responses without a problem body', async () => {
@@ -135,9 +135,9 @@ describe('onSessionLost', () => {
     expect(handler).toHaveBeenCalledOnce();
   });
 
-  it('ignores other errors, such as a locked account at sign-in', async () => {
+  it('ignores other errors, such as a suspended account at sign-in', async () => {
     const browser = fakeBrowser();
-    browser.fetch.mockResolvedValue(problem(403, 'account_locked'));
+    browser.fetch.mockResolvedValue(problem(403, 'account_suspended'));
     const handler = vi.fn();
     const stop = onSessionLost(handler);
 

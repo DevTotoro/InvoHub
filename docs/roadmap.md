@@ -25,7 +25,7 @@ What's planned, what's decided, and what must happen before the first deployment
 
 **Statuses:**
 - Company: *Active*, *Read-only* (unpaid, after a grace period: can still view and export), *Suspended* (fraud or abuse, decided by InvoHub). Unpaid companies are never fully blocked.
-- User *suspended*: InvoHub staff only, applies everywhere. This is today's `User.lock`; rename it to suspend.
+- User *suspended*: InvoHub staff only, applies everywhere (`UserService.suspendUser`).
 
 **Audit log.** Events are written in a Postgres `audit` schema, in the same transaction as the change, by a database role that may only insert and read there. Recent months stay in Postgres for the activity page; the permanent copy goes to S3 with Object Lock (see the archive job below).
 
@@ -45,7 +45,7 @@ Reads and page views are not recorded.
 - No new sign-in link while one is outstanding (one hour). This is deliberate: it stops inbox flooding.
 - Per-IP rate limiting is handled by the CDN, not the app.
 - Sessions end after 2 hours of inactivity and at most 7 days after sign-in.
-- Locking or suspending a user must go through `UserService.lockUser`, which ends their sessions. Changing the database directly does not.
+- Suspending a user must go through `UserService.suspendUser`, which ends their sessions. Changing the database directly does not.
 
 ## Next up
 

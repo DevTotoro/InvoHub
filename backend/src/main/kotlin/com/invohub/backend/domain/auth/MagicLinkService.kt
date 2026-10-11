@@ -53,7 +53,7 @@ class MagicLinkService(
     /**
      * Consumes the token, so it works at most once even under concurrent requests.
      * @return Newly-created or pre-existing User associated with the token, or null if it is invalid or expired
-     * @throws AccountLockedException if the user is locked
+     * @throws AccountSuspendedException if the user is suspended
      */
     fun verifyToken(rawToken: String): User? {
         val email = tokenStore.consumeToken(hashToken(rawToken)) ?: return null
@@ -61,8 +61,8 @@ class MagicLinkService(
         tokenStore.unlock(email)
 
         val user = userService.getOrCreateUser(email)
-        if (user.locked) {
-            throw AccountLockedException()
+        if (user.suspended) {
+            throw AccountSuspendedException()
         }
         return user
     }
