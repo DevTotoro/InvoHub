@@ -4,6 +4,8 @@ What's planned, what's decided, and what must happen before the first deployment
 
 ## Decisions
 
+**Greece first.** The first market is Greece; the app starts in Greek and English, and Greek invoicing rules (below, under Invoices) shape the model.
+
 **Companies (no account layer).** Each company stands alone, like a Xero organisation. A user can belong to many companies, with a role in each. If people with several companies want a single bill, that is a billing feature (billing profiles, below), not a grouping of companies.
 
 **Roles, per company:**
@@ -20,6 +22,8 @@ What's planned, what's decided, and what must happen before the first deployment
 - Removing someone deletes their membership; the user remains, so their past work keeps their name. The history lives in the audit log.
 
 **Company in the URL** (`/c/<public id>/…`). The URL only says which company is being viewed; the backend checks the user's role in it on every request.
+
+**A company has** a legal name, country, tax ID, address and currency, all asked for when it is created. The tax ID is validated for the country (Greek ΑΦΜ: 9 digits with a check digit) but not unique across InvoHub, so nobody can block a business by registering its tax ID first. The default currency comes from the country (JDK data).
 
 **Customers belong to a company**, not shared between companies. Invoices store the customer's details as they were when issued.
 
@@ -51,20 +55,29 @@ Reads and page views are not recorded.
 
 ## Next up
 
-1. **Companies and roles.** Tables, "Set up your company" onboarding (name, country, currency), `me` returns the user's companies with their roles, company in the URL and a company switcher. Records `company.created`.
-2. **Permission checks.** Resolve the user's role in the company on every request, together with the company status, in one central place. Tests proving nobody can reach another company's data.
-3. **Members.** List members, change roles, remove people, leave a company.
-4. **Invitations.** Invite an email to one or more companies, each with a role (inviters can only pick companies they own or administer). The emailed link signs the person in. Invitations expire after 7 days, can be resent and revoked, with a cap on pending invites and at most one resend per hour.
-5. **Company settings.** Admins edit tax ID, address, bank details, logo; anyone can create more companies.
-6. **Ownership transfer and company deletion.**
+1. **Companies and roles.** Tables, "Set up your company" onboarding (legal name, country, tax ID, address, currency pre-filled from the country), `me` returns the user's companies with their roles, company in the URL and a company switcher. Records `company.created`.
+2. **Translations.** Greek and English throughout, so every later page starts translated:
+   - UI text through Paraglide (SvelteKit's recommended i18n), language chosen per user and stored on the user, defaulting to the browser's
+   - Dates, numbers and amounts formatted for the language (`Intl`)
+   - Error messages from the backend's problem `code`s, not its English `detail`
+   - Emails (the sign-in link, later invitations) in the user's language
+3. **Permission checks.** Resolve the user's role in the company on every request, together with the company status, in one central place. Tests proving nobody can reach another company's data.
+4. **Members.** List members, change roles, remove people, leave a company.
+5. **Invitations.** Invite an email to one or more companies, each with a role (inviters can only pick companies they own or administer). The emailed link signs the person in. Invitations expire after 7 days, can be resent and revoked, with a cap on pending invites and at most one resend per hour.
+6. **Company settings.** Admins edit the company's details, bank details and logo; anyone can create more companies.
+7. **Ownership transfer and company deletion.**
 
 ## Later
 
-- **Audit archive job** (separate PR; design below) and monthly partitioning of the audit table.
+- **Audit archive job** (separate PR; design below) and monthly partitioning of the audit table, which also gives the job its by-time lookups (the existing indexes are by company, actor and target).
 - **Activity page** for owners and admins; a "your sign-in history" page for users.
 - **InvoHub staff tool:** suspend users, change company status.
 - **Billing:** billing profiles, where one payer covers several companies with one bill (`companies.billing_profile_id`); unpaid leads to a grace period, then read-only.
-- **Invoices:** numbering per company, immutable once issued, corrections through credit notes. Depends on the target countries: required fields, numbering rules, tamper-evidence (e.g. Spain, Portugal, Germany), mandatory e-invoicing (e.g. Italy, Poland; France, Belgium and Germany phasing in).
+- **Invoices:** numbering per company, immutable once issued, corrections through credit notes. Rules depend on the country (required fields, numbering, tamper-evidence, mandatory e-invoicing). For **Greece**, check the current rules when designing this:
+  - the issuer's tax office (ΔΟΥ) and business activity on invoices: add them to the company then
+  - reporting every invoice to AADE's myDATA
+  - mandatory B2B e-invoicing through a certified provider, being phased in
+- **Tax ID lookup:** pre-fill a Greek company's name, address and tax office from its ΑΦΜ through AADE's public registry service.
 - **Customers:** "copy from another company".
 - **Event bus** (SQS, EventBridge, …) once something must react to events as they happen: notification emails, webhooks, analytics.
 - **Valkey locally:** switch Docker and the tests from `redis:8` to the Valkey version used on AWS.
