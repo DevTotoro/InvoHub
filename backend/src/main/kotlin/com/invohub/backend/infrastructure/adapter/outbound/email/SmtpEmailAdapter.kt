@@ -19,7 +19,7 @@ class SmtpEmailAdapter(
         rawToken: String,
     ) {
         // TODO: make url var
-        val magicLinkUrl = "http://localhost:8080/api/auth/verify?token=$rawToken"
+        val magicLinkUrl = "http://localhost:5173/auth/verify?token=$rawToken"
 
         val message =
             SimpleMailMessage().apply {
