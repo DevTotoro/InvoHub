@@ -6,23 +6,24 @@
   import { verifyMagicLink } from '#lib/api/auth.ts';
   import { ApiError } from '#lib/api/client.ts';
   import { consumeRedirect } from '#lib/auth/redirect.ts';
+  import Button from '#lib/components/ui/Button.svelte';
   import Link from '#lib/components/ui/Link.svelte';
 
-  type Status = 'verifying' | 'invalid' | 'locked' | 'error';
+  type Status = 'ready' | 'verifying' | 'invalid' | 'locked' | 'error';
 
-  let status: Status = $state('verifying');
+  // Read once: the address bar is cleared right away, but the token stays here until the user continues
+  const token = page.url.searchParams.get('token');
 
-  // The magic link lands here instead of on the API: email scanners prefetch links, but they don't run this
-  // script, so they can't use up the single-use token before the user does
-  onMount(async () => {
-    const token = page.url.searchParams.get('token');
-    // Keep the token out of the address bar and history
-    replaceState(resolve('/(auth)/auth/verify'), {});
+  let status: Status = $state(token ? 'ready' : 'invalid');
 
-    if (!token) {
-      status = 'invalid';
-      return;
-    }
+  // Keep the token out of the address bar and history
+  onMount(() => replaceState(resolve('/(auth)/auth/verify'), {}));
+
+  // Signing in waits for a click: email scanners open links (some even run scripts) before the user does,
+  // and must not use up the single-use token. None of them press buttons.
+  async function signIn() {
+    if (!token) return;
+    status = 'verifying';
 
     try {
       await verifyMagicLink(token);
@@ -41,15 +42,19 @@
     // resolve() only takes route IDs; this is a stored path that consumeRedirect() already validated.
     // eslint-disable-next-line svelte/no-navigation-without-resolve
     await goto(consumeRedirect(), { replaceState: true, invalidateAll: true });
-  });
+  }
 </script>
 
 <svelte:head>
-  <title>Signing in · InvoHub</title>
+  <title>Sign in · InvoHub</title>
 </svelte:head>
 
-{#if status === 'verifying'}
-  <p class="text-center text-gray-600">Signing you in…</p>
+{#if status === 'ready' || status === 'verifying'}
+  <h2 class="text-xl font-semibold">Sign in</h2>
+  <p class="mt-2 text-sm text-gray-600">Continue to finish signing in to InvoHub.</p>
+  <Button fullWidth class="mt-4" loading={status === 'verifying'} onclick={signIn}>
+    {status === 'verifying' ? 'Signing in…' : 'Continue'}
+  </Button>
 {:else if status === 'invalid'}
   <h2 class="text-xl font-semibold">This sign-in link is invalid or has expired</h2>
   <p class="mt-2 text-sm text-gray-600">Links work once and expire after a while. Request a new one to sign in.</p>
@@ -59,5 +64,6 @@
   <p class="mt-2 text-sm text-gray-600">Please contact support.</p>
 {:else}
   <h2 class="text-xl font-semibold">Something went wrong</h2>
-  <p class="mt-2 text-sm text-gray-600">Please open the link again in a moment.</p>
+  <p class="mt-2 text-sm text-gray-600">Please try again in a moment.</p>
+  <Button variant="link" class="mt-6" onclick={signIn}>Try again</Button>
 {/if}
