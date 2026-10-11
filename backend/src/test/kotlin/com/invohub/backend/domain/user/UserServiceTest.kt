@@ -8,6 +8,7 @@ import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.jdbc.core.JdbcTemplate
 import java.util.concurrent.Callable
 import java.util.concurrent.Executors
+import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
@@ -57,8 +58,11 @@ class UserServiceTest {
 
     @Test
     fun `the database rejects non-normalized emails`() {
-        assertFailsWith<DataIntegrityViolationException> {
-            jdbcTemplate.update("INSERT INTO users (id, email) VALUES (1, 'Jane@Example.com')")
-        }
+        val e =
+            assertFailsWith<DataIntegrityViolationException> {
+                jdbcTemplate.update("INSERT INTO users (id, email) VALUES (1, 'Jane@Example.com')")
+            }
+
+        assertContains(e.message!!, "ck_users_email_normalized")
     }
 }
