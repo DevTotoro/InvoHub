@@ -3,16 +3,16 @@ export type Variant = 'primary' | 'secondary' | 'ghost' | 'link' | 'icon';
 
 const base =
   'inline-flex items-center justify-center gap-2 text-sm font-medium transition-colors ' +
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 ' +
-  'disabled:cursor-not-allowed disabled:opacity-60';
+  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-taupe-600 ' +
+  'disabled:cursor-not-allowed disabled:opacity-60 hover:cursor-pointer';
 
 const variants: Record<Variant, string> = {
-  primary: 'rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-500',
-  secondary: 'rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 hover:bg-gray-50',
-  ghost: 'rounded-lg px-3 py-2 text-gray-700 hover:bg-gray-100 hover:text-gray-900',
-  link: 'rounded-sm text-indigo-600 hover:text-indigo-500 hover:underline',
+  primary: 'bg-taupe-600 px-4 py-2 text-white hover:bg-taupe-500',
+  secondary: 'border border-gray-300 bg-white px-4 py-2 text-gray-900 hover:bg-gray-50',
+  ghost: 'px-3 py-2 text-gray-700 hover:bg-gray-100 hover:text-gray-900',
+  link: 'text-taupe-600 hover:text-taupe-500 hover:underline',
   // Low-key icon actions: muted until hovered; the padding enlarges the click target, not the icon
-  icon: 'rounded-sm p-1.5 text-gray-400 hover:text-gray-900'
+  icon: 'p-1.5 text-gray-400 hover:text-gray-900'
 };
 
 export function variantClasses(variant: Variant): string {

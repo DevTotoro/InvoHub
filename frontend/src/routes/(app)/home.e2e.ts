@@ -14,7 +14,7 @@ test('signed-in users see the home page and can sign out', async ({ page, baseUR
   await mockApi(page, baseURL!, { user: TEST_USER });
 
   await page.goto('/');
-  await expect(page.getByText(`Signed in as ${TEST_USER.email}.`)).toBeVisible();
+  await expect(page.getByRole('heading', { level: 2 })).toHaveText(`Welcome, ${TEST_USER.email}`);
 
   await page.getByRole('button', { name: 'Sign out' }).click();
 

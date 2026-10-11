@@ -46,23 +46,18 @@
   <p class="mt-2 text-sm text-gray-600">
     We've emailed a sign-in link to <span class="font-medium text-gray-900">{email}</span>. Open it to continue.
   </p>
-  <p class="mt-4 text-sm text-gray-600">
-    Asked for one recently? That link still works, so look for it first, and check your spam folder.
-  </p>
   <Button variant="link" class="mt-6" onclick={() => (status = 'idle')}>Use a different email</Button>
 {:else}
-  <h2 class="text-xl font-semibold">Sign in to InvoHub</h2>
-  <p class="mt-2 text-sm text-gray-600">
-    Enter your email and we'll send you a sign-in link. New here? The same link creates your account.
-  </p>
+  <h2 class="text-xl font-semibold">Sign in</h2>
 
-  <form class="mt-6 space-y-4" onsubmit={submit}>
+  <form class="mt-4 space-y-4" onsubmit={submit}>
     <Input
       label="Email"
       type="email"
       name="email"
       required
       autocomplete="email"
+      autofocus
       bind:value={email}
       error={emailError}
     />

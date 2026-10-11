@@ -17,7 +17,7 @@
 
   const classes = $derived(
     variant === 'plain'
-      ? 'rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600'
+      ? 'rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-taupe-600'
       : variantClasses(variant)
   );
 </script>

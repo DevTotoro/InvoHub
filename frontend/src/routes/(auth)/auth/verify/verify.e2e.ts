@@ -12,7 +12,7 @@ test('the full flow: sent to login from /, sign in through the link, and back to
   await page.goto('/auth/verify?token=abc');
 
   await expect(page).toHaveURL('/');
-  await expect(page.getByText(`Signed in as ${TEST_USER.email}.`)).toBeVisible();
+  await expect(page.getByRole('heading', { level: 2 })).toHaveText(`Welcome, ${TEST_USER.email}`);
 });
 
 test('an invalid or expired link says so', async ({ page, baseURL }) => {
