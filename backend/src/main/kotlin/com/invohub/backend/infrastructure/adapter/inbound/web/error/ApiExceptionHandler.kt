@@ -43,7 +43,8 @@ class ApiExceptionHandler : ResponseEntityExceptionHandler() {
     fun handleAccountLocked(
         e: AccountLockedException,
         request: WebRequest,
-    ): ResponseEntity<Any>? = problem(e, HttpStatus.FORBIDDEN, "This account is locked.", request)
+    ): ResponseEntity<Any>? =
+        problem(e, HttpStatus.FORBIDDEN, "This account is locked.", request, code = "account_locked")
 
     // Raised when a save is based on a stale version of the row (see BaseEntity.version)
     @ExceptionHandler(OptimisticLockingFailureException::class)
@@ -87,10 +88,16 @@ class ApiExceptionHandler : ResponseEntityExceptionHandler() {
         return super.createResponseEntity(body, headers, statusCode, request)
     }
 
+    /** [code] is a stable, machine-readable identifier for clients that need to tell problems apart. */
     private fun problem(
         e: Exception,
         status: HttpStatus,
         detail: String,
         request: WebRequest,
-    ) = handleExceptionInternal(e, ProblemDetail.forStatusAndDetail(status, detail), HttpHeaders(), status, request)
+        code: String? = null,
+    ): ResponseEntity<Any>? {
+        val body = ProblemDetail.forStatusAndDetail(status, detail)
+        code?.let { body.setProperty("code", it) }
+        return handleExceptionInternal(e, body, HttpHeaders(), status, request)
+    }
 }

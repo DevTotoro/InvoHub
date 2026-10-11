@@ -58,6 +58,7 @@ class AuthControllerTest {
         verify(emailPort.sent.single().rawToken).andExpect {
             status { isForbidden() }
             jsonPath("$.detail") { value("This account is locked.") }
+            jsonPath("$.code") { value("account_locked") }
             content { string(not(containsString("fraud"))) }
         }
     }
