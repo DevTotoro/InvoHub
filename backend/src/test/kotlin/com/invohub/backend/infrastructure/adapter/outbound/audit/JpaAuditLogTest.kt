@@ -2,6 +2,7 @@ package com.invohub.backend.infrastructure.adapter.outbound.audit
 
 import com.invohub.backend.domain.audit.AuditAction
 import com.invohub.backend.domain.audit.AuditEvent
+import com.invohub.backend.domain.audit.AuditEventRepository
 import com.invohub.backend.domain.audit.AuditLog
 import com.invohub.backend.domain.audit.AuditTarget
 import com.invohub.backend.domain.auth.AuthenticatedUser
@@ -23,10 +24,11 @@ import org.springframework.transaction.support.TransactionTemplate
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 @IntegrationTest
-class PostgresAuditLogTest {
+class JpaAuditLogTest {
     @Autowired
     private lateinit var auditLog: AuditLog
 
@@ -38,6 +40,9 @@ class PostgresAuditLogTest {
 
     @Autowired
     private lateinit var environment: Environment
+
+    @Autowired
+    private lateinit var repository: AuditEventRepository
 
     @AfterEach
     fun clearContext() {
@@ -84,15 +89,12 @@ class PostgresAuditLogTest {
 
         auditLog.recordStandalone(event(target).copy(details = mapOf("reason" to "chargeback")))
 
-        val row =
-            jdbcTemplate.queryForMap(
-                "SELECT action, actor_user_id, request_id, details->>'reason' AS reason FROM audit.events WHERE target_id = ?",
-                target.id,
-            )
-        assertEquals("user.suspended", row["action"])
-        assertEquals(7L, row["actor_user_id"])
-        assertEquals("req-123", row["request_id"])
-        assertEquals("chargeback", row["reason"])
+        val stored = repository.findByTargetTypeAndTargetIdOrderByOccurredAtAscIdAsc(target.type, target.id).single()
+        assertEquals("user.suspended", stored.action)
+        assertEquals(7L, stored.actorUserId)
+        assertEquals("req-123", stored.requestId)
+        assertEquals(mapOf("reason" to "chargeback"), stored.details)
+        assertNotNull(stored.occurredAt)
     }
 
     @Test
