@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser, jsonResponse } from '#lib/testing/fake-browser.ts';
 import { getCurrentUser, requestMagicLink } from './auth.ts';
-import { ApiError } from './client.ts';
+import { ApiError, onSessionLost } from './client.ts';
 
 describe('auth', () => {
   afterEach(() => {
@@ -30,6 +30,27 @@ describe('auth', () => {
     browser.fetch.mockResolvedValue(jsonResponse({ status: 401 }, 401, 'application/problem+json'));
 
     await expect(getCurrentUser()).resolves.toBeNull();
+  });
+
+  it('does not alert the global session handler, since callers decide what signed out means', async () => {
+    const browser = fakeBrowser();
+    browser.fetch.mockResolvedValue(jsonResponse({ status: 401 }, 401, 'application/problem+json'));
+    const handler = vi.fn();
+    const stop = onSessionLost(handler);
+
+    await getCurrentUser();
+    stop();
+
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('reports a locked account as an error', async () => {
+    const browser = fakeBrowser();
+    browser.fetch.mockResolvedValue(
+      jsonResponse({ status: 403, code: 'account_locked' }, 403, 'application/problem+json')
+    );
+
+    await expect(getCurrentUser()).rejects.toMatchObject({ code: 'account_locked' });
   });
 
   it('throws when the API is unreachable, rather than pretending the user is signed out', async () => {

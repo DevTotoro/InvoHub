@@ -12,5 +12,5 @@ export const load: PageLoad = async ({ fetch, url }) => {
     redirect(307, redirectTo);
   }
 
-  return { redirectTo };
+  return { redirectTo, accountLocked: url.searchParams.get('reason') === 'account_locked' };
 };

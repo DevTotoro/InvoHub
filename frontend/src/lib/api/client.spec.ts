@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser, jsonResponse } from '#lib/testing/fake-browser.ts';
-import { ApiError, request } from './client.ts';
+import { ApiError, onSessionLost, request } from './client.ts';
 
 /** Awaits a request that must fail and returns its ApiError. */
 async function failure(promise: Promise<unknown>): Promise<ApiError> {
@@ -113,5 +113,63 @@ describe('request', () => {
 
     expect(error.status).toBe(0);
     expect(error.message).toContain("Can't reach InvoHub");
+  });
+});
+
+describe('onSessionLost', () => {
+  const problem = (status: number, code?: string) => jsonResponse({ status, code }, status, 'application/problem+json');
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it.each([
+    ['a 401', problem(401), 'signed_out'],
+    ['a locked account', problem(403, 'account_locked'), 'account_locked']
+  ])('is told about %s', async (_, response, reason) => {
+    const browser = fakeBrowser();
+    browser.fetch.mockResolvedValue(response);
+    const handler = vi.fn();
+    const stop = onSessionLost(handler);
+
+    await request('/api/thing').catch(() => {});
+    stop();
+
+    expect(handler).toHaveBeenCalledExactlyOnceWith(reason);
+  });
+
+  it('ignores other errors', async () => {
+    const browser = fakeBrowser();
+    browser.fetch.mockResolvedValue(problem(403));
+    const handler = vi.fn();
+    const stop = onSessionLost(handler);
+
+    await request('/api/thing').catch(() => {});
+    stop();
+
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('stays quiet for calls that handle a lost session themselves', async () => {
+    const browser = fakeBrowser();
+    browser.fetch.mockResolvedValue(problem(401));
+    const handler = vi.fn();
+    const stop = onSessionLost(handler);
+
+    await request('/api/thing', { notifySessionLost: false }).catch(() => {});
+    stop();
+
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('stops after being removed', async () => {
+    const browser = fakeBrowser();
+    browser.fetch.mockResolvedValue(problem(401));
+    const handler = vi.fn();
+    onSessionLost(handler)();
+
+    await request('/api/thing').catch(() => {});
+
+    expect(handler).not.toHaveBeenCalled();
   });
 });

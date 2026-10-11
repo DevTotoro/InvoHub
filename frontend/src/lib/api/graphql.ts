@@ -20,7 +20,7 @@ export class GraphQLError extends Error {
 export async function graphql<TData, TVariables extends Record<string, unknown> = Record<string, never>>(
   query: string,
   variables?: TVariables,
-  options: Pick<RequestOptions, 'fetch' | 'signal'> = {}
+  options: Pick<RequestOptions, 'fetch' | 'signal' | 'notifySessionLost'> = {}
 ): Promise<TData> {
   const result = await request<{ data?: TData; errors?: GraphQLErrorEntry[] }>('/api/graphql', {
     ...options,

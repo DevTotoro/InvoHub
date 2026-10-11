@@ -23,6 +23,19 @@ test('signed-in users see the home page and can sign out', async ({ page, baseUR
   await expect(page.getByRole('button', { name: 'Sign out' })).toHaveCount(0);
 });
 
+test('a user locked while signed in is signed out with an explanation', async ({ page, baseURL }) => {
+  const api = await mockApi(page, baseURL!, { user: TEST_USER });
+  await page.goto('/');
+  await expect(page.getByRole('heading', { level: 2 })).toHaveText(`Welcome, ${TEST_USER.email}`);
+
+  api.lock();
+  await page.reload();
+
+  await expect(page).toHaveURL('/login?reason=account_locked');
+  await expect(page.getByRole('alert')).toHaveText('This account is locked. Please contact support.');
+  await expect(page.getByRole('button', { name: 'Sign out' })).toHaveCount(0);
+});
+
 test('an unreachable API shows an error rather than the login page', async ({ page }) => {
   await page.route('**/api/**', (route) => route.abort());
 
