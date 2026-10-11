@@ -4,6 +4,7 @@ import { TEST_USER, mockApi } from '#lib/testing/mock-api.ts';
 test('requesting a link shows where it was sent', async ({ page, baseURL }) => {
   await mockApi(page, baseURL!);
   await page.goto('/login');
+  await expect(page.getByRole('heading', { level: 2 })).toHaveText('Sign in');
 
   await page.getByLabel('Email').fill('jane@example.com');
   await page.getByRole('button', { name: 'Email me a sign-in link' }).click();

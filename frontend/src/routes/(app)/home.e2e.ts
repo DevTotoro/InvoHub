@@ -7,6 +7,7 @@ test('signed-out visitors are sent to the login page', async ({ page, baseURL })
   await page.goto('/');
 
   await expect(page).toHaveURL('/login?redirectTo=%2F');
+  await expect(page.getByRole('heading', { level: 2 })).toHaveText('Sign in');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('InvoHub');
 });
 
