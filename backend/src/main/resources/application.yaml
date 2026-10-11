@@ -12,6 +12,10 @@ spring:
       ddl-auto: validate
   flyway:
     enabled: true
+    # Migrations run as the database owner (spring.flyway.user/password); the app connects with its own
+    # login (spring.datasource.username), which the migrations grant only what it needs
+    placeholders:
+      app_user: ${spring.datasource.username}
 
   graphql:
     http:

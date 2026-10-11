@@ -9,10 +9,14 @@ services:
       POSTGRES_DB: ${DB_NAME}
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
+      # The login the app connects with, created on first start by docker/postgres-init
+      DB_APP_USER: ${DB_APP_USER:-invohub_app}
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD:-invohub_app}
     ports:
       - "${DB_PORT}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql
+      - ./docker/postgres-init:/docker-entrypoint-initdb.d:ro
 
   redis:
     image: redis:8

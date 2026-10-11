@@ -1,3 +1,8 @@
+-- Privileges. This migration runs as the owner of the schema; the app connects as ${app_user}, which can
+-- read and write data but never change the schema. Tables created from here on get these grants by default.
+GRANT USAGE ON SCHEMA public TO ${app_user};
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO ${app_user};
+
 CREATE TABLE users (
     id BIGINT NOT NULL,
     version BIGINT NOT NULL DEFAULT 0,
