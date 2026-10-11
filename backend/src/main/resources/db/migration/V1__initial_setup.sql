@@ -1,5 +1,6 @@
 CREATE TABLE users (
     id BIGINT NOT NULL,
+    version BIGINT NOT NULL DEFAULT 0,
     --
     email VARCHAR(255) NOT NULL,
     locked BOOLEAN NOT NULL DEFAULT FALSE,

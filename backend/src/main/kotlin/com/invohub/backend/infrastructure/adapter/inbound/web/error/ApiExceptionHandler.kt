@@ -5,6 +5,7 @@ import com.invohub.backend.domain.auth.EmailDeliveryException
 import com.invohub.backend.infrastructure.adapter.inbound.web.filter.RequestIdFilter
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.slf4j.MDC
+import org.springframework.dao.OptimisticLockingFailureException
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.HttpStatusCode
@@ -43,6 +44,14 @@ class ApiExceptionHandler : ResponseEntityExceptionHandler() {
         e: AccountLockedException,
         request: WebRequest,
     ): ResponseEntity<Any>? = problem(e, HttpStatus.FORBIDDEN, "This account is locked.", request)
+
+    // Raised when a save is based on a stale version of the row (see BaseEntity.version)
+    @ExceptionHandler(OptimisticLockingFailureException::class)
+    fun handleConcurrentModification(
+        e: OptimisticLockingFailureException,
+        request: WebRequest,
+    ): ResponseEntity<Any>? =
+        problem(e, HttpStatus.CONFLICT, "This was changed by someone else. Reload and try again.", request)
 
     @ExceptionHandler(Exception::class)
     fun handleUnexpected(
