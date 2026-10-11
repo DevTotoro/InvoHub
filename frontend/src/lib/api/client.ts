@@ -15,16 +15,14 @@ export interface RequestOptions extends Omit<RequestInit, 'body'> {
   notifySessionLost?: boolean;
 }
 
-/** Why the session ended: it expired or was ended (401), or the account was locked. */
-export type SessionLossReason = 'signed_out' | 'account_locked';
-
-let sessionLostHandler: ((reason: SessionLossReason) => void) | undefined;
+let sessionLostHandler: (() => void) | undefined;
 
 /**
- * Registers what to do when any API call finds the session gone or the account locked, e.g. send the user
- * to the login page. Only one handler is active at a time. Returns a function that removes it.
+ * Registers what to do when any API call finds the session gone (401): it expired, the user signed out
+ * elsewhere, or the account was locked, which ends all its sessions. Only one handler is active at a time.
+ * Returns a function that removes it.
  */
-export function onSessionLost(handler: (reason: SessionLossReason) => void): () => void {
+export function onSessionLost(handler: () => void): () => void {
   sessionLostHandler = handler;
   return () => {
     if (sessionLostHandler === handler) {
@@ -83,12 +81,8 @@ export async function request<T = unknown>(path: string, options: RequestOptions
 
   if (!response.ok) {
     const error = new ApiError(response.status, await readProblem(response));
-    if (notifySessionLost) {
-      if (error.code === 'account_locked') {
-        sessionLostHandler?.('account_locked');
-      } else if (error.status === 401) {
-        sessionLostHandler?.('signed_out');
-      }
+    if (notifySessionLost && error.status === 401) {
+      sessionLostHandler?.();
     }
     throw error;
   }

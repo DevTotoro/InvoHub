@@ -50,10 +50,6 @@
 {:else}
   <h2 class="text-xl font-semibold">Sign in</h2>
 
-  {#if data.accountLocked}
-    <p class="mt-2 text-sm text-red-600" role="alert">This account is locked. Please contact support.</p>
-  {/if}
-
   <form class="mt-4 space-y-4" onsubmit={submit}>
     <Input
       label="Email"

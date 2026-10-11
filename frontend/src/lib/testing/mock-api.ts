@@ -22,21 +22,15 @@ const problem = (status: number, detail: string, code?: string) => ({
  */
 export async function mockApi(page: Page, baseURL: string, { user = null, verify = 'ok' }: MockApiOptions = {}) {
   let currentUser = user;
-  let locked = false;
 
   // The client reads the CSRF token from this cookie instead of calling /api/auth/csrf
   await page.context().addCookies([{ name: 'XSRF-TOKEN', value: 'test-token', url: baseURL }]);
 
-  await page.route('**/api/graphql', (route) => {
-    if (locked && currentUser) {
-      // Like the backend: the session ends with the first request after the lock
-      currentUser = null;
-      return route.fulfill(problem(403, 'This account is locked.', 'account_locked'));
-    }
-    return currentUser
+  await page.route('**/api/graphql', (route) =>
+    currentUser
       ? route.fulfill({ json: { data: { me: currentUser } } })
-      : route.fulfill(problem(401, 'Sign in to continue.'));
-  });
+      : route.fulfill(problem(401, 'Sign in to continue.'))
+  );
   await page.route('**/api/auth/request', (route) =>
     route.fulfill({ json: { message: 'Check your inbox for a sign-in link.' } })
   );
@@ -52,9 +46,9 @@ export async function mockApi(page: Page, baseURL: string, { user = null, verify
   });
 
   return {
-    /** Locks the signed-in user's account, as an admin would */
+    /** Locks the signed-in user's account, as an admin would: like the backend, this ends their session */
     lock: () => {
-      locked = true;
+      currentUser = null;
     }
   };
 }

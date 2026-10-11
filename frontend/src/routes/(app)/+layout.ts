@@ -10,10 +10,6 @@ export const load: LayoutLoad = async ({ fetch, url, untrack }) => {
   try {
     user = await getCurrentUser(fetch);
   } catch (e) {
-    if (e instanceof ApiError && e.code === 'account_locked') {
-      // The backend has already ended the session
-      redirect(307, `${resolve('/(auth)/login')}?reason=account_locked`);
-    }
     // Don't treat an outage as "signed out": the login page wouldn't work either
     error(503, e instanceof ApiError ? e.message : 'Something went wrong. Please try again.');
   }

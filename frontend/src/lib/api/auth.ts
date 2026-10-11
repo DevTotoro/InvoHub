@@ -23,10 +23,7 @@ export async function logout(): Promise<void> {
   await request('/api/auth/logout', { method: 'POST' });
 }
 
-/**
- * The signed-in user, or null without a session. Other failures are thrown, including ApiError with code
- * `account_locked` when the account was locked (which also ends the session).
- */
+/** The signed-in user, or null without a session. Other failures (e.g. API unreachable) are thrown. */
 export async function getCurrentUser(fetch?: Fetch): Promise<User | null> {
   try {
     // Callers decide what a missing session means, so don't trigger the global handler

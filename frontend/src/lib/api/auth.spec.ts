@@ -44,15 +44,6 @@ describe('auth', () => {
     expect(handler).not.toHaveBeenCalled();
   });
 
-  it('reports a locked account as an error', async () => {
-    const browser = fakeBrowser();
-    browser.fetch.mockResolvedValue(
-      jsonResponse({ status: 403, code: 'account_locked' }, 403, 'application/problem+json')
-    );
-
-    await expect(getCurrentUser()).rejects.toMatchObject({ code: 'account_locked' });
-  });
-
   it('throws when the API is unreachable, rather than pretending the user is signed out', async () => {
     const browser = fakeBrowser();
     browser.fetch.mockRejectedValue(new TypeError('Failed to fetch'));

@@ -123,24 +123,21 @@ describe('onSessionLost', () => {
     vi.unstubAllGlobals();
   });
 
-  it.each([
-    ['a 401', problem(401), 'signed_out'],
-    ['a locked account', problem(403, 'account_locked'), 'account_locked']
-  ])('is told about %s', async (_, response, reason) => {
+  it('is told when the session is gone', async () => {
     const browser = fakeBrowser();
-    browser.fetch.mockResolvedValue(response);
+    browser.fetch.mockResolvedValue(problem(401));
     const handler = vi.fn();
     const stop = onSessionLost(handler);
 
     await request('/api/thing').catch(() => {});
     stop();
 
-    expect(handler).toHaveBeenCalledExactlyOnceWith(reason);
+    expect(handler).toHaveBeenCalledOnce();
   });
 
-  it('ignores other errors', async () => {
+  it('ignores other errors, such as a locked account at sign-in', async () => {
     const browser = fakeBrowser();
-    browser.fetch.mockResolvedValue(problem(403));
+    browser.fetch.mockResolvedValue(problem(403, 'account_locked'));
     const handler = vi.fn();
     const stop = onSessionLost(handler);
 
