@@ -3,7 +3,7 @@
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { logout } from '#lib/api/auth.ts';
-  import github from '#lib/assets/github.svg';
+  import GitHubIcon from '#lib/components/icons/GitHubIcon.svelte';
   import Button from '#lib/components/ui/Button.svelte';
   import Link from '#lib/components/ui/Link.svelte';
 
@@ -39,8 +39,8 @@
         </Button>
       {/if}
 
-      <Link href="https://github.com/DevTotoro/InvoHub" variant="plain" external>
-        <img src={github} alt="GitHub" class="h-6 w-6" />
+      <Link href="https://github.com/DevTotoro/InvoHub" variant="icon" external aria-label="InvoHub on GitHub">
+        <GitHubIcon class="size-5" />
       </Link>
     </div>
   </div>
