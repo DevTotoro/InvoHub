@@ -7,6 +7,8 @@ import io.mockk.mockk
 import io.mockk.verify
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import java.net.URI
+import java.time.Duration
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
@@ -19,16 +21,18 @@ class MagicLinkServiceTest {
     private lateinit var userService: UserService
     private lateinit var service: MagicLinkService
 
-    private val sentTokens = mutableListOf<String>()
+    private val sentLinks = mutableListOf<URI>()
+    private val sentTokens get() = sentLinks.map { it.query.removePrefix("token=") }
 
     @BeforeEach
     fun setUp() {
         tokenStore = InMemoryMagicLinkTokenStore()
         emailPort = mockk()
-        every { emailPort.sendMagicLink(any(), capture(sentTokens)) } returns Unit
+        every { emailPort.sendMagicLink(any(), capture(sentLinks), any()) } returns Unit
         userService = mockk()
         every { userService.getOrCreateUser(any()) } answers { User(firstArg()) }
-        service = MagicLinkService(tokenStore, emailPort, userService)
+        val properties = AuthProperties(URI("https://app.example.com"), Duration.ofHours(1))
+        service = MagicLinkService(tokenStore, emailPort, userService, properties)
     }
 
     @Test
@@ -41,11 +45,19 @@ class MagicLinkServiceTest {
     }
 
     @Test
+    fun `links to the frontend verify page`() {
+        service.requestToken(email)
+
+        val link = sentLinks.single()
+        assertEquals("https://app.example.com/auth/verify", "${link.scheme}://${link.host}${link.path}")
+    }
+
+    @Test
     fun `does not issue another token while one is active`() {
         service.requestToken(email)
         service.requestToken(email)
 
-        verify(exactly = 1) { emailPort.sendMagicLink(email, any()) }
+        verify(exactly = 1) { emailPort.sendMagicLink(email, any(), any()) }
     }
 
     @Test
@@ -77,12 +89,12 @@ class MagicLinkServiceTest {
 
     @Test
     fun `a failed send is rolled back so the user can retry immediately`() {
-        every { emailPort.sendMagicLink(any(), capture(sentTokens)) } throws EmailDeliveryException("SMTP down")
+        every { emailPort.sendMagicLink(any(), capture(sentLinks), any()) } throws EmailDeliveryException("SMTP down")
 
         assertFailsWith<EmailDeliveryException> { service.requestToken(email) }
         val undeliveredToken = sentTokens.single()
 
-        every { emailPort.sendMagicLink(any(), capture(sentTokens)) } returns Unit
+        every { emailPort.sendMagicLink(any(), capture(sentLinks), any()) } returns Unit
         service.requestToken(email)
 
         assertNull(service.verifyToken(undeliveredToken))

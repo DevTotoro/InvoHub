@@ -24,3 +24,7 @@ spring:
   graphql:
     graphiql:
       enabled: true
+
+invohub:
+  auth:
+    frontend-url: http://localhost:5173

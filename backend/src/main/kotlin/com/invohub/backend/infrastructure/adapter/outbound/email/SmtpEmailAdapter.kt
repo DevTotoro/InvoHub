@@ -7,28 +7,29 @@ import org.springframework.mail.MailException
 import org.springframework.mail.SimpleMailMessage
 import org.springframework.mail.javamail.JavaMailSender
 import org.springframework.stereotype.Component
+import java.net.URI
+import java.time.Duration
 
 private val logger = KotlinLogging.logger {}
 
 @Component
 class SmtpEmailAdapter(
     private val mailSender: JavaMailSender,
+    private val properties: MailProperties,
 ) : EmailPort {
     override fun sendMagicLink(
         email: String,
-        rawToken: String,
+        link: URI,
+        validFor: Duration,
     ) {
-        // TODO: make url var
-        val magicLinkUrl = "http://localhost:5173/auth/verify?token=$rawToken"
-
         val message =
             SimpleMailMessage().apply {
                 setTo(email)
                 subject = "InvoHub - Sign In Link"
                 text =
                     "Click the link below to sign in to Invohub:" +
-                    "\n\n$magicLinkUrl\n\nThis link will expire in 1 hour."
-                from = "no-reply@invohub.com"
+                    "\n\n$link\n\nThis link will expire in ${humanize(validFor)}."
+                from = properties.from
             }
 
         try {
@@ -37,5 +38,15 @@ class SmtpEmailAdapter(
             logger.error(e) { "Failed to send magic link" }
             throw EmailDeliveryException("Failed to send magic link email", e)
         }
+    }
+
+    private fun humanize(duration: Duration): String {
+        val (amount, unit) =
+            if (duration.toMinutesPart() == 0 && duration.toHours() > 0) {
+                duration.toHours() to "hour"
+            } else {
+                duration.toMinutes() to "minute"
+            }
+        return if (amount == 1L) "1 $unit" else "$amount ${unit}s"
     }
 }
