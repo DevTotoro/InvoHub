@@ -69,7 +69,7 @@ class RedisMagicLinkTokenStoreTest {
         store.tryLock(email, ttl)
         store.saveToken("hash", email, ttl)
 
-        redisTemplate.keys("magic_link:*").forEach { key ->
+        listOf("magic_link:active:$email", "magic_link:token:hash").forEach { key ->
             assertTrue(redisTemplate.getExpire(key) > 0, "$key has no TTL")
         }
     }
