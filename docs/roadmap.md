@@ -27,9 +27,11 @@ What's planned, what's decided, and what must happen before the first deployment
 - Company: *Active*, *Read-only* (unpaid, after a grace period: can still view and export), *Suspended* (fraud or abuse, decided by InvoHub). Unpaid companies are never fully blocked.
 - User *suspended*: InvoHub staff only, applies everywhere (`UserService.suspendUser`).
 
-**Audit log.** Events are written in a Postgres `audit` schema, in the same transaction as the change, by a database role that may only insert and read there. Recent months stay in Postgres for the activity page; the permanent copy goes to S3 with Object Lock (see the archive job below).
+**Audit log** (built: `AuditLog`, table `audit.events`). Events are written in the same transaction as the change they describe (`AuditLog.record`; `recordStandalone` for events that belong to no other change, like sign-ins). The app's database login may only insert and read there, and a trigger refuses changes from every login. Recent months stay in Postgres for the activity page; the permanent copy goes to S3 with Object Lock (see the archive job below).
 
-Events to record:
+**Two database logins.** Migrations run as the schema owner (`spring.flyway.user`); the app connects with its own login (`spring.datasource.username`), which can read and write data but never change the schema. Grants are in `V1__initial_setup.sql`.
+
+Events to record (the `user.*` ones are recorded already):
 
 | | |
 |---|---|
@@ -49,7 +51,7 @@ Reads and page views are not recorded.
 
 ## Next up
 
-1. **Companies and roles.** Tables, "Set up your company" onboarding (name, country, currency), `me` returns the user's companies with their roles, company in the URL and a company switcher. Audit schema and the "record an event" interface, logging `user.*` and `company.created`.
+1. **Companies and roles.** Tables, "Set up your company" onboarding (name, country, currency), `me` returns the user's companies with their roles, company in the URL and a company switcher. Records `company.created`.
 2. **Permission checks.** Resolve the user's role in the company on every request, together with the company status, in one central place. Tests proving nobody can reach another company's data.
 3. **Members.** List members, change roles, remove people, leave a company.
 4. **Invitations.** Invite an email to one or more companies, each with a role (inviters can only pick companies they own or administer). The emailed link signs the person in. Invitations expire after 7 days, can be resent and revoked, with a cap on pending invites and at most one resend per hour.
@@ -80,7 +82,8 @@ Reads and page views are not recorded.
 ## Before the first deployment
 
 - Serve the frontend and `/api` from the same site (e.g. route `/api` at the CDN or on Vercel); HTTPS only, the session cookie is `Secure`.
-- Environment: `SPRING_PROFILES_ACTIVE=prod`, `INVOHUB_AUTH_FRONTEND_URL` (required), `SPRING_DATASOURCE_*`, `SPRING_DATA_REDIS_*` with `SPRING_DATA_REDIS_SSL_ENABLED=true` (ElastiCache Serverless requires TLS), `SPRING_MAIL_*`, `INVOHUB_MAIL_FROM`.
+- Create the app's database login in the database setup, with no rights of its own (the migrations grant them). Like `backend/docker/postgres-init/create-app-login.sh` does locally.
+- Environment: `SPRING_PROFILES_ACTIVE=prod`, `INVOHUB_AUTH_FRONTEND_URL` (required), `SPRING_DATASOURCE_URL` with `SPRING_DATASOURCE_USERNAME`/`_PASSWORD` set to the app's login, `SPRING_FLYWAY_USER`/`_PASSWORD` set to the schema owner, `SPRING_DATA_REDIS_*` with `SPRING_DATA_REDIS_SSL_ENABLED=true` (ElastiCache Serverless requires TLS), `SPRING_MAIL_*`, `INVOHUB_MAIL_FROM`.
 - Run once against a real ElastiCache Serverless cache: its sharding can't be reproduced locally.
 - Per-IP rate limiting at the CDN.
 - Audit table partitioning, the S3 bucket with Object Lock, and the archive job.
