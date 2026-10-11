@@ -28,8 +28,9 @@ spring:
 server:
   servlet:
     session:
-      # Inactivity timeout: a session ends after a day without requests; each request resets it
-      timeout: 1d
+      # Inactivity timeout: a session ends after 2 hours without requests; each request resets it.
+      # Separately, no session outlives invohub.auth.session-max-age (7 days) however active it is.
+      timeout: 2h
       cookie:
         http-only: true
         same-site: lax

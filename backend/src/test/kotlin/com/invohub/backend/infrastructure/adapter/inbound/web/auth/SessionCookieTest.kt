@@ -82,7 +82,7 @@ class SessionCookieTest {
     }
 
     @Test
-    fun `a session expires after a day of inactivity`() {
+    fun `a session expires after two hours of inactivity`() {
         val csrf = fetchCsrfToken()
         send(postJson("/api/auth/request", """{"email": "ttl@example.com"}""", csrf))
         val token = emailPort.sent.last { it.email == "ttl@example.com" }.rawToken
@@ -101,7 +101,7 @@ class SessionCookieTest {
         val sessionId = String(Base64.getDecoder().decode(cookieValue))
         val ttl = redisTemplate.getExpire("invohub:session:sessions:$sessionId", TimeUnit.SECONDS)
 
-        assertTrue(ttl in Duration.ofHours(23).seconds..Duration.ofDays(1).seconds, "session TTL was ${ttl}s")
+        assertTrue(ttl in Duration.ofMinutes(119).seconds..Duration.ofHours(2).seconds, "session TTL was ${ttl}s")
     }
 
     private fun fetchCsrfToken() =
