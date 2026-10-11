@@ -1,6 +1,6 @@
 package com.invohub.backend.infrastructure.adapter.outbound.email
 
-import com.invohub.backend.domain.magiclink.EmailPort
+import com.invohub.backend.domain.auth.EmailPort
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.mail.SimpleMailMessage
 import org.springframework.mail.javamail.JavaMailSender

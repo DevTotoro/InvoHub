@@ -1,4 +1,4 @@
-package com.invohub.backend.domain.magiclink
+package com.invohub.backend.domain.auth
 
 interface EmailPort {
     fun sendMagicLink(

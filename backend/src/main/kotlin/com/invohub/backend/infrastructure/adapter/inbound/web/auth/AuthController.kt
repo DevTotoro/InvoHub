@@ -1,6 +1,6 @@
 package com.invohub.backend.infrastructure.adapter.inbound.web.auth
 
-import com.invohub.backend.domain.magiclink.MagicLinkService
+import com.invohub.backend.domain.auth.MagicLinkService
 import com.invohub.backend.domain.user.UserService
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Email

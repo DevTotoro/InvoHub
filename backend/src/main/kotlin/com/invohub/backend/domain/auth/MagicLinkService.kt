@@ -1,4 +1,4 @@
-package com.invohub.backend.domain.magiclink
+package com.invohub.backend.domain.auth
 
 import com.invohub.backend.domain.user.User
 import com.invohub.backend.domain.user.UserService
