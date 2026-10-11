@@ -18,8 +18,9 @@ spring:
       path: /api/graphql
 
   session:
-    redis:
-      namespace: invohub:session
+    data:
+      redis:
+        namespace: invohub:session
 
 server:
   servlet:
