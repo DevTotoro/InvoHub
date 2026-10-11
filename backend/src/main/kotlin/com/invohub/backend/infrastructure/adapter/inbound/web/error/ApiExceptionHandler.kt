@@ -1,5 +1,6 @@
 package com.invohub.backend.infrastructure.adapter.inbound.web.error
 
+import com.invohub.backend.domain.auth.AccountLockedException
 import com.invohub.backend.domain.auth.EmailDeliveryException
 import com.invohub.backend.infrastructure.adapter.inbound.web.filter.RequestIdFilter
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -35,6 +36,13 @@ class ApiExceptionHandler : ResponseEntityExceptionHandler() {
             "We couldn't send the email right now. Please try again in a few minutes.",
             request,
         )
+
+    // lockReason is deliberately not exposed: it is an internal note, not a message for the user
+    @ExceptionHandler(AccountLockedException::class)
+    fun handleAccountLocked(
+        e: AccountLockedException,
+        request: WebRequest,
+    ): ResponseEntity<Any>? = problem(e, HttpStatus.FORBIDDEN, "This account is locked.", request)
 
     @ExceptionHandler(Exception::class)
     fun handleUnexpected(

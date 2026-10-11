@@ -1,9 +1,12 @@
 package com.invohub.backend.infrastructure.adapter.inbound.web.auth
 
 import com.invohub.backend.domain.auth.EmailDeliveryException
+import com.invohub.backend.domain.user.User
+import com.invohub.backend.domain.user.UserRepository
 import com.invohub.backend.support.CapturingEmailPort
 import com.invohub.backend.support.IntegrationTest
 import org.hamcrest.Matchers.containsString
+import org.hamcrest.Matchers.not
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -27,9 +30,13 @@ class AuthControllerTest {
     @Autowired
     private lateinit var redisTemplate: StringRedisTemplate
 
+    @Autowired
+    private lateinit var userRepository: UserRepository
+
     @BeforeEach
     fun reset() {
         emailPort.clear()
+        userRepository.deleteAll()
         redisTemplate.connectionFactory!!.connection.use { it.serverCommands().flushAll() }
     }
 
@@ -40,6 +47,18 @@ class AuthControllerTest {
 
         verify(token).andExpect { status { isNoContent() } }
         verify(token).andExpect { status { isUnauthorized() } }
+    }
+
+    @Test
+    fun `a locked user is refused without revealing the lock reason`() {
+        userRepository.save(User("locked@example.com", locked = true, lockReason = "internal fraud note"))
+        requestLink("locked@example.com")
+
+        verify(emailPort.sent.single().rawToken).andExpect {
+            status { isForbidden() }
+            jsonPath("$.detail") { value("This account is locked.") }
+            content { string(not(containsString("fraud"))) }
+        }
     }
 
     @Test

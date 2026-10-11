@@ -90,6 +90,14 @@ class MagicLinkServiceTest {
     }
 
     @Test
+    fun `a locked user cannot sign in`() {
+        every { userService.getOrCreateUser(email) } returns User(email, locked = true, lockReason = "chargeback")
+        service.requestToken(email)
+
+        assertFailsWith<AccountLockedException> { service.verifyToken(sentTokens.single()) }
+    }
+
+    @Test
     fun `an unknown token does not resolve a user`() {
         assertNull(service.verifyToken("not-a-real-token"))
 
