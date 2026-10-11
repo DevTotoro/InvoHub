@@ -3,19 +3,43 @@ kotlin = "2.3.21"
 spring-boot = "4.1.1"
 spring-dependency-management = "1.1.7"
 ktlint-gradle = "14.2.0"
-
-[libraries]
-spring-boot-starter = { module = "org.springframework.boot:spring-boot-starter" }
-spring-boot-starter-graphql = { module = "org.springframework.boot:spring-boot-starter-graphql" }
-spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web" }
-kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect" }
-spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }
-kotlin-test-junit5 = { module = "org.jetbrains.kotlin:kotlin-test-junit5" }
-junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+kotlin-logging = "7.0.3"
+postgresql = "42.7.14"
+flyway = "13.10.0"
+tsid-creator = "2.1.4"
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-spring = { id = "org.jetbrains.kotlin.plugin.spring", version.ref = "kotlin" }
+kotlin-jpa = { id = "org.jetbrains.kotlin.plugin.jpa", version.ref = "kotlin" }
 spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
 spring-dependency-management = { id = "io.spring.dependency-management", version.ref = "spring-dependency-management" }
 ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlint-gradle" }
+
+[libraries]
+# Spring Core
+spring-boot-starter = { module = "org.springframework.boot:spring-boot-starter" }
+spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web" }
+spring-boot-starter-graphql = { module = "org.springframework.boot:spring-boot-starter-graphql" }
+spring-boot-starter-validation = { module = "org.springframework.boot:spring-boot-starter-validation" }
+spring-boot-starter-data-jpa = { module = "org.springframework.boot:spring-boot-starter-data-jpa" }
+spring-boot-starter-flyway = { module = "org.springframework.boot:spring-boot-starter-flyway" }
+spring-boot-starter-mail = { module = "org.springframework.boot:spring-boot-starter-mail" }
+spring-boot-starter-data-redis = { module = "org.springframework.boot:spring-boot-starter-data-redis" }
+spring-boot-devtools = { module = "org.springframework.boot:spring-boot-devtools" }
+spring-boot-configuration-processor = { module = "org.springframework.boot:spring-boot-configuration-processor" }
+
+# Database
+flyway-database-postgresql = { module = "org.flywaydb:flyway-database-postgresql" }
+postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" }
+
+# Kotlin & Utilities
+kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect" }
+kotlin-logging = { module = "io.github.oshai:kotlin-logging-jvm", version.ref = "kotlin-logging" }
+jackson-module-kotlin = { module = "tools.jackson.module:jackson-module-kotlin" }
+tsid-creator = { module = "io.hypersistence:hypersistence-tsid", version.ref = "tsid-creator" }
+
+# Testing
+spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }
+kotlin-test-junit5 = { module = "org.jetbrains.kotlin:kotlin-test-junit5" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
