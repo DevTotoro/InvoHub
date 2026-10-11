@@ -11,6 +11,7 @@ import java.util.concurrent.Executors
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 
 @IntegrationTest
 class UserServiceTest {
@@ -54,6 +55,22 @@ class UserServiceTest {
 
         assertEquals(1, ids.toSet().size)
         assertEquals(1, userRepository.count())
+    }
+
+    @Test
+    fun `locking a user records the lock`() {
+        val user = userService.getOrCreateUser("jane@example.com")
+
+        userService.lockUser(user.id, "chargeback")
+
+        val locked = userRepository.findById(user.id).get()
+        assertTrue(locked.locked)
+        assertEquals("chargeback", locked.lockReason)
+    }
+
+    @Test
+    fun `locking an unknown user fails`() {
+        assertFailsWith<NoSuchElementException> { userService.lockUser(42, "chargeback") }
     }
 
     @Test

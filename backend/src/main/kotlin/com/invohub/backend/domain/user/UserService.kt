@@ -1,11 +1,14 @@
 package com.invohub.backend.domain.user
 
+import com.invohub.backend.domain.auth.UserSessions
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 
 @Service
 class UserService(
     private val userRepository: UserRepository,
+    private val userSessions: UserSessions,
 ) {
     fun findById(id: Long): User? = userRepository.findById(id).orElse(null)
 
@@ -23,5 +26,24 @@ class UserService(
             // A concurrent request created the user between the lookup and the insert
             userRepository.findByEmail(normalized) ?: throw e
         }
+    }
+
+    /**
+     * Locks the account and signs the user out everywhere. Always lock through here: setting `locked`
+     * directly in the database blocks new sign-ins, but leaves existing sessions running until they expire.
+     *
+     * The sessions are ended inside the transaction, so if that fails the lock is rolled back and can be
+     * retried, rather than leaving a locked user signed in.
+     *
+     * @throws NoSuchElementException if there is no such user
+     */
+    @Transactional
+    fun lockUser(
+        id: Long,
+        reason: String,
+    ) {
+        val user = userRepository.findById(id).orElseThrow()
+        user.lock(reason)
+        userSessions.endAll(id)
     }
 }

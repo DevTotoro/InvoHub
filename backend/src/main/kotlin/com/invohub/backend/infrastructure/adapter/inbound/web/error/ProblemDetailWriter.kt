@@ -21,12 +21,9 @@ class ProblemDetailWriter(
         response: HttpServletResponse,
         status: HttpStatus,
         detail: String,
-        /** Same meaning as in [ApiExceptionHandler]: a stable identifier clients can branch on */
-        code: String? = null,
     ) {
         val problem =
             ProblemDetail.forStatusAndDetail(status, detail).apply {
-                code?.let { setProperty("code", it) }
                 setProperty("requestId", MDC.get(RequestIdFilter.MDC_KEY))
             }
         response.status = status.value()

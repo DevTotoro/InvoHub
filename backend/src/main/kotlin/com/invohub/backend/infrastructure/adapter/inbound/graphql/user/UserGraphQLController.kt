@@ -20,7 +20,7 @@ data class UserView(
 class UserGraphQLController(
     private val userService: UserService,
 ) {
-    /** Never null in practice: ActiveAccountFilter ends the session of a user who no longer exists. */
+    /** Null if the session outlived the user it belongs to. */
     @QueryMapping
     fun me(
         @AuthenticationPrincipal principal: AuthenticatedUser,

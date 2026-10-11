@@ -1,6 +1,7 @@
 package com.invohub.backend.infrastructure.adapter.inbound.web.auth
 
 import com.invohub.backend.domain.user.UserRepository
+import com.invohub.backend.domain.user.UserService
 import com.invohub.backend.support.CapturingEmailPort
 import com.invohub.backend.support.IntegrationTest
 import jakarta.servlet.http.Cookie
@@ -17,7 +18,6 @@ import org.springframework.test.web.servlet.ResultActions
 import org.springframework.test.web.servlet.ResultActionsDsl
 import org.springframework.test.web.servlet.ResultHandler
 import org.springframework.test.web.servlet.ResultMatcher
-import org.springframework.test.web.servlet.get
 import org.springframework.test.web.servlet.post
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch
 import kotlin.test.assertNotEquals
@@ -41,6 +41,9 @@ class SessionTest {
 
     @Autowired
     private lateinit var userRepository: UserRepository
+
+    @Autowired
+    private lateinit var userService: UserService
 
     @BeforeEach
     fun reset() {
@@ -94,50 +97,47 @@ class SessionTest {
     }
 
     @Test
-    fun `locking a signed-in user ends their session and blocks every endpoint`() {
-        val session = sessionCookie(signIn("jane@example.com"))
-        userRepository.save(userRepository.findByEmail("jane@example.com")!!.apply { lock("chargeback") })
+    fun `locking a user ends all their sessions`() {
+        val laptop = sessionCookie(signIn("jane@example.com"))
+        val phone = sessionCookie(signIn("jane@example.com"))
 
-        me(session).andExpect {
-            status { isForbidden() }
-            jsonPath("$.code") { value("account_locked") }
-        }
-        // The session is gone: even public endpoints no longer see a signed-in user
-        mockMvc.get("/api/auth/csrf") { cookie(session) }.andExpect { status { isNoContent() } }
-        me(session).andExpect { status { isUnauthorized() } }
+        userService.lockUser(userRepository.findByEmail("jane@example.com")!!.id, "chargeback")
+
+        me(laptop).andExpect { status { isUnauthorized() } }
+        me(phone).andExpect { status { isUnauthorized() } }
     }
 
     @Test
-    fun `a locked user's session is refused on public endpoints too`() {
-        val session = sessionCookie(signIn("jane@example.com"))
-        userRepository.save(userRepository.findByEmail("jane@example.com")!!.apply { lock("chargeback") })
+    fun `locking a user leaves other users signed in`() {
+        val jane = sessionCookie(signIn("jane@example.com"))
+        val john = sessionCookie(signIn("john@example.com"))
 
-        mockMvc.get("/api/auth/csrf") { cookie(session) }.andExpect {
-            status { isForbidden() }
-            jsonPath("$.code") { value("account_locked") }
-        }
+        userService.lockUser(userRepository.findByEmail("jane@example.com")!!.id, "chargeback")
+
+        me(jane).andExpect { status { isUnauthorized() } }
+        me(john).andExpect { jsonPath("$.data.me.email") { value("john@example.com") } }
     }
 
     @Test
-    fun `deleting a signed-in user ends their session`() {
-        val session = sessionCookie(signIn("jane@example.com"))
-        userRepository.deleteAll()
+    fun `a locked user cannot sign back in`() {
+        signIn("jane@example.com")
+        userService.lockUser(userRepository.findByEmail("jane@example.com")!!.id, "chargeback")
 
-        me(session).andExpect {
-            status { isUnauthorized() }
-            content { contentType(MediaType.APPLICATION_PROBLEM_JSON) }
-        }
-    }
-
-    @Test
-    fun `unlocking does not revive an ended session`() {
-        val session = sessionCookie(signIn("jane@example.com"))
-        val user = userRepository.save(userRepository.findByEmail("jane@example.com")!!.apply { lock("review") })
-        me(session).andExpect { status { isForbidden() } }
-
-        userRepository.save(user.apply { unlock() })
-
-        me(session).andExpect { status { isUnauthorized() } }
+        mockMvc
+            .post("/api/auth/request") {
+                with(csrf())
+                contentType = MediaType.APPLICATION_JSON
+                content = """{"email": "jane@example.com"}"""
+            }.andExpect { status { isOk() } }
+        mockMvc
+            .post("/api/auth/verify") {
+                with(csrf())
+                contentType = MediaType.APPLICATION_JSON
+                content = """{"token": "${emailPort.sent.last().rawToken}"}"""
+            }.andExpect {
+                status { isForbidden() }
+                jsonPath("$.code") { value("account_locked") }
+            }
     }
 
     private fun signIn(
