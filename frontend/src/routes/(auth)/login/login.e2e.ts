@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { TEST_USER, mockApi } from '#lib/testing/mock-api.ts';
+import { ACME, TEST_USER, mockApi } from '#lib/testing/mock-api.ts';
 
 test('requesting a link shows where it was sent', async ({ page, baseURL }) => {
   await mockApi(page, baseURL!);
@@ -14,17 +14,17 @@ test('requesting a link shows where it was sent', async ({ page, baseURL }) => {
 });
 
 test('signed-in users skip the login page', async ({ page, baseURL }) => {
-  await mockApi(page, baseURL!, { user: TEST_USER });
+  await mockApi(page, baseURL!, { user: TEST_USER, companies: [ACME] });
 
   await page.goto('/login');
 
-  await expect(page).toHaveURL('/');
+  await expect(page).toHaveURL(`/c/${ACME.company.id}`);
 });
 
 test('an off-site redirect target is ignored', async ({ page, baseURL }) => {
-  await mockApi(page, baseURL!, { user: TEST_USER });
+  await mockApi(page, baseURL!, { user: TEST_USER, companies: [ACME] });
 
   await page.goto('/login?redirectTo=//evil.example');
 
-  await expect(page).toHaveURL('/');
+  await expect(page).toHaveURL(`/c/${ACME.company.id}`);
 });
