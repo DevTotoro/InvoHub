@@ -8,6 +8,7 @@ import com.invohub.backend.support.IntegrationTest
 import io.hypersistence.tsid.TSID
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.dao.DataIntegrityViolationException
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
@@ -81,6 +82,29 @@ class CompanyServiceTest {
                     it.role
             },
         )
+    }
+
+    @Test
+    fun `a user can be a member of a company only once`() {
+        val company = companyService.createCompany(newUser(), "Acme", "GR")
+        val user = newUser()
+        memberRepository.save(CompanyMember(company.id, user, CompanyRole.VIEWER))
+
+        assertFailsWith<DataIntegrityViolationException> {
+            memberRepository.save(CompanyMember(company.id, user, CompanyRole.ADMIN))
+        }
+    }
+
+    @Test
+    fun `a membership is found by company and user`() {
+        val company = companyService.createCompany(newUser(), "Acme", "GR")
+        val user = newUser()
+        memberRepository.save(CompanyMember(company.id, user, CompanyRole.MEMBER))
+
+        val found = memberRepository.findById(CompanyMemberId(company.id, user)).get()
+
+        assertEquals(CompanyRole.MEMBER, found.role)
+        assertEquals(CompanyMember(company.id, user, CompanyRole.MEMBER), found)
     }
 
     private fun newUser() = userService.getOrCreateUser("user-${TSID.fast()}@example.com").id

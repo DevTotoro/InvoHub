@@ -4,6 +4,7 @@ import io.hypersistence.tsid.TSID
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.Id
+import jakarta.persistence.Index
 import jakarta.persistence.Table
 import org.hibernate.annotations.Generated
 import org.hibernate.annotations.JdbcTypeCode
@@ -19,7 +20,13 @@ import java.time.Instant
  * Not a BaseEntity: an event has no version and is never updated. Record events through [AuditLog].
  */
 @Entity
-@Table(name = "events", schema = "audit")
+@Table(
+    name = "events",
+    schema = "audit",
+    // Also partial indexes on (company_id, occurred_at) and (actor_user_id, occurred_at) WHERE … IS NOT NULL,
+    // which @Index can't express: see V1__initial_setup.sql
+    indexes = [Index(name = "ix_audit_events_target", columnList = "target_type, target_id, occurred_at")],
+)
 class AuditEventRecord(
     @Column(name = "action", nullable = false, updatable = false)
     val action: String,

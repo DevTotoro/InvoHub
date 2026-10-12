@@ -11,7 +11,10 @@ import java.time.Instant
  * filled in later, through the invoicing setup checklist of the country's rules (see CountryRules).
  */
 @Entity
-@Table(name = "companies")
+@Table(
+    name = "companies",
+    indexes = [Index(name = "ix_companies_owner", columnList = "owner_user_id")],
+)
 class Company(
     name: String,
     /** ISO 3166-1 alpha-2, e.g. GR */

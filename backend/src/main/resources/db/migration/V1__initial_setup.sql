@@ -51,20 +51,20 @@ CREATE TABLE companies (
 
 CREATE INDEX ix_companies_owner ON companies (owner_user_id);
 
--- Everyone with access to a company except its owner, who is companies.owner_user_id
+-- Everyone with access to a company except its owner, who is companies.owner_user_id. A membership is just a
+-- user in a company, so that pair is the key. The role is a VARCHAR with a CHECK rather than an enum type, so
+-- roles can be added or removed with a simple migration.
 CREATE TABLE company_members (
-    id BIGINT NOT NULL,
-    version BIGINT NOT NULL DEFAULT 0,
-    --
     company_id BIGINT NOT NULL,
     user_id BIGINT NOT NULL,
+    version BIGINT NOT NULL DEFAULT 0,
+    --
     role VARCHAR(20) NOT NULL,
     --
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     --
-    CONSTRAINT pk_company_members PRIMARY KEY (id),
-    CONSTRAINT uq_company_members UNIQUE (company_id, user_id),
+    CONSTRAINT pk_company_members PRIMARY KEY (company_id, user_id),
     CONSTRAINT fk_company_members_company FOREIGN KEY (company_id) REFERENCES companies (id),
     CONSTRAINT fk_company_members_user FOREIGN KEY (user_id) REFERENCES users (id),
     CONSTRAINT ck_company_members_role CHECK (role IN ('ADMIN', 'MEMBER', 'VIEWER'))
