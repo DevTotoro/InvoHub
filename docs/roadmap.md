@@ -22,6 +22,9 @@ What's planned, what's decided, and what must happen before the first deployment
 
 - Exactly one owner per company, stored on the company (`owner_user_id`). Anyone can create a company and becomes its owner.
 - Removing someone deletes their membership; the user remains, so their past work keeps their name. The history lives in the audit log.
+- Invitations (built): the owner or an admin invites an email address to one or more of their companies, each with a role. The invitation belongs to the address, not to a link: the email only tells the person, who signs in as usual (a normal one-hour sign-in link) and accepts or declines on their Invitations page. So nothing in an inbox signs anyone in, and a lost email doesn't matter. Invitations stay open 7 days; there is no resending: once one has expired, been declined or been revoked, the person can be invited again.
+  - Emails: one lists every invitation not yet mentioned, and nobody gets more than one an hour, however many companies invite them. Later invitations wait for `InvitationNotificationJob`, which also retries failed sends, so every invitation is mentioned eventually. In the person's language if they have an account, otherwise English (the inviter's may not be theirs).
+  - Abuse: anyone can create companies, so limits that real use never reaches bound how much email one account can send: 100 invitations a day per company, 200 per inviter (`invohub.invitations.*`). The email has no free text from the inviter; the company name is plain text.
 - Members (built): everyone in a company sees its people. The owner and admins change roles and remove people, never the owner, and nobody changes or removes themselves (they leave instead). The owner role is never given from the role menu, and the owner can't leave: ownership moves only through a transfer. A removed member loses access with their next request.
 
 **Company in the URL** (`/c/<public id>/…`). The URL only says which company is being viewed; the backend checks the user's role in it on every request.
@@ -58,7 +61,7 @@ Events to record (the `user.*` ones are recorded already):
 | Users | `user.created`, `user.signed_in`, `user.signed_out`, `user.sign_in_refused`, `user.suspended`, `user.unsuspended` |
 | Companies | `company.created`, `company.updated` (before/after), `company.status_changed`, `company.ownership_transferred` |
 | Members | `member.added`, `member.role_changed`, `member.removed`, `member.left` |
-| Invitations | `invitation.sent`, `invitation.resent`, `invitation.revoked`, `invitation.accepted` |
+| Invitations | `invitation.sent`, `invitation.revoked`, `invitation.accepted`, `invitation.declined`, and `member.added` on joining |
 | Later | `invoice.issued`, `invoice.voided`, `credit_note.issued`, `export.downloaded` |
 
 Reads and page views are not recorded.
@@ -71,11 +74,10 @@ Reads and page views are not recorded.
 
 ## Next up
 
-Built so far: companies and roles, translations, permission checks, and members. Every new page and email is written in both languages, and every company-scoped operation goes through the permission checks.
+Built so far: companies and roles, translations, permission checks, members, and invitations. Every new page and email is written in both languages, and every company-scoped operation goes through the permission checks.
 
-1. **Invitations.** Invite an email to one or more companies, each with a role (inviters can only pick companies they own or administer). The emailed link signs the person in. Invitations expire after 7 days, can be resent and revoked, with a cap on pending invites and at most one resend per hour.
-2. **Company settings.** Admins edit the company's details (including the tax ID, legal name, address and country details from the checklist), bank details and logo; anyone can create more companies.
-3. **Ownership transfer and company deletion.**
+1. **Company settings.** Admins edit the company's details (including the tax ID, legal name, address and country details from the checklist), bank details and logo; anyone can create more companies.
+2. **Ownership transfer and company deletion.**
 
 ## Later
 
@@ -110,5 +112,6 @@ Built so far: companies and roles, translations, permission checks, and members.
 - Environment: `SPRING_PROFILES_ACTIVE=prod`, `INVOHUB_AUTH_FRONTEND_URL` (required), `SPRING_DATASOURCE_URL` with `SPRING_DATASOURCE_USERNAME`/`_PASSWORD` set to the app's login, `SPRING_FLYWAY_USER`/`_PASSWORD` set to the schema owner, `SPRING_DATA_REDIS_*` with `SPRING_DATA_REDIS_SSL_ENABLED=true` (ElastiCache Serverless requires TLS), `SPRING_MAIL_*`, `INVOHUB_MAIL_FROM`.
 - Run once against a real ElastiCache Serverless cache: its sharding can't be reproduced locally.
 - Per-IP rate limiting at the CDN.
+- Email sending (e.g. Amazon SES): handle bounces and complaints, stop sending to addresses that bounce or complain, and alert on a rising complaint rate. Invitation emails go to addresses other users type in, so they are the ones to watch.
 - Audit table partitioning, the S3 bucket with Object Lock, and the archive job.
 - From then on, schema changes go into new Flyway migrations instead of editing `V1__initial_setup.sql`.
