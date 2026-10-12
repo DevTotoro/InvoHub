@@ -1,6 +1,10 @@
 package com.invohub.backend.infrastructure.adapter.inbound.graphql
 
 import com.invohub.backend.domain.common.InvalidInputException
+import com.invohub.backend.domain.company.CompanyNotFoundException
+import com.invohub.backend.domain.company.CompanyPermissionDeniedException
+import com.invohub.backend.domain.company.CompanyReadOnlyException
+import com.invohub.backend.domain.company.CompanySuspendedException
 import graphql.GraphQLError
 import graphql.GraphqlErrorBuilder
 import graphql.schema.DataFetchingEnvironment
@@ -26,6 +30,26 @@ class GraphQLErrorResolver : DataFetcherExceptionResolverAdapter() {
                     .message("Invalid ${ex.field}: ${ex.reason}")
                     .extensions(mapOf("code" to "invalid_input", "field" to ex.field, "reason" to ex.reason))
                     .build()
+            is CompanyNotFoundException -> error(env, ErrorType.NOT_FOUND, "Company not found", "not_found")
+            is CompanyPermissionDeniedException ->
+                error(env, ErrorType.FORBIDDEN, "Your role in this company doesn't allow this", "forbidden")
+            is CompanyReadOnlyException ->
+                error(env, ErrorType.FORBIDDEN, "The company is read-only", "company_read_only")
+            is CompanySuspendedException ->
+                error(env, ErrorType.FORBIDDEN, "The company is suspended", "company_suspended")
             else -> null
         }
+
+    private fun error(
+        env: DataFetchingEnvironment,
+        type: ErrorType,
+        message: String,
+        code: String,
+    ): GraphQLError =
+        GraphqlErrorBuilder
+            .newError(env)
+            .errorType(type)
+            .message(message)
+            .extensions(mapOf("code" to code))
+            .build()
 }

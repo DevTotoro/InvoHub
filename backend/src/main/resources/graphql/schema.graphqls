@@ -3,6 +3,15 @@ type Query {
     me: User
     "Every country a company can be in, with its currency"
     countries: [Country!]!
+    """
+    A company the signed-in user can access, with their role in it. Fails with extensions { code: "not_found" }
+    for a company they can't access, exactly as for one that doesn't exist, and with "company_suspended" for a
+    suspended company.
+
+    Company-scoped fields fail with these codes: "not_found"; "forbidden" when the user's role doesn't allow
+    it; "company_read_only" when it would change a read-only company; "company_suspended".
+    """
+    company(id: ID!): UserCompany
 }
 
 type Mutation {
@@ -42,8 +51,17 @@ type Company {
     country: String!
     "ISO 4217, e.g. EUR"
     currency: String!
+    status: CompanyStatus!
     "Whether InvoHub supports invoicing in the company's country yet"
     invoicingSupported: Boolean!
+}
+
+enum CompanyStatus {
+    ACTIVE
+    "Unpaid: can be viewed and exported, and billing managed, but not changed"
+    READ_ONLY
+    "By InvoHub staff: can't be used"
+    SUSPENDED
 }
 
 enum CompanyRole {

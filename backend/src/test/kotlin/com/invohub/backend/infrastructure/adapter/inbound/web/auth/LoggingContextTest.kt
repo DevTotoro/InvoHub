@@ -3,7 +3,9 @@ package com.invohub.backend.infrastructure.adapter.inbound.web.auth
 import com.invohub.backend.domain.audit.AuditAction
 import com.invohub.backend.domain.audit.AuditEvent
 import com.invohub.backend.domain.company.CompanyService
+import com.invohub.backend.domain.company.country.CountryRulesRegistry
 import com.invohub.backend.domain.user.UserRepository
+import com.invohub.backend.infrastructure.adapter.inbound.graphql.company.CompanyScope
 import com.invohub.backend.infrastructure.adapter.inbound.web.filter.RequestIdFilter
 import com.invohub.backend.infrastructure.adapter.outbound.audit.JpaAuditLog
 import com.invohub.backend.support.CapturingEmailPort
@@ -14,6 +16,7 @@ import com.invohub.backend.support.signIn
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.ArgumentMatchers.anyLong
+import org.mockito.ArgumentMatchers.anyString
 import org.mockito.Mockito.any
 import org.mockito.Mockito.doAnswer
 import org.slf4j.MDC
@@ -55,6 +58,9 @@ class LoggingContextTest {
     @MockitoSpyBean
     private lateinit var auditLog: JpaAuditLog
 
+    @MockitoSpyBean
+    private lateinit var countryRules: CountryRulesRegistry
+
     /** The MDC at each recorded audit event, by action */
     private val atAuditEvent = CopyOnWriteArrayList<Pair<AuditAction, Map<String, String>>>()
 
@@ -82,6 +88,28 @@ class LoggingContextTest {
 
         assertEquals(publicIdOf("jane@example.com"), inResolver?.get(UserLoggingContextFilter.MDC_KEY))
         assertNotNull(inResolver?.get(RequestIdFilter.MDC_KEY))
+    }
+
+    @Test
+    fun `work in a company is logged with the company too`() {
+        val session = mockMvc.signIn(emailPort, "jane@example.com")
+        val company = companyService.createCompany(userRepository.findByEmail("jane@example.com")!!.id, "Acme", "GR")
+        var inCompany: Map<String, String>? = null
+        // Called while building the company's view, once its access has been checked
+        doAnswer {
+            inCompany = mdc()
+            it.callRealMethod()
+        }.`when`(countryRules).forCountry(anyString())
+
+        mockMvc.graphql(
+            session,
+            "query(${'$'}id: ID!) { company(id: ${'$'}id) { role } }",
+            mapOf("id" to company.getPublicId()),
+        )
+
+        assertEquals(company.getPublicId(), inCompany?.get(CompanyScope.MDC_KEY))
+        assertEquals(publicIdOf("jane@example.com"), inCompany?.get(UserLoggingContextFilter.MDC_KEY))
+        assertTrue(mdc().isEmpty(), "MDC still holds ${mdc()}")
     }
 
     @Test

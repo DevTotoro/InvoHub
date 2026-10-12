@@ -1,10 +1,18 @@
 package com.invohub.backend.infrastructure.adapter.inbound.graphql.company
 
+import com.invohub.backend.domain.common.TSIDCodec
+import com.invohub.backend.domain.company.CompanyMember
+import com.invohub.backend.domain.company.CompanyMemberRepository
+import com.invohub.backend.domain.company.CompanyRepository
+import com.invohub.backend.domain.company.CompanyRole
+import com.invohub.backend.domain.company.CompanyStatus
+import com.invohub.backend.domain.user.UserRepository
 import com.invohub.backend.support.CapturingEmailPort
 import com.invohub.backend.support.DatabaseCleaner
 import com.invohub.backend.support.IntegrationTest
 import com.invohub.backend.support.graphql
 import com.invohub.backend.support.signIn
+import com.jayway.jsonpath.JsonPath
 import jakarta.servlet.http.Cookie
 import org.hamcrest.Matchers.hasItem
 import org.hamcrest.Matchers.not
@@ -29,6 +37,15 @@ class CompanyGraphQLTest {
 
     @Autowired
     private lateinit var redisTemplate: StringRedisTemplate
+
+    @Autowired
+    private lateinit var companyRepository: CompanyRepository
+
+    @Autowired
+    private lateinit var memberRepository: CompanyMemberRepository
+
+    @Autowired
+    private lateinit var userRepository: UserRepository
 
     private val myCompanies = "{ me { companies { role company { id name country currency invoicingSupported } } } }"
     private val createCompany =
@@ -123,6 +140,77 @@ class CompanyGraphQLTest {
     fun `creating a company needs a session`() {
         create(session = null, name = "Acme", country = "GR").andExpect { status { isUnauthorized() } }
     }
+
+    @Test
+    fun `the owner opens their company`() {
+        val session = mockMvc.signIn(emailPort, "jane@example.com")
+        val id = createdId(session, "Acme")
+
+        company(session, id).andExpect {
+            jsonPath("$.data.company.role") { value("OWNER") }
+            jsonPath("$.data.company.company.name") { value("Acme") }
+            jsonPath("$.data.company.company.status") { value("ACTIVE") }
+        }
+    }
+
+    @Test
+    fun `a member opens the company with their own role`() {
+        val id = createdId(mockMvc.signIn(emailPort, "jane@example.com"), "Acme")
+        val john = mockMvc.signIn(emailPort, "john@example.com")
+        memberRepository.save(CompanyMember(TSIDCodec.decode(id), userIdOf("john@example.com"), CompanyRole.VIEWER))
+
+        company(john, id).andExpect { jsonPath("$.data.company.role") { value("VIEWER") } }
+    }
+
+    @Test
+    fun `a read-only company can still be opened`() {
+        val session = mockMvc.signIn(emailPort, "jane@example.com")
+        val id = createdId(session, "Acme")
+        setStatus(id, CompanyStatus.READ_ONLY)
+
+        company(session, id).andExpect { jsonPath("$.data.company.company.status") { value("READ_ONLY") } }
+    }
+
+    @Test
+    fun `a suspended company can't be opened, even by its owner`() {
+        val session = mockMvc.signIn(emailPort, "jane@example.com")
+        val id = createdId(session, "Acme")
+        setStatus(id, CompanyStatus.SUSPENDED)
+
+        company(session, id).andExpect {
+            jsonPath("$.errors[0].extensions.code") { value("company_suspended") }
+            jsonPath("$.data.company") { doesNotExist() }
+        }
+    }
+
+    private fun company(
+        session: Cookie,
+        id: String,
+    ) = mockMvc.graphql(
+        session,
+        "query(${'$'}id: ID!) { company(id: ${'$'}id) { role company { name status } } }",
+        mapOf("id" to id),
+    )
+
+    private fun createdId(
+        session: Cookie,
+        name: String,
+    ): String =
+        JsonPath.read(
+            create(session, name, "GR").andReturn().response.contentAsString,
+            "$.data.createCompany.id",
+        )
+
+    private fun setStatus(
+        id: String,
+        status: CompanyStatus,
+    ) {
+        val company = companyRepository.findById(TSIDCodec.decode(id)).get()
+        company.changeStatus(status)
+        companyRepository.save(company)
+    }
+
+    private fun userIdOf(email: String) = userRepository.findByEmail(email)!!.id
 
     private fun create(
         session: Cookie?,
