@@ -70,7 +70,7 @@ Reads and page views are not recorded.
    - Dates, numbers and amounts formatted for the language (`Intl`)
    - Error messages from the backend's problem `code`s, not its English `detail`
    - Emails (the sign-in link, later invitations) in the user's language
-3. **Permission checks.** Resolve the user's role in the company on every request, together with the company status, in one central place. Tests proving nobody can reach another company's data.
+3. **Permission checks.** Resolve the user's role in the company on every request, together with the company status, in one central place. Tests proving nobody can reach another company's data. Add the company's public ID to the logging context there (`companyId`, next to `requestId` and `userId`).
 4. **Members.** List members, change roles, remove people, leave a company.
 5. **Invitations.** Invite an email to one or more companies, each with a role (inviters can only pick companies they own or administer). The emailed link signs the person in. Invitations expire after 7 days, can be resent and revoked, with a cap on pending invites and at most one resend per hour.
 6. **Company settings.** Admins edit the company's details (including the tax ID, legal name, address and country details from the checklist), bank details and logo; anyone can create more companies.

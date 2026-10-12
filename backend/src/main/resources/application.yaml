@@ -29,6 +29,12 @@ spring:
         # ElastiCache Serverless allows; RedisUserSessions keeps track of each user's sessions instead
         configure-action: none
 
+logging:
+  pattern:
+    # Plain-text logs show the request and the signed-in user's public ID; structured (ECS) logs include
+    # both as fields anyway. Outside a request, where both are empty, the brackets are left out.
+    correlation: "%replace([%X{requestId:-},%X{userId:-}] ){'\\[,\\] ', ''}"
+
 server:
   servlet:
     session:

@@ -4,6 +4,7 @@ import com.invohub.backend.domain.audit.AuditLog
 import com.invohub.backend.domain.auth.AuthProperties
 import com.invohub.backend.infrastructure.adapter.inbound.web.auth.AuditingLogoutHandler
 import com.invohub.backend.infrastructure.adapter.inbound.web.auth.SessionMaxAgeFilter
+import com.invohub.backend.infrastructure.adapter.inbound.web.auth.UserLoggingContextFilter
 import com.invohub.backend.infrastructure.adapter.inbound.web.error.ProblemDetailWriter
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -53,6 +54,7 @@ class SecurityConfig {
             .securityContext { it.securityContextRepository(securityContextRepository) }
             // Before the security context is loaded, so an expired session is never seen as signed in
             .addFilterBefore(SessionMaxAgeFilter(authProperties.sessionMaxAge), SecurityContextHolderFilter::class.java)
+            .addFilterAfter(UserLoggingContextFilter(), SecurityContextHolderFilter::class.java)
             .exceptionHandling {
                 it
                     .authenticationEntryPoint { _, response, _ ->
