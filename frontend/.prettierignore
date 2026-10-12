@@ -7,3 +7,6 @@ bun.lockb
 
 # Miscellaneous
 /static/
+
+# inlang keeps its plugin cache here (its own .gitignore keeps it out of git)
+/project.inlang/

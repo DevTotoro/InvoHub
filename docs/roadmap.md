@@ -6,6 +6,8 @@ What's planned, what's decided, and what must happen before the first deployment
 
 **Greece first.** The first market is Greece; the app starts in Greek and English, and Greek invoicing rules (below, under Invoices) shape the model.
 
+**Languages: Greek and English** (built). Each user has a language, for the app and their emails. Signed out, the app uses the one picked in the header (kept in a cookie), else the browser's; signing in switches to the account's, which wins. A first sign-in creates the account in the language in use. Not in the URL: pages render in the browser and aren't indexed. App texts are in `frontend/messages/`, email texts in `backend/src/main/resources/i18n/`; tests fail when a language is missing a text. Errors are shown by the API's problem `code`, never its English `detail`.
+
 **Companies (no account layer).** Each company stands alone, like a Xero organisation. A user can belong to many companies, with a role in each. If people with several companies want a single bill, that is a billing feature (billing profiles, below), not a grouping of companies.
 
 **Roles, per company:**
@@ -64,17 +66,13 @@ Reads and page views are not recorded.
 
 ## Next up
 
-1. **Companies and roles** (`feat/companies`). Tables (with empty columns for the invoicing details), the country-rules framework (Greece, plus unsupported countries), "Set up your company" with name and country, currency from the country, `me` returns the user's companies with their roles, company in the URL and a company switcher. Records `company.created`.
-2. **Translations.** Greek and English throughout, so every later page starts translated:
-   - UI text through Paraglide (SvelteKit's recommended i18n), language chosen per user and stored on the user, defaulting to the browser's
-   - Dates, numbers and amounts formatted for the language (`Intl`)
-   - Error messages from the backend's problem `code`s, not its English `detail`
-   - Emails (the sign-in link, later invitations) in the user's language
-3. **Permission checks.** Resolve the user's role in the company on every request, together with the company status, in one central place. Tests proving nobody can reach another company's data. Add the company's public ID to the logging context there (`companyId`, next to `requestId` and `userId`).
-4. **Members.** List members, change roles, remove people, leave a company.
-5. **Invitations.** Invite an email to one or more companies, each with a role (inviters can only pick companies they own or administer). The emailed link signs the person in. Invitations expire after 7 days, can be resent and revoked, with a cap on pending invites and at most one resend per hour.
-6. **Company settings.** Admins edit the company's details (including the tax ID, legal name, address and country details from the checklist), bank details and logo; anyone can create more companies.
-7. **Ownership transfer and company deletion.**
+Built so far: companies and roles, and translations. Every new page and email is written in both languages.
+
+1. **Permission checks.** Resolve the user's role in the company on every request, together with the company status, in one central place. Tests proving nobody can reach another company's data. Add the company's public ID to the logging context there (`companyId`, next to `requestId` and `userId`).
+2. **Members.** List members, change roles, remove people, leave a company.
+3. **Invitations.** Invite an email to one or more companies, each with a role (inviters can only pick companies they own or administer). The emailed link signs the person in. Invitations expire after 7 days, can be resent and revoked, with a cap on pending invites and at most one resend per hour.
+4. **Company settings.** Admins edit the company's details (including the tax ID, legal name, address and country details from the checklist), bank details and logo; anyone can create more companies.
+5. **Ownership transfer and company deletion.**
 
 ## Later
 

@@ -8,6 +8,8 @@ CREATE TABLE users (
     version BIGINT NOT NULL DEFAULT 0,
     --
     email VARCHAR(255) NOT NULL,
+    -- For the app and the user's emails. A VARCHAR with a CHECK, like company_members.role
+    language VARCHAR(2) NOT NULL DEFAULT 'EN',
     suspended BOOLEAN NOT NULL DEFAULT FALSE,
     suspension_reason VARCHAR(255),
     --
@@ -17,7 +19,8 @@ CREATE TABLE users (
     CONSTRAINT pk_users PRIMARY KEY (id),
     CONSTRAINT uq_users_email UNIQUE (email),
     -- Emails are stored normalized, which makes uq_users_email reject case variants of the same address
-    CONSTRAINT ck_users_email_normalized CHECK (email = lower(btrim(email)))
+    CONSTRAINT ck_users_email_normalized CHECK (email = lower(btrim(email))),
+    CONSTRAINT ck_users_language CHECK (language IN ('EN', 'EL'))
 );
 
 -- Companies. Created with just a name and a country; the invoicing details stay empty until the company works

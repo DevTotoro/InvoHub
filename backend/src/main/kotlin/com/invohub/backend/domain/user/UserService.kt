@@ -26,24 +26,34 @@ class UserService(
 
     fun findById(id: Long): User? = userRepository.findById(id).orElse(null)
 
+    fun findByEmail(email: String): User? = userRepository.findByEmail(normalizeEmail(email))
+
     /**
      * The user and its user.created event are inserted in a transaction of their own, so that losing a race
      * to a concurrent insert leaves nothing else rolled back and the existing user can be read instead.
+     *
+     * [language] is only used for a new user; an existing one keeps theirs.
      */
-    fun getOrCreateUser(email: String): User {
+    fun getOrCreateUser(
+        email: String,
+        language: Language,
+    ): User {
         val normalized = normalizeEmail(email)
         userRepository.findByEmail(normalized)?.let { return it }
 
         return try {
-            newTransaction.execute { createUser(normalized) }
+            newTransaction.execute { createUser(normalized, language) }
         } catch (e: DataIntegrityViolationException) {
             // A concurrent request created the user between the lookup and the insert
             userRepository.findByEmail(normalized) ?: throw e
         }
     }
 
-    private fun createUser(email: String): User {
-        val user = userRepository.saveAndFlush(User(email))
+    private fun createUser(
+        email: String,
+        language: Language,
+    ): User {
+        val user = userRepository.saveAndFlush(User(email, language))
         // The user signed themselves up
         auditLog.record(
             AuditEvent(
@@ -55,6 +65,13 @@ class UserService(
         )
         return user
     }
+
+    /** @throws NoSuchElementException if there is no such user */
+    @Transactional
+    fun changeLanguage(
+        id: Long,
+        language: Language,
+    ): User = userRepository.findById(id).orElseThrow().apply { changeLanguage(language) }
 
     /**
      * Suspends the user and signs them out everywhere. Always suspend through here: setting `suspended`

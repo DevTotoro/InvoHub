@@ -4,9 +4,11 @@
   import { page } from '$app/state';
   import { logout } from '#lib/api/auth.ts';
   import CompanySwitcher from '#lib/components/CompanySwitcher.svelte';
+  import LanguagePicker from '#lib/components/LanguagePicker.svelte';
   import GitHubIcon from '#lib/components/icons/GitHubIcon.svelte';
   import Button from '#lib/components/ui/Button.svelte';
   import Link from '#lib/components/ui/Link.svelte';
+  import { m } from '#lib/paraglide/messages.js';
 
   // Set by the (app) layout on signed-in pages, and by the company layout on company pages
   const user = $derived(page.data.user);
@@ -38,15 +40,17 @@
       {/if}
     </div>
 
-    <div class="flex items-center gap-4">
+    <div class="flex shrink-0 items-center gap-2 sm:gap-4">
       {#if user}
         <span class="hidden text-sm text-gray-600 sm:inline">{user.email}</span>
         <Button variant="ghost" onclick={signOut} loading={signingOut}>
-          {signOutFailed ? 'Sign out failed, retry' : 'Sign out'}
+          {signOutFailed ? m.header_sign_out_failed() : m.header_sign_out()}
         </Button>
       {/if}
 
-      <Link href="https://github.com/DevTotoro/InvoHub" variant="icon" external aria-label="InvoHub on GitHub">
+      <LanguagePicker signedIn={!!user} />
+
+      <Link href="https://github.com/DevTotoro/InvoHub" variant="icon" external aria-label={m.header_github()}>
         <GitHubIcon class="size-5" />
       </Link>
     </div>

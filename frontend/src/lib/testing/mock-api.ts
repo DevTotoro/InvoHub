@@ -1,10 +1,10 @@
 import type { Page, Route } from '@playwright/test';
-import type { User } from '#lib/api/auth.ts';
+import type { Language, User } from '#lib/api/auth.ts';
 import type { Company, Country, UserCompany } from '#lib/api/companies.ts';
 
 type Identity = Omit<User, 'companies'>;
 
-export const TEST_USER: Identity = { id: '0RWNQHYRRA7BF', email: 'jane@example.com' };
+export const TEST_USER: Identity = { id: '0RWNQHYRRA7BF', email: 'jane@example.com', language: 'EN' };
 
 export const ACME: UserCompany = {
   role: 'OWNER',
@@ -29,6 +29,8 @@ export interface MockApiOptions {
   companies?: UserCompany[];
   /** How POST /api/auth/verify answers */
   verify?: 'ok' | 'invalid' | 'suspended';
+  /** The language TEST_USER's account has when signing in, unless already signed in as [user] */
+  accountLanguage?: Language;
 }
 
 const problem = (status: number, detail: string, code?: string) => ({
@@ -45,9 +47,11 @@ const problem = (status: number, detail: string, code?: string) => ({
 export async function mockApi(
   page: Page,
   baseURL: string,
-  { user = null, companies = [], verify = 'ok' }: MockApiOptions = {}
+  { user = null, companies = [], verify = 'ok', accountLanguage = 'EN' }: MockApiOptions = {}
 ) {
   let currentUser = user;
+  /** The body of every call to /api/auth/*, by path */
+  const authCalls: Record<string, unknown[]> = {};
   const userCompanies = [...companies];
   let created = 0;
 
@@ -58,10 +62,14 @@ export async function mockApi(
     if (!currentUser) return route.fulfill(problem(401, 'Sign in to continue.'));
     const { query, variables } = route.request().postDataJSON() as {
       query: string;
-      variables?: { input?: { name: string; country: string } };
+      variables?: { input?: { name: string; country: string }; language?: Language };
     };
 
     if (query.includes('CreateCompany')) return createCompany(route, variables!.input!);
+    if (query.includes('SetLanguage')) {
+      currentUser = { ...currentUser, language: variables!.language! };
+      return route.fulfill({ json: { data: { setLanguage: { language: currentUser.language } } } });
+    }
     if (query.includes('Countries')) return route.fulfill({ json: { data: { countries: COUNTRIES } } });
     return route.fulfill({ json: { data: { me: { ...currentUser, companies: userCompanies } } } });
   });
@@ -97,17 +105,29 @@ export async function mockApi(
     route.fulfill({ json: { message: 'Check your inbox for a sign-in link.' } })
   );
   await page.route('**/api/auth/verify', (route) => {
-    if (verify === 'invalid') return route.fulfill(problem(401, 'This sign-in link is invalid or has expired.'));
+    if (verify === 'invalid') {
+      return route.fulfill(problem(401, 'This sign-in link is invalid or has expired.', 'invalid_link'));
+    }
     if (verify === 'suspended') return route.fulfill(problem(403, 'This account is suspended.', 'account_suspended'));
-    currentUser = TEST_USER;
+    currentUser = { ...TEST_USER, language: accountLanguage };
     return route.fulfill({ status: 204 });
   });
   await page.route('**/api/auth/logout', (route) => {
     currentUser = null;
     return route.fulfill({ status: 204 });
   });
+  // Registered last, so it runs first (Playwright tries the newest route first), then hands over
+  await page.route('**/api/auth/**', (route) => {
+    const path = new URL(route.request().url()).pathname;
+    (authCalls[path] ??= []).push(route.request().postDataJSON());
+    return route.fallback();
+  });
 
   return {
+    /** The bodies sent to an /api/auth endpoint, e.g. `authCalls('/api/auth/request')` */
+    authCalls: (path: string) => authCalls[path] ?? [],
+    /** The signed-in user's language, as saved on their account */
+    language: () => currentUser?.language,
     /** Suspends the signed-in user, as InvoHub staff would: like the backend, this ends their session */
     suspend: () => {
       currentUser = null;

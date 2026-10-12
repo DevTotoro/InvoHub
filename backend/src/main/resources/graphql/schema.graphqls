@@ -11,13 +11,22 @@ type Mutation {
     from the country. Bad input fails with extensions { code: "invalid_input", field, reason }.
     """
     createCompany(input: CreateCompanyInput!): Company!
+    "Sets the language the signed-in user sees InvoHub and gets emails in"
+    setLanguage(language: Language!): User!
 }
 
 type User {
     id: ID!
     email: String!
+    "For the app and the user's emails"
+    language: Language!
     "Companies the user owns or is a member of, by name"
     companies: [UserCompany!]!
+}
+
+enum Language {
+    EN
+    EL
 }
 
 "A company the user can access, with their role in it"

@@ -2,6 +2,7 @@ package com.invohub.backend.domain.auth
 
 import com.invohub.backend.domain.audit.AuditAction
 import com.invohub.backend.domain.audit.AuditLog
+import com.invohub.backend.domain.user.Language
 import com.invohub.backend.domain.user.User
 import com.invohub.backend.domain.user.UserService
 import io.mockk.every
@@ -31,9 +32,10 @@ class MagicLinkServiceTest {
     fun setUp() {
         tokenStore = InMemoryMagicLinkTokenStore()
         emailPort = mockk()
-        every { emailPort.sendMagicLink(any(), capture(sentLinks), any()) } returns Unit
+        every { emailPort.sendMagicLink(any(), capture(sentLinks), any(), any()) } returns Unit
         userService = mockk()
-        every { userService.getOrCreateUser(any()) } answers { User(firstArg()) }
+        every { userService.findByEmail(any()) } returns null
+        every { userService.getOrCreateUser(any(), any()) } answers { User(firstArg(), secondArg()) }
         auditLog = mockk(relaxed = true)
         val properties = AuthProperties(URI("https://app.example.com"), Duration.ofHours(1), Duration.ofDays(7))
         service = MagicLinkService(tokenStore, emailPort, userService, properties, auditLog)
@@ -41,16 +43,16 @@ class MagicLinkServiceTest {
 
     @Test
     fun `sends a token that verifies to the requesting email`() {
-        service.requestToken(email)
+        service.requestToken(email, Language.EN)
 
-        val user = service.verifyToken(sentTokens.single())
+        val user = service.verifyToken(sentTokens.single(), Language.EN)
 
         assertEquals(email, user?.email)
     }
 
     @Test
     fun `links to the frontend verify page`() {
-        service.requestToken(email)
+        service.requestToken(email, Language.EN)
 
         val link = sentLinks.single()
         assertEquals("https://app.example.com/auth/verify", "${link.scheme}://${link.host}${link.path}")
@@ -58,47 +60,47 @@ class MagicLinkServiceTest {
 
     @Test
     fun `normalizes the email so case variants share one lock and one account`() {
-        service.requestToken("  Jane@Example.COM ")
-        service.requestToken(email)
+        service.requestToken("  Jane@Example.COM ", Language.EN)
+        service.requestToken(email, Language.EN)
 
-        verify(exactly = 1) { emailPort.sendMagicLink(email, any(), any()) }
-        assertEquals(email, service.verifyToken(sentTokens.single())?.email)
+        verify(exactly = 1) { emailPort.sendMagicLink(email, any(), any(), any()) }
+        assertEquals(email, service.verifyToken(sentTokens.single(), Language.EN)?.email)
     }
 
     @Test
     fun `does not issue another token while one is active`() {
-        service.requestToken(email)
-        service.requestToken(email)
+        service.requestToken(email, Language.EN)
+        service.requestToken(email, Language.EN)
 
-        verify(exactly = 1) { emailPort.sendMagicLink(email, any(), any()) }
+        verify(exactly = 1) { emailPort.sendMagicLink(email, any(), any(), any()) }
     }
 
     @Test
     fun `a new token can be requested once the active one is used`() {
-        service.requestToken(email)
-        service.verifyToken(sentTokens.single())
+        service.requestToken(email, Language.EN)
+        service.verifyToken(sentTokens.single(), Language.EN)
 
-        service.requestToken(email)
+        service.requestToken(email, Language.EN)
 
         assertEquals(2, sentTokens.size)
     }
 
     @Test
     fun `a token can only be used once`() {
-        service.requestToken(email)
+        service.requestToken(email, Language.EN)
         val token = sentTokens.single()
 
-        service.verifyToken(token)
+        service.verifyToken(token, Language.EN)
 
-        assertNull(service.verifyToken(token))
+        assertNull(service.verifyToken(token, Language.EN))
     }
 
     @Test
     fun `a suspended user cannot sign in, and the refusal is recorded`() {
-        every { userService.getOrCreateUser(email) } returns User(email).apply { suspend("chargeback") }
-        service.requestToken(email)
+        every { userService.getOrCreateUser(email, any()) } returns User(email).apply { suspend("chargeback") }
+        service.requestToken(email, Language.EN)
 
-        assertFailsWith<AccountSuspendedException> { service.verifyToken(sentTokens.single()) }
+        assertFailsWith<AccountSuspendedException> { service.verifyToken(sentTokens.single(), Language.EN) }
 
         verify { auditLog.recordStandalone(match { it.action == AuditAction.USER_SIGN_IN_REFUSED }) }
         verify(exactly = 0) { auditLog.recordStandalone(match { it.action == AuditAction.USER_SIGNED_IN }) }
@@ -106,9 +108,9 @@ class MagicLinkServiceTest {
 
     @Test
     fun `a sign-in is recorded`() {
-        service.requestToken(email)
+        service.requestToken(email, Language.EN)
 
-        val user = service.verifyToken(sentTokens.single())!!
+        val user = service.verifyToken(sentTokens.single(), Language.EN)!!
 
         verify {
             auditLog.recordStandalone(
@@ -119,29 +121,55 @@ class MagicLinkServiceTest {
 
     @Test
     fun `an unusable link records nothing`() {
-        service.verifyToken("not-a-real-token")
+        service.verifyToken("not-a-real-token", Language.EN)
 
         verify(exactly = 0) { auditLog.recordStandalone(any()) }
     }
 
     @Test
     fun `an unknown token does not resolve a user`() {
-        assertNull(service.verifyToken("not-a-real-token"))
+        assertNull(service.verifyToken("not-a-real-token", Language.EN))
 
-        verify(exactly = 0) { userService.getOrCreateUser(any()) }
+        verify(exactly = 0) { userService.getOrCreateUser(any(), any()) }
     }
 
     @Test
     fun `a failed send is rolled back so the user can retry immediately`() {
-        every { emailPort.sendMagicLink(any(), capture(sentLinks), any()) } throws EmailDeliveryException("SMTP down")
+        every { emailPort.sendMagicLink(any(), capture(sentLinks), any(), any()) } throws
+            EmailDeliveryException("SMTP down")
 
-        assertFailsWith<EmailDeliveryException> { service.requestToken(email) }
+        assertFailsWith<EmailDeliveryException> { service.requestToken(email, Language.EN) }
         val undeliveredToken = sentTokens.single()
 
-        every { emailPort.sendMagicLink(any(), capture(sentLinks), any()) } returns Unit
-        service.requestToken(email)
+        every { emailPort.sendMagicLink(any(), capture(sentLinks), any(), any()) } returns Unit
+        service.requestToken(email, Language.EN)
 
-        assertNull(service.verifyToken(undeliveredToken))
-        assertEquals(email, service.verifyToken(sentTokens.last())?.email)
+        assertNull(service.verifyToken(undeliveredToken, Language.EN))
+        assertEquals(email, service.verifyToken(sentTokens.last(), Language.EN)?.email)
+    }
+
+    @Test
+    fun `emails a new person in the language they are using`() {
+        service.requestToken(email, Language.EL)
+
+        verify { emailPort.sendMagicLink(email, any(), any(), Language.EL) }
+    }
+
+    @Test
+    fun `emails an existing user in their own language`() {
+        every { userService.findByEmail(email) } returns User(email, Language.EN)
+
+        service.requestToken(email, Language.EL)
+
+        verify { emailPort.sendMagicLink(email, any(), any(), Language.EN) }
+    }
+
+    @Test
+    fun `signing in for the first time creates the user in the language they are using`() {
+        service.requestToken(email, Language.EL)
+
+        val user = service.verifyToken(sentTokens.single(), Language.EL)
+
+        assertEquals(Language.EL, user?.language)
     }
 }

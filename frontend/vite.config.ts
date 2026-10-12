@@ -1,3 +1,4 @@
+import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vitest/config';
 import { playwright } from '@vitest/browser-playwright';
@@ -6,6 +7,8 @@ import { sveltekit } from '@sveltejs/kit/vite';
 
 export default defineConfig({
   plugins: [
+    // Settings in project.inlang/paraglide.config.js
+    paraglideVitePlugin({ project: './project.inlang' }),
     tailwindcss(),
     sveltekit({
       compilerOptions: {

@@ -2,6 +2,7 @@ package com.invohub.backend.infrastructure.adapter.inbound.web.error
 
 import com.invohub.backend.domain.auth.AccountSuspendedException
 import com.invohub.backend.domain.auth.EmailDeliveryException
+import com.invohub.backend.infrastructure.adapter.inbound.web.auth.InvalidSignInLinkException
 import com.invohub.backend.infrastructure.adapter.inbound.web.filter.RequestIdFilter
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.slf4j.MDC
@@ -23,6 +24,9 @@ private val log = KotlinLogging.logger {}
 /**
  * Renders every REST error as an RFC 9457 problem detail (application/problem+json), tagged with the
  * request ID so a user-reported error can be found in the logs.
+ *
+ * Problems a client shows a message for carry a `code`; clients pick the message (in the user's language) by
+ * it, and `detail` is English for developers.
  */
 @RestControllerAdvice
 class ApiExceptionHandler : ResponseEntityExceptionHandler() {
@@ -36,6 +40,7 @@ class ApiExceptionHandler : ResponseEntityExceptionHandler() {
             HttpStatus.SERVICE_UNAVAILABLE,
             "We couldn't send the email right now. Please try again in a few minutes.",
             request,
+            code = "email_delivery_failed",
         )
 
     // suspensionReason is deliberately not exposed: it is an internal note, not a message for the user
@@ -46,13 +51,32 @@ class ApiExceptionHandler : ResponseEntityExceptionHandler() {
     ): ResponseEntity<Any>? =
         problem(e, HttpStatus.FORBIDDEN, "This account is suspended.", request, code = "account_suspended")
 
+    @ExceptionHandler(InvalidSignInLinkException::class)
+    fun handleInvalidSignInLink(
+        e: InvalidSignInLinkException,
+        request: WebRequest,
+    ): ResponseEntity<Any>? =
+        problem(
+            e,
+            HttpStatus.UNAUTHORIZED,
+            "This sign-in link is invalid or has expired.",
+            request,
+            code = "invalid_link",
+        )
+
     // Raised when a save is based on a stale version of the row (see BaseEntity.version)
     @ExceptionHandler(OptimisticLockingFailureException::class)
     fun handleConcurrentModification(
         e: OptimisticLockingFailureException,
         request: WebRequest,
     ): ResponseEntity<Any>? =
-        problem(e, HttpStatus.CONFLICT, "This was changed by someone else. Reload and try again.", request)
+        problem(
+            e,
+            HttpStatus.CONFLICT,
+            "This was changed by someone else. Reload and try again.",
+            request,
+            code = "conflict",
+        )
 
     @ExceptionHandler(Exception::class)
     fun handleUnexpected(
@@ -61,7 +85,13 @@ class ApiExceptionHandler : ResponseEntityExceptionHandler() {
     ): ResponseEntity<Any>? {
         log.error(e) { "Unhandled exception" }
         // Never echo the exception message: it can carry internals such as SQL or hostnames
-        return problem(e, HttpStatus.INTERNAL_SERVER_ERROR, "Something went wrong on our side.", request)
+        return problem(
+            e,
+            HttpStatus.INTERNAL_SERVER_ERROR,
+            "Something went wrong on our side.",
+            request,
+            code = "internal_error",
+        )
     }
 
     override fun handleMethodArgumentNotValid(
@@ -70,6 +100,7 @@ class ApiExceptionHandler : ResponseEntityExceptionHandler() {
         status: HttpStatusCode,
         request: WebRequest,
     ): ResponseEntity<Any>? {
+        ex.body.setProperty("code", "invalid_request")
         ex.body.setProperty(
             "errors",
             ex.bindingResult.fieldErrors.map { mapOf("field" to it.field, "message" to it.defaultMessage) },

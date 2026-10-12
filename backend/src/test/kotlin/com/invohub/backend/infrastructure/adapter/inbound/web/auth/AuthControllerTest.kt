@@ -1,6 +1,7 @@
 package com.invohub.backend.infrastructure.adapter.inbound.web.auth
 
 import com.invohub.backend.domain.auth.EmailDeliveryException
+import com.invohub.backend.domain.user.Language
 import com.invohub.backend.domain.user.User
 import com.invohub.backend.domain.user.UserRepository
 import com.invohub.backend.support.CapturingEmailPort
@@ -73,6 +74,7 @@ class AuthControllerTest {
             status { isUnauthorized() }
             content { contentType(MediaType.APPLICATION_PROBLEM_JSON) }
             jsonPath("$.detail") { value("This sign-in link is invalid or has expired.") }
+            jsonPath("$.code") { value("invalid_link") }
             jsonPath("$.requestId") { isNotEmpty() }
         }
     }
@@ -97,6 +99,7 @@ class AuthControllerTest {
             }.andExpect {
                 status { isBadRequest() }
                 content { contentType(MediaType.APPLICATION_PROBLEM_JSON) }
+                jsonPath("$.code") { value("invalid_request") }
                 jsonPath("$.errors[0].field") { value("email") }
             }
 
@@ -129,21 +132,63 @@ class AuthControllerTest {
                 status { isServiceUnavailable() }
                 content { contentType(MediaType.APPLICATION_PROBLEM_JSON) }
                 jsonPath("$.detail") { value(containsString("try again")) }
+                jsonPath("$.code") { value("email_delivery_failed") }
             }
     }
 
-    private fun requestLink(email: String) =
+    @Test
+    fun `the sign-in email and a new account are in the language in use`() {
+        requestLink("jane@example.com", language = "EL")
+        val sent = emailPort.sent.single()
+
+        verify(sent.rawToken, language = "EL").andExpect { status { isNoContent() } }
+
+        assertEquals(Language.EL, sent.language)
+        assertEquals(Language.EL, userRepository.findByEmail("jane@example.com")?.language)
+    }
+
+    @Test
+    fun `without a language, English is used`() {
+        requestLink("jane@example.com")
+        val sent = emailPort.sent.single()
+
+        verify(sent.rawToken).andExpect { status { isNoContent() } }
+
+        assertEquals(Language.EN, sent.language)
+        assertEquals(Language.EN, userRepository.findByEmail("jane@example.com")?.language)
+    }
+
+    @Test
+    fun `an unknown language is rejected`() {
         mockMvc
             .post("/api/auth/request") {
                 with(csrf())
                 contentType = MediaType.APPLICATION_JSON
-                content = """{"email": "$email"}"""
-            }.andExpect { status { isOk() } }
+                content = """{"email": "jane@example.com", "language": "XX"}"""
+            }.andExpect { status { isBadRequest() } }
 
-    private fun verify(token: String) =
-        mockMvc.post("/api/auth/verify") {
+        assertEquals(0, emailPort.sent.size)
+    }
+
+    private fun requestLink(
+        email: String,
+        language: String? = null,
+    ) = mockMvc
+        .post("/api/auth/request") {
             with(csrf())
             contentType = MediaType.APPLICATION_JSON
-            content = """{"token": "$token"}"""
-        }
+            content = json("email" to email, "language" to language)
+        }.andExpect { status { isOk() } }
+
+    private fun verify(
+        token: String,
+        language: String? = null,
+    ) = mockMvc.post("/api/auth/verify") {
+        with(csrf())
+        contentType = MediaType.APPLICATION_JSON
+        content = json("token" to token, "language" to language)
+    }
+
+    private fun json(vararg fields: Pair<String, String?>) =
+        fields.filter { it.second != null }.joinToString(", ", "{", "}") { (k, v) -> "\"$k\": \"$v\"" }
 }

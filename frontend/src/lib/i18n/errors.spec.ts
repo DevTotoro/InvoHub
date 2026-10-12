@@ -1,0 +1,36 @@
+import { describe, expect, it } from 'vitest';
+import { ApiError } from '#lib/api/client.ts';
+import { testLocale } from '#lib/testing/locale.ts';
+import { errorMessage } from './errors.ts';
+
+const problem = (status: number, code?: string) =>
+  new ApiError(status, { status, code, detail: 'English detail for developers' });
+
+describe('errorMessage', () => {
+  const useLocale = testLocale();
+
+  it('picks the message by the problem code', () => {
+    expect(errorMessage(problem(503, 'email_delivery_failed'))).toBe(
+      "We couldn't send the email right now. Please try again in a few minutes."
+    );
+    expect(errorMessage(problem(409, 'conflict'))).toBe('This was changed by someone else. Reload and try again.');
+  });
+
+  it('never shows the backend detail, even for an unknown code', () => {
+    expect(errorMessage(problem(418, 'something_new'))).toBe('Something went wrong. Please try again.');
+  });
+
+  it('says when the API is unreachable', () => {
+    expect(errorMessage(new ApiError(0))).toBe("Can't reach InvoHub right now. Check your connection and try again.");
+  });
+
+  it('has a message for anything that is not an API error', () => {
+    expect(errorMessage(new TypeError('boom'))).toBe('Something went wrong. Please try again.');
+  });
+
+  it('is in the language in use', () => {
+    useLocale('el');
+
+    expect(errorMessage(problem(500, 'internal_error'))).toBe('Κάτι πήγε στραβά από την πλευρά μας. Δοκιμάστε ξανά.');
+  });
+});

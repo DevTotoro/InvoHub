@@ -8,6 +8,8 @@
   import { consumeRedirect } from '#lib/auth/redirect.ts';
   import Button from '#lib/components/ui/Button.svelte';
   import Link from '#lib/components/ui/Link.svelte';
+  import { apiLanguage } from '#lib/i18n/language.ts';
+  import { m } from '#lib/paraglide/messages.js';
 
   type Status = 'ready' | 'verifying' | 'invalid' | 'suspended' | 'error';
 
@@ -26,9 +28,9 @@
     status = 'verifying';
 
     try {
-      await verifyMagicLink(token);
+      await verifyMagicLink(token, apiLanguage());
     } catch (e) {
-      if (e instanceof ApiError && e.status === 401) {
+      if (e instanceof ApiError && e.code === 'invalid_link') {
         status = 'invalid';
       } else if (e instanceof ApiError && e.code === 'account_suspended') {
         status = 'suspended';
@@ -46,24 +48,24 @@
 </script>
 
 <svelte:head>
-  <title>Sign in · InvoHub</title>
+  <title>{m.login_title()} · InvoHub</title>
 </svelte:head>
 
 {#if status === 'ready' || status === 'verifying'}
-  <h2 class="text-xl font-semibold">Sign in</h2>
-  <p class="mt-2 text-sm text-gray-600">Continue to finish signing in to InvoHub.</p>
+  <h2 class="text-xl font-semibold">{m.login_title()}</h2>
+  <p class="mt-2 text-sm text-gray-600">{m.verify_prompt()}</p>
   <Button fullWidth class="mt-4" loading={status === 'verifying'} onclick={signIn}>
-    {status === 'verifying' ? 'Signing in…' : 'Continue'}
+    {status === 'verifying' ? m.verify_signing_in() : m.verify_continue()}
   </Button>
 {:else if status === 'invalid'}
-  <h2 class="text-xl font-semibold">This sign-in link is invalid or has expired</h2>
-  <p class="mt-2 text-sm text-gray-600">Links work once and expire after a while. Request a new one to sign in.</p>
-  <Link href={resolve('/(auth)/login')} class="mt-6">Request a new link</Link>
+  <h2 class="text-xl font-semibold">{m.verify_invalid_title()}</h2>
+  <p class="mt-2 text-sm text-gray-600">{m.verify_invalid_detail()}</p>
+  <Link href={resolve('/(auth)/login')} class="mt-6">{m.verify_request_new()}</Link>
 {:else if status === 'suspended'}
-  <h2 class="text-xl font-semibold">This account is suspended</h2>
-  <p class="mt-2 text-sm text-gray-600">Please contact support.</p>
+  <h2 class="text-xl font-semibold">{m.verify_suspended_title()}</h2>
+  <p class="mt-2 text-sm text-gray-600">{m.verify_suspended_detail()}</p>
 {:else}
-  <h2 class="text-xl font-semibold">Something went wrong</h2>
-  <p class="mt-2 text-sm text-gray-600">Please try again in a moment.</p>
-  <Button variant="link" class="mt-6" onclick={signIn}>Try again</Button>
+  <h2 class="text-xl font-semibold">{m.error_page_something_went_wrong()}</h2>
+  <p class="mt-2 text-sm text-gray-600">{m.verify_error_detail()}</p>
+  <Button variant="link" class="mt-6" onclick={signIn}>{m.verify_try_again()}</Button>
 {/if}

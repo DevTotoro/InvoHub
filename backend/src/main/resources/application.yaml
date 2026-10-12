@@ -21,6 +21,12 @@ spring:
     http:
       path: /api/graphql
 
+  # Texts in the user's language (see Language), e.g. emails. English is the base file, so any other language
+  # falls back to it rather than to the server's own locale.
+  messages:
+    basename: i18n/emails
+    fallback-to-system-locale: false
+
   session:
     data:
       redis:

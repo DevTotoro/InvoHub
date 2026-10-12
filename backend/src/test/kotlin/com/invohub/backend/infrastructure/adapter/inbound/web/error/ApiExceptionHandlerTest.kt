@@ -21,6 +21,7 @@ class ApiExceptionHandlerTest {
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.statusCode)
         val problem = response.body as ProblemDetail
         assertFalse(problem.detail!!.contains("password"))
+        assertEquals("internal_error", problem.properties?.get("code"))
     }
 
     @Test
@@ -32,5 +33,6 @@ class ApiExceptionHandlerTest {
             )!!
 
         assertEquals(HttpStatus.CONFLICT, response.statusCode)
+        assertEquals("conflict", (response.body as ProblemDetail).properties?.get("code"))
     }
 }
