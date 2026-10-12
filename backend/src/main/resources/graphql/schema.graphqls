@@ -12,6 +12,8 @@ type Query {
     it; "company_read_only" when it would change a read-only company; "company_suspended".
     """
     company(id: ID!): UserCompany
+    "The company's people: its owner first, then its members by email. Anyone in the company can see them."
+    members(companyId: ID!): [Member!]!
 }
 
 type Mutation {
@@ -22,6 +24,19 @@ type Mutation {
     createCompany(input: CreateCompanyInput!): Company!
     "Sets the language the signed-in user sees InvoHub and gets emails in"
     setLanguage(language: Language!): User!
+    """
+    Changes a member's role; needs the owner or an admin. The owner role can't be given (invalid_input, field
+    "role", reason "owner"); the owner's and the user's own role can't be changed (not_allowed, reason "owner"
+    or "self"); someone who isn't a member is member_not_found.
+    """
+    changeMemberRole(companyId: ID!, userId: ID!, role: CompanyRole!): Member!
+    """
+    Removes a member from the company; needs the owner or an admin. Never the owner, nor the user themselves
+    (they leave instead): not_allowed with reason "owner" or "self".
+    """
+    removeMember(companyId: ID!, userId: ID!): Boolean!
+    "Leaves the company. The owner can't (not_allowed, reason \"owner_cannot_leave\"): they transfer ownership first."
+    leaveCompany(companyId: ID!): Boolean!
 }
 
 type User {
@@ -54,6 +69,14 @@ type Company {
     status: CompanyStatus!
     "Whether InvoHub supports invoicing in the company's country yet"
     invoicingSupported: Boolean!
+}
+
+type Member {
+    userId: ID!
+    email: String!
+    role: CompanyRole!
+    "When they got access, ISO-8601"
+    since: String!
 }
 
 enum CompanyStatus {

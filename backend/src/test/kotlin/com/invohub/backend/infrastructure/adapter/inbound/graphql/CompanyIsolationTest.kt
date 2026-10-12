@@ -33,6 +33,23 @@ class CompanyIsolationTest {
             "Query.company" to { id ->
                 "query(${'$'}id: ID!) { company(id: ${'$'}id) { role company { id name } } }" to mapOf("id" to id)
             },
+            "Query.members" to { id ->
+                "query(${'$'}id: ID!) { members(companyId: ${'$'}id) { email } }" to mapOf("id" to id)
+            },
+            "Mutation.changeMemberRole" to { id ->
+                """
+                mutation(${'$'}id: ID!, ${'$'}user: ID!) {
+                    changeMemberRole(companyId: ${'$'}id, userId: ${'$'}user, role: VIEWER) { role }
+                }
+                """.trimIndent() to mapOf("id" to id, "user" to TSID.fast().toString())
+            },
+            "Mutation.removeMember" to { id ->
+                "mutation(${'$'}id: ID!, ${'$'}user: ID!) { removeMember(companyId: ${'$'}id, userId: ${'$'}user) }" to
+                    mapOf("id" to id, "user" to TSID.fast().toString())
+            },
+            "Mutation.leaveCompany" to { id ->
+                "mutation(${'$'}id: ID!) { leaveCompany(companyId: ${'$'}id) }" to mapOf("id" to id)
+            },
         )
 
     @Autowired
