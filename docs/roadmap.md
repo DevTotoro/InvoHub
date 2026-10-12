@@ -86,8 +86,13 @@ Built so far: companies and roles, translations, permission checks, members, and
    - The connection pool recycles connections well before DSQL's 1-hour limit.
    - Grants without `ALTER DEFAULT PRIVILEGES` if DSQL refuses it: grant per table in the migrations.
    - A CI job (or a pre-deploy check) that runs the migrations and the integration tests against a real DSQL cluster: `postgres:18` can't catch DSQL differences.
-2. **Company settings.** Admins edit the company's details (including the tax ID, legal name, address and country details from the checklist), bank details and logo; anyone can create more companies.
-3. **Ownership transfer and company deletion.**
+2. **UI polish** (`feat/ui-polish`):
+   - A user menu on the right of the header: a round button with the user's initial (and a dot with the count while invitations are open) opening the email, Invitations (n), the language and Sign out (set apart, in a muted red). Signed out, the header keeps the standalone language picker
+   - On phones, the company switcher on a row of its own if the header is still tight
+   - Our own confirmation dialog (on the native `<dialog>`, styled like the app, red for destructive actions) instead of the browser's `confirm()`
+   - Selects: our own chevron and spacing for every closed select, like the language picker. Possibly a custom list (Bits UI) for the short role selects; the country list stays native
+3. **Company settings.** Admins edit the company's details (including the tax ID, legal name, address and country details from the checklist), bank details and logo; anyone can create more companies.
+4. **Ownership transfer and company deletion.**
 
 ## Later
 
