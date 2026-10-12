@@ -11,8 +11,8 @@ import org.springframework.stereotype.Component
  * Keeps a set of session IDs per user, `invohub:user-sessions:{public user ID}`. Session keys are named by a random
  * ID, so this is the only way to find a user's sessions without opening every session there is.
  *
- * Sessions expire on their own and the set doesn't notice, so ended IDs are dropped at each sign-in (and
- * deleting an already-ended session is harmless anyway). This deliberately avoids Spring Session's indexed
+ * Signing out removes the session's ID. Sessions also expire on their own, which the set doesn't notice, so
+ * ended IDs are dropped at each sign-in too (and deleting an already-ended session is harmless anyway). This deliberately avoids Spring Session's indexed
  * repository, which tidies up through keyspace notifications and PSUBSCRIBE: ElastiCache Serverless allows
  * neither. Every command here touches a single key.
  */
@@ -44,6 +44,13 @@ class RedisUserSessions(
         // No session lives longer than the maximum session age, so a set that outlives its newest session
         // by that much never loses track of a live one
         redisTemplate.expire(key, properties.sessionMaxAge)
+    }
+
+    override fun unregister(
+        userId: Long,
+        sessionId: String,
+    ) {
+        sets.remove(key(userId), sessionId)
     }
 
     override fun endAll(userId: Long) {

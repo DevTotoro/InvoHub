@@ -21,6 +21,8 @@ import org.springframework.test.web.servlet.ResultHandler
 import org.springframework.test.web.servlet.ResultMatcher
 import org.springframework.test.web.servlet.post
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch
+import java.util.Base64
+import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
 
 /**
@@ -88,6 +90,23 @@ class SessionTest {
             }.andExpect { status { isNoContent() } }
 
         me(session).andExpect { status { isUnauthorized() } }
+    }
+
+    @Test
+    fun `logging out deletes the session from Redis and from the user's session list`() {
+        val laptop = sessionCookie(signIn("jane@example.com"))
+        val phone = sessionCookie(signIn("jane@example.com"))
+        val sessionList = "invohub:user-sessions:${userRepository.findByEmail("jane@example.com")!!.getPublicId()}"
+
+        mockMvc
+            .post("/api/auth/logout") {
+                with(csrf())
+                cookie(laptop)
+            }.andExpect { status { isNoContent() } }
+
+        assertEquals(false, redisTemplate.hasKey("invohub:session:sessions:${sessionId(laptop)}"))
+        assertEquals(setOf(sessionId(phone)), redisTemplate.opsForSet().members(sessionList))
+        me(phone).andExpect { jsonPath("$.data.me.email") { value("jane@example.com") } }
     }
 
     @Test
@@ -168,6 +187,9 @@ class SessionTest {
     }
 
     private fun sessionCookie(result: MvcResult) = result.response.getCookie("SESSION")!!
+
+    /** Spring Session puts the session ID in the cookie Base64-encoded */
+    private fun sessionId(cookie: Cookie) = String(Base64.getDecoder().decode(cookie.value))
 
     private fun me(session: Cookie?): ResultActionsDsl {
         val result =

@@ -8,6 +8,12 @@ interface UserSessions {
         sessionId: String,
     )
 
+    /** Forgets a session that has ended, e.g. on sign-out. Ending the session itself is up to the caller. */
+    fun unregister(
+        userId: Long,
+        sessionId: String,
+    )
+
     /** Ends every session of the user, on every device. Their next request is treated as signed out. */
     fun endAll(userId: Long)
 }
