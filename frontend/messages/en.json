@@ -89,5 +89,38 @@
   "team_remove_of": "Remove {email}",
   "team_remove_confirm": "Remove {email} from {company}? They lose access right away.",
   "team_leave": "Leave company",
-  "team_leave_confirm": "Leave {company}? You'll need a new invitation to come back."
+  "team_leave_confirm": "Leave {company}? You'll need a new invitation to come back.",
+
+  "header_invitations": "Invitations ({count})",
+
+  "invitations_title": "Invitations",
+  "invitations_none": "You have no invitations right now.",
+  "invitations_invited_by": "Invited by {email} as {role}",
+  "invitations_expires": "Open until {date}",
+  "invitations_accept": "Accept",
+  "invitations_decline": "Decline",
+  "invitations_onboarding_note": "You've been invited to a company.",
+  "invitations_onboarding_link": "See your invitations",
+
+  "invite_title": "Invite someone",
+  "invite_email": "Email",
+  "invite_companies": "Companies",
+  "invite_role_for": "Role in {company}",
+  "invite_submit": "Send invitation",
+  "invite_sending": "Sending…",
+  "invite_sent": "Invitation sent to {email}.",
+  "invite_pick_company": "Choose at least one company.",
+  "invite_invalid_email": "Enter a valid email address.",
+  "invite_already_member": "{email} is already in {company}.",
+  "invite_already_invited": "{email} already has an open invitation to {company}.",
+  "invite_company_daily_limit": "{company} has sent its invitations for today. Try again tomorrow.",
+  "invite_daily_limit": "You've sent your invitations for today. Try again tomorrow.",
+
+  "team_invitations": "Open invitations",
+  "team_invitation_detail": "{role} · invited by {email} · open until {date}",
+  "team_revoke": "Revoke",
+  "team_revoke_of": "Revoke the invitation for {email}",
+  "team_revoke_confirm": "Revoke the invitation for {email}?",
+
+  "error_invitation_not_found": "This invitation is no longer open."
 }

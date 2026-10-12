@@ -3,12 +3,15 @@ import { resolve } from '$app/paths';
 import { pickCompany } from '#lib/company/last-company.ts';
 import type { PageLoad } from './$types';
 
-/** `/` has no page of its own: it opens the company the user last worked in, or onboarding if they have none. */
+/**
+ * `/` has no page of its own: it opens the company the user last worked in. Without one, their invitations if
+ * they have any (someone invited is here to join, not to create a company), else onboarding.
+ */
 export const load: PageLoad = async ({ parent }) => {
   const { user } = await parent();
   const company = pickCompany(user.companies);
   if (!company) {
-    redirect(307, resolve('/(app)/onboarding'));
+    redirect(307, resolve(user.invitations.length > 0 ? '/(app)/invitations' : '/(app)/onboarding'));
   }
   redirect(307, resolve('/(app)/c/[companyId]', { companyId: company.company.id }));
 };

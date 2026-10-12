@@ -27,8 +27,9 @@
 
 <svelte:window onclick={closeOnOutsideClick} onkeydown={(e) => e.key === 'Escape' && close()} />
 
-<!-- min-w-0 down to the name, so a long one is cut short instead of pushing into the rest of the header -->
-<div class="relative min-w-0" bind:this={container}>
+<!-- Shrinks down to the name, so a long one is cut short instead of pushing into the rest of the header, but
+     never below its arrow, so it can always be opened -->
+<div class="relative min-w-10" bind:this={container}>
   <Button
     variant="ghost"
     class="max-w-full min-w-0"

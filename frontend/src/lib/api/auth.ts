@@ -1,6 +1,7 @@
 import { ApiError, request, type Fetch } from './client.ts';
 import { COMPANY_FIELDS, type UserCompany } from './companies.ts';
 import { graphql } from './graphql.ts';
+import { INVITATION_FIELDS, type Invitation } from './invitations.ts';
 
 /** A language InvoHub is available in, as the API names it */
 export type Language = 'EN' | 'EL';
@@ -12,6 +13,8 @@ export interface User {
   language: Language;
   /** The companies the user owns or is a member of, by name */
   companies: UserCompany[];
+  /** Open invitations for the user's email address, oldest first */
+  invitations: Invitation[];
 }
 
 /**
@@ -49,7 +52,9 @@ export async function getCurrentUser(fetch?: Fetch): Promise<User | null> {
   try {
     // Callers decide what a missing session means, so don't trigger the global handler
     const { me } = await graphql<{ me: User | null }>(
-      `query CurrentUser { me { id email language companies { role company { ${COMPANY_FIELDS} } } } }`,
+      `query CurrentUser {
+        me { id email language companies { role company { ${COMPANY_FIELDS} } } invitations { ${INVITATION_FIELDS} } }
+      }`,
       undefined,
       { fetch, notifySessionLost: false }
     );

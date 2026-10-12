@@ -43,6 +43,8 @@ function graphqlMessage(code: string, reason?: string): string {
       return m.error_company_suspended();
     case 'member_not_found':
       return m.error_member_not_found();
+    case 'invitation_not_found':
+      return m.error_invitation_not_found();
     case 'not_allowed':
       if (reason === 'owner') return m.error_not_allowed_owner();
       if (reason === 'self') return m.error_not_allowed_self();

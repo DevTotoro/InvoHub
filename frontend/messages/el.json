@@ -89,5 +89,38 @@
   "team_remove_of": "Αφαίρεση {email}",
   "team_remove_confirm": "Να αφαιρεθεί το {email} από την εταιρεία {company}; Η πρόσβαση χάνεται αμέσως.",
   "team_leave": "Αποχώρηση από την εταιρεία",
-  "team_leave_confirm": "Να αποχωρήσετε από την εταιρεία {company}; Για να επιστρέψετε θα χρειαστείτε νέα πρόσκληση."
+  "team_leave_confirm": "Να αποχωρήσετε από την εταιρεία {company}; Για να επιστρέψετε θα χρειαστείτε νέα πρόσκληση.",
+
+  "header_invitations": "Προσκλήσεις ({count})",
+
+  "invitations_title": "Προσκλήσεις",
+  "invitations_none": "Δεν έχετε προσκλήσεις αυτή τη στιγμή.",
+  "invitations_invited_by": "Πρόσκληση από {email} ως {role}",
+  "invitations_expires": "Ισχύει έως {date}",
+  "invitations_accept": "Αποδοχή",
+  "invitations_decline": "Απόρριψη",
+  "invitations_onboarding_note": "Λάβατε πρόσκληση σε εταιρεία.",
+  "invitations_onboarding_link": "Δείτε τις προσκλήσεις σας",
+
+  "invite_title": "Πρόσκληση ατόμου",
+  "invite_email": "Email",
+  "invite_companies": "Εταιρείες",
+  "invite_role_for": "Ρόλος στην εταιρεία {company}",
+  "invite_submit": "Αποστολή πρόσκλησης",
+  "invite_sending": "Αποστολή…",
+  "invite_sent": "Η πρόσκληση στάλθηκε στο {email}.",
+  "invite_pick_company": "Επιλέξτε τουλάχιστον μία εταιρεία.",
+  "invite_invalid_email": "Εισαγάγετε μια έγκυρη διεύθυνση email.",
+  "invite_already_member": "Το {email} ανήκει ήδη στην εταιρεία {company}.",
+  "invite_already_invited": "Το {email} έχει ήδη ανοιχτή πρόσκληση για την εταιρεία {company}.",
+  "invite_company_daily_limit": "Η εταιρεία {company} έστειλε όσες προσκλήσεις επιτρέπονται για σήμερα. Δοκιμάστε ξανά αύριο.",
+  "invite_daily_limit": "Στείλατε όσες προσκλήσεις επιτρέπονται για σήμερα. Δοκιμάστε ξανά αύριο.",
+
+  "team_invitations": "Ανοιχτές προσκλήσεις",
+  "team_invitation_detail": "{role} · πρόσκληση από {email} · ισχύει έως {date}",
+  "team_revoke": "Ανάκληση",
+  "team_revoke_of": "Ανάκληση της πρόσκλησης για {email}",
+  "team_revoke_confirm": "Να ανακληθεί η πρόσκληση για {email};",
+
+  "error_invitation_not_found": "Αυτή η πρόσκληση δεν είναι πια ανοιχτή."
 }
