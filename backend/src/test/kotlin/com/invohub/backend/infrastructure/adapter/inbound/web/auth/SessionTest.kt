@@ -72,6 +72,7 @@ class SessionTest {
         me(session = null).andExpect {
             status { isUnauthorized() }
             content { contentType(MediaType.APPLICATION_PROBLEM_JSON) }
+            jsonPath("$.code") { value("unauthenticated") }
             jsonPath("$.requestId") { isNotEmpty() }
         }
     }

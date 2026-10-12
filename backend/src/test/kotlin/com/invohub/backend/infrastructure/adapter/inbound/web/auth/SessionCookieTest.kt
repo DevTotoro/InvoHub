@@ -62,6 +62,7 @@ class SessionCookieTest {
 
         assertEquals(403, response.statusCode())
         assertContains(response.body(), "Missing or invalid CSRF token.")
+        assertContains(response.body(), "\"code\":\"invalid_csrf_token\"")
     }
 
     @Test

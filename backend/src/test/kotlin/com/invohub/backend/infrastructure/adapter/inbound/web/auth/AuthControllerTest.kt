@@ -73,6 +73,7 @@ class AuthControllerTest {
             status { isUnauthorized() }
             content { contentType(MediaType.APPLICATION_PROBLEM_JSON) }
             jsonPath("$.detail") { value("This sign-in link is invalid or has expired.") }
+            jsonPath("$.code") { value("invalid_link") }
             jsonPath("$.requestId") { isNotEmpty() }
         }
     }
@@ -97,6 +98,7 @@ class AuthControllerTest {
             }.andExpect {
                 status { isBadRequest() }
                 content { contentType(MediaType.APPLICATION_PROBLEM_JSON) }
+                jsonPath("$.code") { value("invalid_request") }
                 jsonPath("$.errors[0].field") { value("email") }
             }
 
@@ -129,6 +131,7 @@ class AuthControllerTest {
                 status { isServiceUnavailable() }
                 content { contentType(MediaType.APPLICATION_PROBLEM_JSON) }
                 jsonPath("$.detail") { value(containsString("try again")) }
+                jsonPath("$.code") { value("email_delivery_failed") }
             }
     }
 

@@ -58,10 +58,23 @@ class SecurityConfig {
             .exceptionHandling {
                 it
                     .authenticationEntryPoint { _, response, _ ->
-                        problemDetailWriter.write(response, HttpStatus.UNAUTHORIZED, "Sign in to continue.")
+                        problemDetailWriter.write(
+                            response,
+                            HttpStatus.UNAUTHORIZED,
+                            "Sign in to continue.",
+                            "unauthenticated",
+                        )
                     }.accessDeniedHandler { _, response, e ->
-                        val detail = if (e is CsrfException) "Missing or invalid CSRF token." else "Access denied."
-                        problemDetailWriter.write(response, HttpStatus.FORBIDDEN, detail)
+                        if (e is CsrfException) {
+                            problemDetailWriter.write(
+                                response,
+                                HttpStatus.FORBIDDEN,
+                                "Missing or invalid CSRF token.",
+                                "invalid_csrf_token",
+                            )
+                        } else {
+                            problemDetailWriter.write(response, HttpStatus.FORBIDDEN, "Access denied.", "forbidden")
+                        }
                     }
             }
             // Without a login page there is nothing to return to, and saving requests would create a

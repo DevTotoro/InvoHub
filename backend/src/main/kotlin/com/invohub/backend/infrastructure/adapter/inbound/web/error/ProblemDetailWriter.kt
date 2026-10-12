@@ -21,9 +21,11 @@ class ProblemDetailWriter(
         response: HttpServletResponse,
         status: HttpStatus,
         detail: String,
+        code: String,
     ) {
         val problem =
             ProblemDetail.forStatusAndDetail(status, detail).apply {
+                setProperty("code", code)
                 setProperty("requestId", MDC.get(RequestIdFilter.MDC_KEY))
             }
         response.status = status.value()
