@@ -68,7 +68,7 @@ Reads and page views are not recorded.
 
 Built so far: companies and roles, and translations. Every new page and email is written in both languages.
 
-1. **Permission checks.** Resolve the user's role in the company on every request, together with the company status, in one central place. Tests proving nobody can reach another company's data. Add the company's public ID to the logging context there (`companyId`, next to `requestId` and `userId`).
+1. **Permission checks.** Resolve the user's role in the company on every request, together with the company status, in one central place. Tests proving nobody can reach another company's data. Add the company's public ID to the logging context there (`companyId`, next to `requestId` and `userId`). Also: signing out drops the session from the user's session list (`invohub:user-sessions:*`); today only the session itself is deleted, and its ID lingers in the list until the next sign-in or the list's expiry.
 2. **Members.** List members, change roles, remove people, leave a company.
 3. **Invitations.** Invite an email to one or more companies, each with a role (inviters can only pick companies they own or administer). The emailed link signs the person in. Invitations expire after 7 days, can be resent and revoked, with a cap on pending invites and at most one resend per hour.
 4. **Company settings.** Admins edit the company's details (including the tax ID, legal name, address and country details from the checklist), bank details and logo; anyone can create more companies.
