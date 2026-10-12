@@ -1,9 +1,12 @@
 import { ApiError, request, type Fetch } from './client.ts';
+import { COMPANY_FIELDS, type UserCompany } from './companies.ts';
 import { graphql } from './graphql.ts';
 
 export interface User {
   id: string;
   email: string;
+  /** The companies the user owns or is a member of, by name */
+  companies: UserCompany[];
 }
 
 /** Emails a sign-in link. Signing in for the first time creates the account. */
@@ -27,10 +30,11 @@ export async function logout(): Promise<void> {
 export async function getCurrentUser(fetch?: Fetch): Promise<User | null> {
   try {
     // Callers decide what a missing session means, so don't trigger the global handler
-    const { me } = await graphql<{ me: User | null }>('query CurrentUser { me { id email } }', undefined, {
-      fetch,
-      notifySessionLost: false
-    });
+    const { me } = await graphql<{ me: User | null }>(
+      `query CurrentUser { me { id email companies { role company { ${COMPANY_FIELDS} } } } }`,
+      undefined,
+      { fetch, notifySessionLost: false }
+    );
     return me;
   } catch (e) {
     if (e instanceof ApiError && e.status === 401) {

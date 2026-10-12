@@ -3,6 +3,7 @@ package com.invohub.backend.infrastructure.adapter.inbound.web.auth
 import com.invohub.backend.domain.user.UserRepository
 import com.invohub.backend.domain.user.UserService
 import com.invohub.backend.support.CapturingEmailPort
+import com.invohub.backend.support.DatabaseCleaner
 import com.invohub.backend.support.IntegrationTest
 import jakarta.servlet.http.Cookie
 import org.junit.jupiter.api.BeforeEach
@@ -34,6 +35,9 @@ class SessionTest {
     private lateinit var mockMvc: MockMvc
 
     @Autowired
+    private lateinit var databaseCleaner: DatabaseCleaner
+
+    @Autowired
     private lateinit var emailPort: CapturingEmailPort
 
     @Autowired
@@ -48,7 +52,7 @@ class SessionTest {
     @BeforeEach
     fun reset() {
         emailPort.clear()
-        userRepository.deleteAll()
+        databaseCleaner.clean()
         redisTemplate.connectionFactory!!.connection.use { it.serverCommands().flushAll() }
     }
 

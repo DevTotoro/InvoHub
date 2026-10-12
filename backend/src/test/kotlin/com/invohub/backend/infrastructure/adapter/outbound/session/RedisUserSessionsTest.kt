@@ -1,5 +1,6 @@
 package com.invohub.backend.infrastructure.adapter.outbound.session
 
+import com.invohub.backend.domain.common.TSIDCodec
 import com.invohub.backend.support.IntegrationTest
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -26,7 +27,7 @@ class RedisUserSessionsTest {
     private lateinit var redisTemplate: StringRedisTemplate
 
     private val userId = 42L
-    private val key = "invohub:user-sessions:$userId"
+    private val key = "invohub:user-sessions:${TSIDCodec.encode(userId)}"
 
     @BeforeEach
     fun flushRedis() {

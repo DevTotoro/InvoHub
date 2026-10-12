@@ -9,6 +9,15 @@ import com.invohub.backend.domain.audit.AuditEventRepository
 class AuditEvents(
     private val repository: AuditEventRepository,
 ) {
-    fun forUser(userId: Long): List<String> =
-        repository.findByTargetTypeAndTargetIdOrderByOccurredAtAscIdAsc("user", userId).map { it.action }
+    fun forUser(userId: Long) = actionsFor("user", userId)
+
+    fun forCompany(companyId: Long) = actionsFor("company", companyId)
+
+    private fun actionsFor(
+        targetType: String,
+        targetId: Long,
+    ): List<String> =
+        repository.findByTargetTypeAndTargetIdOrderByOccurredAtAscIdAsc(targetType, targetId).map {
+            it.action
+        }
 }

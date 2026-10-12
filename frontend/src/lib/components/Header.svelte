@@ -3,12 +3,14 @@
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { logout } from '#lib/api/auth.ts';
+  import CompanySwitcher from '#lib/components/CompanySwitcher.svelte';
   import GitHubIcon from '#lib/components/icons/GitHubIcon.svelte';
   import Button from '#lib/components/ui/Button.svelte';
   import Link from '#lib/components/ui/Link.svelte';
 
-  // Set by the (app) layout on signed-in pages
+  // Set by the (app) layout on signed-in pages, and by the company layout on company pages
   const user = $derived(page.data.user);
+  const company = $derived(page.data.company);
 
   let signingOut = $state(false);
   let signOutFailed = $state(false);
@@ -29,7 +31,12 @@
 
 <header class="w-full">
   <div class="container mx-auto flex h-16 items-center justify-between space-x-2 px-4">
-    <h1 class="text-2xl font-bold"><Link href={resolve('/(app)')} variant="plain">InvoHub</Link></h1>
+    <div class="flex min-w-0 items-center gap-2">
+      <h1 class="text-2xl font-bold"><Link href={resolve('/(app)')} variant="plain">InvoHub</Link></h1>
+      {#if user && company}
+        <CompanySwitcher current={company} companies={user.companies} />
+      {/if}
+    </div>
 
     <div class="flex items-center gap-4">
       {#if user}

@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test';
-import { TEST_USER, mockApi } from '#lib/testing/mock-api.ts';
+import { ACME, TEST_USER, mockApi } from '#lib/testing/mock-api.ts';
 
-test('the full flow: sent to login from /, sign in through the link, and back to /', async ({ page, baseURL }) => {
-  await mockApi(page, baseURL!);
+test('the full flow: sent to login from /, sign in through the link, and back in', async ({ page, baseURL }) => {
+  await mockApi(page, baseURL!, { companies: [ACME] });
   await page.goto('/');
   await page.getByLabel('Email').fill(TEST_USER.email);
   await page.getByRole('button', { name: 'Email me a sign-in link' }).click();
@@ -12,7 +12,7 @@ test('the full flow: sent to login from /, sign in through the link, and back to
   await page.goto('/auth/verify?token=abc');
   await page.getByRole('button', { name: 'Continue' }).click();
 
-  await expect(page).toHaveURL('/');
+  await expect(page).toHaveURL(`/c/${ACME.company.id}`);
   await expect(page.getByRole('heading', { level: 2 })).toHaveText(`Welcome, ${TEST_USER.email}`);
 });
 

@@ -6,6 +6,7 @@ import com.invohub.backend.domain.audit.AuditEventRepository
 import com.invohub.backend.domain.audit.AuditLog
 import com.invohub.backend.domain.audit.AuditTarget
 import com.invohub.backend.domain.auth.AuthenticatedUser
+import com.invohub.backend.domain.common.TSIDCodec
 import com.invohub.backend.infrastructure.adapter.inbound.web.filter.RequestIdFilter
 import com.invohub.backend.support.IntegrationTest
 import io.hypersistence.tsid.TSID
@@ -82,7 +83,7 @@ class JpaAuditLogTest {
     @Test
     fun `fills in the signed-in user, the request ID and the details`() {
         val target = newTarget()
-        val principal = AuthenticatedUser(userId = 7, email = "staff@example.com")
+        val principal = AuthenticatedUser(publicId = TSIDCodec.encode(7), email = "staff@example.com")
         SecurityContextHolder.getContext().authentication =
             UsernamePasswordAuthenticationToken.authenticated(principal, null, emptyList())
         MDC.put(RequestIdFilter.MDC_KEY, "req-123")

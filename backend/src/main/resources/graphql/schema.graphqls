@@ -1,9 +1,59 @@
 type Query {
     "The signed-in user"
     me: User
+    "Every country a company can be in, with its currency"
+    countries: [Country!]!
+}
+
+type Mutation {
+    """
+    Creates a company owned by the signed-in user. Only a name and a country are needed; the currency follows
+    from the country. Bad input fails with extensions { code: "invalid_input", field, reason }.
+    """
+    createCompany(input: CreateCompanyInput!): Company!
 }
 
 type User {
     id: ID!
     email: String!
+    "Companies the user owns or is a member of, by name"
+    companies: [UserCompany!]!
+}
+
+"A company the user can access, with their role in it"
+type UserCompany {
+    company: Company!
+    role: CompanyRole!
+}
+
+type Company {
+    id: ID!
+    name: String!
+    "ISO 3166-1 alpha-2, e.g. GR"
+    country: String!
+    "ISO 4217, e.g. EUR"
+    currency: String!
+    "Whether InvoHub supports invoicing in the company's country yet"
+    invoicingSupported: Boolean!
+}
+
+enum CompanyRole {
+    OWNER
+    ADMIN
+    MEMBER
+    VIEWER
+}
+
+type Country {
+    "ISO 3166-1 alpha-2"
+    code: String!
+    "ISO 4217"
+    currency: String!
+    invoicingSupported: Boolean!
+}
+
+input CreateCompanyInput {
+    name: String!
+    "ISO 3166-1 alpha-2"
+    country: String!
 }

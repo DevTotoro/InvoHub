@@ -28,7 +28,7 @@ class SessionAuthenticator(
         // store (ElastiCache Serverless) when the two keys land on different shards.
         request.getSession(false)?.invalidate()
 
-        val principal = AuthenticatedUser(user.id, user.email)
+        val principal = AuthenticatedUser.of(user)
         val authentication = UsernamePasswordAuthenticationToken.authenticated(principal, null, emptyList())
         val context = strategy.createEmptyContext().apply { this.authentication = authentication }
         strategy.context = context

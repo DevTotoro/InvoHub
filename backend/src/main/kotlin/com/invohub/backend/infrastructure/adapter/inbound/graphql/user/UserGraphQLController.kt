@@ -10,9 +10,11 @@ import org.springframework.stereotype.Controller
 data class UserView(
     val id: String,
     val email: String,
+    /** The internal ID, for resolving the user's other fields; not part of the schema */
+    val userId: Long,
 ) {
     companion object {
-        fun from(user: User) = UserView(user.getPublicId(), user.email)
+        fun from(user: User) = UserView(user.getPublicId(), user.email, user.id)
     }
 }
 

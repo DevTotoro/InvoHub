@@ -18,6 +18,8 @@ data class AuditTarget(
 ) {
     companion object {
         fun user(id: Long) = AuditTarget("user", id)
+
+        fun company(id: Long) = AuditTarget("company", id)
     }
 }
 
@@ -31,4 +33,5 @@ enum class AuditAction(
     USER_SIGN_IN_REFUSED("user.sign_in_refused"),
     USER_SUSPENDED("user.suspended"),
     USER_UNSUSPENDED("user.unsuspended"),
+    COMPANY_CREATED("company.created"),
 }

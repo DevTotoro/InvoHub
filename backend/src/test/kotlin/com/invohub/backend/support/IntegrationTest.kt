@@ -13,5 +13,5 @@ import org.springframework.test.context.ActiveProfiles
 @Retention(AnnotationRetention.RUNTIME)
 @SpringBootTest
 @ActiveProfiles("test")
-@Import(TestcontainersConfiguration::class, CapturingEmailPort::class)
+@Import(TestcontainersConfiguration::class, CapturingEmailPort::class, DatabaseCleaner::class)
 annotation class IntegrationTest

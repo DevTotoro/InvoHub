@@ -3,6 +3,8 @@ import { request, type RequestOptions } from './client.ts';
 export interface GraphQLErrorEntry {
   message: string;
   path?: (string | number)[];
+  /** Set by the backend for errors clients can act on, e.g. `{ code: 'invalid_input', field, reason }` */
+  extensions?: Record<string, unknown>;
 }
 
 /** The request reached the API, but the GraphQL operation reported errors. */
