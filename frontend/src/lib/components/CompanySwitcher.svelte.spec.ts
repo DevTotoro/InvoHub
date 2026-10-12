@@ -6,11 +6,18 @@ import CompanySwitcher from './CompanySwitcher.svelte';
 
 const acme: UserCompany = {
   role: 'OWNER',
-  company: { id: '0ACME', name: 'Acme', country: 'GR', currency: 'EUR', invoicingSupported: true }
+  company: { id: '0ACME', name: 'Acme', country: 'GR', currency: 'EUR', status: 'ACTIVE', invoicingSupported: true }
 };
 const globex: UserCompany = {
   role: 'VIEWER',
-  company: { id: '0GLOBEX', name: 'Globex', country: 'DE', currency: 'EUR', invoicingSupported: false }
+  company: {
+    id: '0GLOBEX',
+    name: 'Globex',
+    country: 'DE',
+    currency: 'EUR',
+    status: 'ACTIVE',
+    invoicingSupported: false
+  }
 };
 
 describe('CompanySwitcher.svelte', () => {

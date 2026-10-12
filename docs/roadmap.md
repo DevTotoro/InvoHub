@@ -25,6 +25,10 @@ What's planned, what's decided, and what must happen before the first deployment
 
 **Company in the URL** (`/c/<public id>/…`). The URL only says which company is being viewed; the backend checks the user's role in it on every request.
 
+**Permission checks** (built). `CompanyAccessService` is the one place that works out a user's role in a company; `CompanyPermission` says which roles may do what (the table above) and what each company status allows. Every company-scoped operation names the permission it needs. Rules:
+- No access is reported as `not_found`, exactly like a company that doesn't exist, so nobody can find out which companies exist. A role that doesn't allow something is `forbidden`.
+- Company-scoped GraphQL root fields take the company as `companyId` (or are `company(id)`) and start with `CompanyScope`, which also logs the company as `companyId`. `CompanyIsolationTest` runs each one as an outsider and fails for a new field it has no case for.
+
 **Creating a company asks for the minimum: a name and a country.** Any country is allowed. The currency comes from the country (JDK data). Everything else is only needed to issue invoices, so it is asked for just in time, in the company's invoicing setup checklist: the tax ID, legal name, address and the country's own details. A company can do everything except issue invoices before that; drafts are fine. The country can change until the first invoice is issued, then it is fixed.
 
 **Country rules.** Each country InvoHub supports has a rules module: how to check its tax ID, its business registry if any, and its invoicing setup checklist (later also e-invoicing, tax rates, numbering). A country is supported exactly when it has a module. Companies in any other country get a checklist that can't be completed, "Invoicing in <country> isn't available yet", and onboarding says so up front; once we add the country's rules, those companies see real steps. Common fields are columns; country-specific details live in one JSON column checked by that country's rules, so adding a country never changes the companies table.
@@ -37,7 +41,7 @@ What's planned, what's decided, and what must happen before the first deployment
 **Customers belong to a company**, not shared between companies. Invoices store the customer's details as they were when issued.
 
 **Statuses:**
-- Company: *Active*, *Read-only* (unpaid, after a grace period: can still view and export), *Suspended* (fraud or abuse, decided by InvoHub). Unpaid companies are never fully blocked.
+- Company (`companies.status`, built): *Active*, *Read-only* (unpaid, after a grace period: can still view and export, and the owner can pay), *Suspended* (fraud or abuse, decided by InvoHub: nobody can use it, not even the owner). Unpaid companies are never fully blocked.
 - User *suspended*: InvoHub staff only, applies everywhere (`UserService.suspendUser`).
 
 **Audit log** (built: `AuditLog`, table `audit.events`). Events are written in the same transaction as the change they describe (`AuditLog.record`; `recordStandalone` for events that belong to no other change, like sign-ins). The app's database login may only insert and read there, and a trigger refuses changes from every login. Recent months stay in Postgres for the activity page; the permanent copy goes to S3 with Object Lock (see the archive job below).
@@ -66,13 +70,12 @@ Reads and page views are not recorded.
 
 ## Next up
 
-Built so far: companies and roles, and translations. Every new page and email is written in both languages.
+Built so far: companies and roles, translations, and permission checks. Every new page and email is written in both languages, and every company-scoped operation goes through the permission checks.
 
-1. **Permission checks.** Resolve the user's role in the company on every request, together with the company status, in one central place. Tests proving nobody can reach another company's data. Add the company's public ID to the logging context there (`companyId`, next to `requestId` and `userId`).
-2. **Members.** List members, change roles, remove people, leave a company.
-3. **Invitations.** Invite an email to one or more companies, each with a role (inviters can only pick companies they own or administer). The emailed link signs the person in. Invitations expire after 7 days, can be resent and revoked, with a cap on pending invites and at most one resend per hour.
-4. **Company settings.** Admins edit the company's details (including the tax ID, legal name, address and country details from the checklist), bank details and logo; anyone can create more companies.
-5. **Ownership transfer and company deletion.**
+1. **Members.** List members, change roles, remove people, leave a company.
+2. **Invitations.** Invite an email to one or more companies, each with a role (inviters can only pick companies they own or administer). The emailed link signs the person in. Invitations expire after 7 days, can be resent and revoked, with a cap on pending invites and at most one resend per hour.
+3. **Company settings.** Admins edit the company's details (including the tax ID, legal name, address and country details from the checklist), bank details and logo; anyone can create more companies.
+4. **Ownership transfer and company deletion.**
 
 ## Later
 

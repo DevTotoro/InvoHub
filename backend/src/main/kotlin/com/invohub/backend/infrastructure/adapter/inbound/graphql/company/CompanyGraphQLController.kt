@@ -2,8 +2,10 @@ package com.invohub.backend.infrastructure.adapter.inbound.graphql.company
 
 import com.invohub.backend.domain.auth.AuthenticatedUser
 import com.invohub.backend.domain.company.Company
+import com.invohub.backend.domain.company.CompanyPermission
 import com.invohub.backend.domain.company.CompanyRole
 import com.invohub.backend.domain.company.CompanyService
+import com.invohub.backend.domain.company.CompanyStatus
 import com.invohub.backend.domain.company.country.Countries
 import com.invohub.backend.domain.company.country.CountryRulesRegistry
 import com.invohub.backend.infrastructure.adapter.inbound.graphql.user.UserView
@@ -19,6 +21,7 @@ data class CompanyView(
     val name: String,
     val country: String,
     val currency: String,
+    val status: CompanyStatus,
     val invoicingSupported: Boolean,
 )
 
@@ -41,8 +44,19 @@ data class CreateCompanyInput(
 @Controller
 class CompanyGraphQLController(
     private val companyService: CompanyService,
+    private val companyScope: CompanyScope,
     private val countryRules: CountryRulesRegistry,
 ) {
+    /** Fails with `not_found` for a company the user has no access to, as for one that doesn't exist */
+    @QueryMapping
+    fun company(
+        @Argument id: String,
+        @AuthenticationPrincipal principal: AuthenticatedUser,
+    ): UserCompanyView {
+        val access = companyScope.enter(principal, id).require(CompanyPermission.VIEW)
+        return UserCompanyView(view(access.company), access.role)
+    }
+
     /** Only reachable through `me`, so a user only ever sees their own companies */
     @SchemaMapping(typeName = "User", field = "companies")
     fun companies(user: UserView): List<UserCompanyView> =
@@ -66,6 +80,7 @@ class CompanyGraphQLController(
             name = company.name,
             country = company.country,
             currency = company.currency,
+            status = company.status,
             invoicingSupported = countryRules.forCountry(company.country).invoicingSupported,
         )
 }

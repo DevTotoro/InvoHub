@@ -32,6 +32,8 @@ CREATE TABLE companies (
     name VARCHAR(200) NOT NULL,
     country VARCHAR(2) NOT NULL,
     currency VARCHAR(3) NOT NULL,
+    -- ACTIVE, READ_ONLY (unpaid) or SUSPENDED (by InvoHub staff). A VARCHAR with a CHECK, like company_members.role
+    status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
     owner_user_id BIGINT NOT NULL,
     --
     tax_id VARCHAR(50),
@@ -49,7 +51,8 @@ CREATE TABLE companies (
     CONSTRAINT fk_companies_owner FOREIGN KEY (owner_user_id) REFERENCES users (id),
     CONSTRAINT ck_companies_name CHECK (btrim(name) <> ''),
     CONSTRAINT ck_companies_country CHECK (country ~ '^[A-Z]{2}$'),
-    CONSTRAINT ck_companies_currency CHECK (currency ~ '^[A-Z]{3}$')
+    CONSTRAINT ck_companies_currency CHECK (currency ~ '^[A-Z]{3}$'),
+    CONSTRAINT ck_companies_status CHECK (status IN ('ACTIVE', 'READ_ONLY', 'SUSPENDED'))
 );
 
 CREATE INDEX ix_companies_owner ON companies (owner_user_id);

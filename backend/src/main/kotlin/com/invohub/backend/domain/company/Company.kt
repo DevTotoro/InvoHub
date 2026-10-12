@@ -35,10 +35,21 @@ class Company(
     var currency: String = currency
         protected set
 
+    /** Set by InvoHub (billing, staff); see CompanyPermission for what each allows */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    var status: CompanyStatus = CompanyStatus.ACTIVE
+        protected set
+
     /** Exactly one owner, with full rights; not listed in company_members */
     @Column(name = "owner_user_id", nullable = false)
     var ownerUserId: Long = ownerUserId
         protected set
+
+    /** An InvoHub decision (billing, staff), never the company's own */
+    fun changeStatus(status: CompanyStatus) {
+        this.status = status
+    }
 
     // Invoicing details: empty until the company works through its invoicing setup checklist
 

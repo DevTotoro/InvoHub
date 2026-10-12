@@ -8,12 +8,26 @@ export const TEST_USER: Identity = { id: '0RWNQHYRRA7BF', email: 'jane@example.c
 
 export const ACME: UserCompany = {
   role: 'OWNER',
-  company: { id: '0ACMEGREECE01', name: 'Acme', country: 'GR', currency: 'EUR', invoicingSupported: true }
+  company: {
+    id: '0ACMEGREECE01',
+    name: 'Acme',
+    country: 'GR',
+    currency: 'EUR',
+    status: 'ACTIVE',
+    invoicingSupported: true
+  }
 };
 
 export const GLOBEX: UserCompany = {
   role: 'ADMIN',
-  company: { id: '0GLOBEXGMBH01', name: 'Globex', country: 'DE', currency: 'EUR', invoicingSupported: false }
+  company: {
+    id: '0GLOBEXGMBH01',
+    name: 'Globex',
+    country: 'DE',
+    currency: 'EUR',
+    status: 'ACTIVE',
+    invoicingSupported: false
+  }
 };
 
 const COUNTRIES: Country[] = [
@@ -95,6 +109,7 @@ export async function mockApi(
       name,
       country: country.code,
       currency: country.currency,
+      status: 'ACTIVE',
       invoicingSupported: country.invoicingSupported
     };
     userCompanies.push({ role: 'OWNER', company });

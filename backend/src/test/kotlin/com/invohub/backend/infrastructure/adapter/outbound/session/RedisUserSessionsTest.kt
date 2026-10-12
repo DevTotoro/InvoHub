@@ -61,6 +61,18 @@ class RedisUserSessionsTest {
     }
 
     @Test
+    fun `unregistering forgets just that session`() {
+        val laptop = newSession()
+        val phone = newSession()
+        userSessions.register(userId, laptop)
+        userSessions.register(userId, phone)
+
+        userSessions.unregister(userId, laptop)
+
+        assertEquals(setOf(phone), redisTemplate.opsForSet().members(key))
+    }
+
+    @Test
     fun `sessions that ended on their own are dropped at the next sign-in`() {
         val expired = newSession()
         userSessions.register(userId, expired)

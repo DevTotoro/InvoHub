@@ -48,6 +48,8 @@
   "company_welcome": "Welcome, {email}",
   "company_invoicing_unavailable": "Invoicing in {country} isn't available yet.",
   "company_invoices_placeholder": "Your invoices will show up here.",
+  "company_suspended_title": "This company is suspended",
+  "company_suspended_detail": "Contact InvoHub support to find out more.",
 
   "onboarding_title": "Set up your company",
   "onboarding_name": "Company name",
