@@ -2,12 +2,13 @@ package com.invohub.backend.infrastructure.adapter.outbound.session
 
 import com.invohub.backend.domain.auth.AuthProperties
 import com.invohub.backend.domain.auth.UserSessions
+import com.invohub.backend.domain.common.TSIDCodec
 import org.springframework.data.redis.core.StringRedisTemplate
 import org.springframework.session.SessionRepository
 import org.springframework.stereotype.Component
 
 /**
- * Keeps a set of session IDs per user, `invohub:user-sessions:{userId}`. Session keys are named by a random
+ * Keeps a set of session IDs per user, `invohub:user-sessions:{public user ID}`. Session keys are named by a random
  * ID, so this is the only way to find a user's sessions without opening every session there is.
  *
  * Sessions expire on their own and the set doesn't notice, so ended IDs are dropped at each sign-in (and
@@ -22,7 +23,8 @@ class RedisUserSessions(
     private val properties: AuthProperties,
 ) : UserSessions {
     companion object {
-        private fun key(userId: Long) = "invohub:user-sessions:$userId"
+        // The public ID: nothing stored outside the app uses internal IDs
+        private fun key(userId: Long) = "invohub:user-sessions:${TSIDCodec.encode(userId)}"
     }
 
     private val sets = redisTemplate.opsForSet()

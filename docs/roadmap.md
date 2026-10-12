@@ -40,6 +40,8 @@ What's planned, what's decided, and what must happen before the first deployment
 
 **Audit log** (built: `AuditLog`, table `audit.events`). Events are written in the same transaction as the change they describe (`AuditLog.record`; `recordStandalone` for events that belong to no other change, like sign-ins). The app's database login may only insert and read there, and a trigger refuses changes from every login. Recent months stay in Postgres for the activity page; the permanent copy goes to S3 with Object Lock (see the archive job below).
 
+**Public IDs outside the app.** Internal (numeric) IDs are only used inside the app and in Postgres. Everything stored or shown elsewhere uses public IDs: URLs and the API, Redis keys, the session, logs, exports.
+
 **Two database logins.** Migrations run as the schema owner (`spring.flyway.user`); the app connects with its own login (`spring.datasource.username`), which can read and write data but never change the schema. Grants are in `V1__initial_setup.sql`.
 
 Events to record (the `user.*` ones are recorded already):
@@ -92,6 +94,7 @@ Reads and page views are not recorded.
 ### Audit archive job
 
 - Export closed **hourly windows**, each only once it is 15 minutes past its end. Transactions are capped at about a minute, so every event in the window has committed by then. Do not resume from a "last exported ID": IDs don't arrive in commit order, so events could be skipped.
+- Events are exported with public IDs (actor, company, target), like everything stored outside the app; only Postgres uses internal IDs.
 - Each window becomes one S3 object with a fixed name (`audit/YYYY/MM/DD/HH.jsonl.gz`), uploaded with "create only if absent", in a bucket with Object Lock in compliance mode.
 - Progress is recorded in `audit.export_windows`: window, object key, event count, checksum. Each run exports the oldest finished window without a row, so the job resumes by itself.
 - Crash after upload but before the row: the next run finds the object, checks its checksum, and records the row. Retry with backoff; stop at the first failing window, never skip one.
