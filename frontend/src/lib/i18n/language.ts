@@ -1,10 +1,10 @@
 import type { Language } from '#lib/api/auth.ts';
 import { getLocale, setLocale, type Locale } from '#lib/paraglide/runtime.js';
 
-/** The languages InvoHub is available in, each named in itself */
-export const LANGUAGES: { locale: Locale; name: string }[] = [
-  { locale: 'en', name: 'English' },
-  { locale: 'el', name: 'Ελληνικά' }
+/** The languages InvoHub is available in, each named in itself, with a short form for small screens */
+export const LANGUAGES: { locale: Locale; name: string; short: string }[] = [
+  { locale: 'en', name: 'English', short: 'EN' },
+  { locale: 'el', name: 'Ελληνικά', short: 'ΕΛ' }
 ];
 
 /** The API names languages in capitals: `el` → `EL` */

@@ -27,10 +27,17 @@
 
 <svelte:window onclick={closeOnOutsideClick} onkeydown={(e) => e.key === 'Escape' && close()} />
 
-<div class="relative" bind:this={container}>
-  <Button variant="ghost" aria-expanded={open} aria-controls={menuId} onclick={() => (open = !open)}>
+<!-- min-w-0 down to the name, so a long one is cut short instead of pushing into the rest of the header -->
+<div class="relative min-w-0" bind:this={container}>
+  <Button
+    variant="ghost"
+    class="max-w-full min-w-0"
+    aria-expanded={open}
+    aria-controls={menuId}
+    onclick={() => (open = !open)}
+  >
     <span class="max-w-48 truncate">{current.name}</span>
-    <svg class="size-4 text-gray-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+    <svg class="size-4 shrink-0 text-gray-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
       <path
         fill-rule="evenodd"
         d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z"

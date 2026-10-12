@@ -40,7 +40,7 @@
       {/if}
     </div>
 
-    <div class="flex items-center gap-4">
+    <div class="flex shrink-0 items-center gap-2 sm:gap-4">
       {#if user}
         <span class="hidden text-sm text-gray-600 sm:inline">{user.email}</span>
         <Button variant="ghost" onclick={signOut} loading={signingOut}>
