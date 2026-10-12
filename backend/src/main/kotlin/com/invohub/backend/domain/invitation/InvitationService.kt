@@ -203,7 +203,7 @@ class InvitationService(
                 AuditAction.MEMBER_ADDED,
                 companyId = company.id,
                 target = AuditTarget.user(userId),
-                details = mapOf("role" to invitation.role.name, "invitation" to invitation.getPublicId()),
+                details = mapOf("role" to invitation.role.name),
             ),
         )
         return UserCompany(company, invitation.role)

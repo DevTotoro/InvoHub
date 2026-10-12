@@ -8,7 +8,11 @@ data class AuditEvent(
     val companyId: Long? = null,
     /** What it happened to */
     val target: AuditTarget? = null,
-    /** Small facts about the event, e.g. before and after values. Serialized to JSON. */
+    /**
+     * Small facts about the event, e.g. before and after values. Serialized to JSON. Never IDs: the columns
+     * above hold those, internal in Postgres and turned into public IDs on export, which can't reach inside
+     * the JSON. Events of one request share its request ID, which links them.
+     */
     val details: Map<String, Any?> = emptyMap(),
 )
 
