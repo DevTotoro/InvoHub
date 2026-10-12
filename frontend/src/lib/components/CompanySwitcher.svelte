@@ -3,6 +3,7 @@
   import type { Company, UserCompany } from '#lib/api/companies.ts';
   import Button from '#lib/components/ui/Button.svelte';
   import Link from '#lib/components/ui/Link.svelte';
+  import { m } from '#lib/paraglide/messages.js';
 
   interface Props {
     current: Company;
@@ -40,7 +41,7 @@
 
   {#if open}
     <div id={menuId} class="absolute left-0 z-10 mt-1 w-64 border border-gray-200 bg-white py-1 shadow-lg">
-      <ul aria-label="Your companies">
+      <ul aria-label={m.company_your_companies()}>
         {#each companies as { company } (company.id)}
           <li>
             <Link
@@ -65,7 +66,7 @@
           onclick={close}
           class="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
         >
-          New company
+          {m.company_new()}
         </Link>
       </div>
     </div>

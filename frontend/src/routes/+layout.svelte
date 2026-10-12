@@ -6,8 +6,12 @@
   import type { LayoutProps } from './$types';
 
   import Header from '#lib/components/Header.svelte';
+  import { getLocale } from '#lib/paraglide/runtime.js';
 
   let { children }: LayoutProps = $props();
+
+  // For screen readers, spell checking and hyphenation. Changing the language reloads the page, so once is enough
+  document.documentElement.lang = getLocale();
 </script>
 
 <svelte:head>

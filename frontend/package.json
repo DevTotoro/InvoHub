@@ -8,16 +8,18 @@
     "build": "vite build",
     "preview": "vite preview",
     "prepare": "svelte-kit sync || echo ''",
-    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "check": "npm run i18n && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "lint": "prettier --check . && eslint .",
     "format": "prettier --write .",
     "test:unit": "vitest",
     "test": "npm run test:unit -- --run && npm run test:e2e",
-    "test:e2e": "playwright install && playwright test"
+    "test:e2e": "playwright install && playwright test",
+    "i18n": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide --emit-ts-declarations"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@inlang/paraglide-js": "2.25.4",
     "@playwright/test": "^1.60.0",
     "@sveltejs/adapter-vercel": "^7.0.0",
     "@sveltejs/kit": "^3.0.0",

@@ -4,6 +4,10 @@
   import { rememberRedirect } from '#lib/auth/redirect.ts';
   import Button from '#lib/components/ui/Button.svelte';
   import Input from '#lib/components/ui/Input.svelte';
+  import { errorMessage } from '#lib/i18n/errors.ts';
+  import { apiLanguage } from '#lib/i18n/language.ts';
+  import { SLOT, aroundSlot } from '#lib/i18n/slot.ts';
+  import { m } from '#lib/paraglide/messages.js';
   import type { PageProps } from './$types';
 
   let { data }: PageProps = $props();
@@ -24,35 +28,36 @@
     try {
       // The link opens in a new tab, so remember where to go once it is used
       rememberRedirect(data.redirectTo);
-      await requestMagicLink(email);
+      await requestMagicLink(email, apiLanguage());
       status = 'sent';
     } catch (e) {
       status = 'idle';
       if (e instanceof ApiError && e.status === 400) {
-        emailError = 'Enter a valid email address.';
+        emailError = m.login_invalid_email();
       } else {
-        formError = e instanceof ApiError ? e.message : 'Something went wrong. Please try again.';
+        formError = errorMessage(e);
       }
     }
   }
 </script>
 
 <svelte:head>
-  <title>Sign in · InvoHub</title>
+  <title>{m.login_title()} · InvoHub</title>
 </svelte:head>
 
 {#if status === 'sent'}
-  <h2 class="text-xl font-semibold">Check your inbox</h2>
+  {@const [before, after] = aroundSlot(m.login_sent_detail({ email: SLOT }))}
+  <h2 class="text-xl font-semibold">{m.login_sent_title()}</h2>
   <p class="mt-2 text-sm text-gray-600">
-    We've emailed a sign-in link to <span class="font-medium text-gray-900">{email}</span>. Open it to continue.
+    {before}<span class="font-medium text-gray-900">{email}</span>{after}
   </p>
-  <Button variant="link" class="mt-6" onclick={() => (status = 'idle')}>Use a different email</Button>
+  <Button variant="link" class="mt-6" onclick={() => (status = 'idle')}>{m.login_use_different_email()}</Button>
 {:else}
-  <h2 class="text-xl font-semibold">Sign in</h2>
+  <h2 class="text-xl font-semibold">{m.login_title()}</h2>
 
   <form class="mt-4 space-y-4" onsubmit={submit}>
     <Input
-      label="Email"
+      label={m.login_email()}
       type="email"
       name="email"
       required
@@ -67,7 +72,7 @@
     {/if}
 
     <Button type="submit" fullWidth loading={status === 'sending'}>
-      {status === 'sending' ? 'Sending…' : 'Email me a sign-in link'}
+      {status === 'sending' ? m.login_sending() : m.login_submit()}
     </Button>
   </form>
 {/if}

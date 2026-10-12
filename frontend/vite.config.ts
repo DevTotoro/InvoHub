@@ -1,3 +1,4 @@
+import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vitest/config';
 import { playwright } from '@vitest/browser-playwright';
@@ -6,6 +7,14 @@ import { sveltekit } from '@sveltejs/kit/vite';
 
 export default defineConfig({
   plugins: [
+    paraglideVitePlugin({
+      project: './project.inlang',
+      outdir: './src/lib/paraglide',
+      // The language picked in InvoHub (kept in a cookie, and on the user once signed in), else the browser's.
+      // Not in the URL: pages render in the browser and aren't indexed, so localized URLs would add nothing.
+      strategy: ['cookie', 'preferredLanguage', 'baseLocale'],
+      emitTsDeclarations: true
+    }),
     tailwindcss(),
     sveltekit({
       compilerOptions: {

@@ -2,24 +2,42 @@ import { ApiError, request, type Fetch } from './client.ts';
 import { COMPANY_FIELDS, type UserCompany } from './companies.ts';
 import { graphql } from './graphql.ts';
 
+/** A language InvoHub is available in, as the API names it */
+export type Language = 'EN' | 'EL';
+
 export interface User {
   id: string;
   email: string;
+  /** For the app and the user's emails */
+  language: Language;
   /** The companies the user owns or is a member of, by name */
   companies: UserCompany[];
 }
 
-/** Emails a sign-in link. Signing in for the first time creates the account. */
-export async function requestMagicLink(email: string): Promise<void> {
-  await request('/api/auth/request', { method: 'POST', json: { email } });
+/**
+ * Emails a sign-in link. [language] is the one in use: the email is in it, unless the person already has an
+ * account (then it's in theirs).
+ */
+export async function requestMagicLink(email: string, language: Language): Promise<void> {
+  await request('/api/auth/request', { method: 'POST', json: { email, language } });
 }
 
 /**
- * Exchanges the token from a magic link for a session.
- * @throws ApiError 401 if the link is invalid or expired, 403 with code `account_suspended` if the user is suspended
+ * Exchanges the token from a magic link for a session. Signing in for the first time creates the account,
+ * in [language].
+ * @throws ApiError 401 with code `invalid_link` if the link is invalid or expired, 403 with code
+ * `account_suspended` if the user is suspended
  */
-export async function verifyMagicLink(token: string): Promise<void> {
-  await request('/api/auth/verify', { method: 'POST', json: { token } });
+export async function verifyMagicLink(token: string, language: Language): Promise<void> {
+  await request('/api/auth/verify', { method: 'POST', json: { token, language } });
+}
+
+/** Saves the language the signed-in user sees InvoHub and gets emails in */
+export async function setLanguage(language: Language): Promise<void> {
+  await graphql<unknown, { language: Language }>(
+    'mutation SetLanguage($language: Language!) { setLanguage(language: $language) { language } }',
+    { language }
+  );
 }
 
 export async function logout(): Promise<void> {
@@ -31,7 +49,7 @@ export async function getCurrentUser(fetch?: Fetch): Promise<User | null> {
   try {
     // Callers decide what a missing session means, so don't trigger the global handler
     const { me } = await graphql<{ me: User | null }>(
-      `query CurrentUser { me { id email companies { role company { ${COMPANY_FIELDS} } } } }`,
+      `query CurrentUser { me { id email language companies { role company { ${COMPANY_FIELDS} } } } }`,
       undefined,
       { fetch, notifySessionLost: false }
     );

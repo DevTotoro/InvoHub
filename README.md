@@ -28,3 +28,7 @@ pnpm dev
 ```
 
 Open http://localhost:5173 and sign in with any email address. The sign-in email doesn't really get sent: open it in Mailpit at http://localhost:8025.
+
+## Translations
+
+InvoHub is in English and Greek. The app's texts are in `frontend/messages/` (`en.json`, `el.json`) and the emails' in `backend/src/main/resources/i18n/`. Add each new text to every language: the tests fail when one is missing.

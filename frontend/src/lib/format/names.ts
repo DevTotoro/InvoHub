@@ -1,15 +1,11 @@
-// English for now; these follow the user's language once the app is translated (roadmap: Translations)
-const LOCALE = 'en';
+import { getLocale } from '#lib/paraglide/runtime.js';
 
-const regions = new Intl.DisplayNames([LOCALE], { type: 'region' });
-const currencies = new Intl.DisplayNames([LOCALE], { type: 'currency' });
-
-/** e.g. GR → Greece */
+/** e.g. GR → Greece, or Ελλάδα in Greek */
 export function countryName(code: string): string {
-  return regions.of(code) ?? code;
+  return new Intl.DisplayNames([getLocale()], { type: 'region' }).of(code) ?? code;
 }
 
-/** e.g. EUR → Euro (EUR) */
+/** e.g. EUR → Euro (EUR), or Ευρώ (EUR) in Greek */
 export function currencyName(code: string): string {
-  return `${currencies.of(code) ?? code} (${code})`;
+  return `${new Intl.DisplayNames([getLocale()], { type: 'currency' }).of(code) ?? code} (${code})`;
 }

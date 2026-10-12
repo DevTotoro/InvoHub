@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser, jsonResponse } from '#lib/testing/fake-browser.ts';
-import { getCurrentUser, requestMagicLink } from './auth.ts';
+import { getCurrentUser, requestMagicLink, setLanguage, verifyMagicLink } from './auth.ts';
 import { ApiError, onSessionLost } from './client.ts';
 
 describe('auth', () => {
@@ -8,14 +8,33 @@ describe('auth', () => {
     vi.unstubAllGlobals();
   });
 
-  it('requests a magic link for the email', async () => {
+  it('requests a magic link for the email, in the language in use', async () => {
     const browser = fakeBrowser();
     browser.fetch.mockResolvedValue(jsonResponse({ message: 'Check your inbox for a sign-in link.' }));
 
-    await requestMagicLink('jane@example.com');
+    await requestMagicLink('jane@example.com', 'EL');
 
     expect(browser.fetch.mock.calls[0][0]).toBe('/api/auth/request');
-    expect(browser.sentBody()).toEqual({ email: 'jane@example.com' });
+    expect(browser.sentBody()).toEqual({ email: 'jane@example.com', language: 'EL' });
+  });
+
+  it('verifies a magic link, in the language in use', async () => {
+    const browser = fakeBrowser();
+    browser.fetch.mockResolvedValue(new Response(null, { status: 204 }));
+
+    await verifyMagicLink('abc', 'EL');
+
+    expect(browser.fetch.mock.calls[0][0]).toBe('/api/auth/verify');
+    expect(browser.sentBody()).toEqual({ token: 'abc', language: 'EL' });
+  });
+
+  it("saves the user's language", async () => {
+    const browser = fakeBrowser();
+    browser.fetch.mockResolvedValue(jsonResponse({ data: { setLanguage: { language: 'EL' } } }));
+
+    await setLanguage('EL');
+
+    expect(browser.sentBody()).toMatchObject({ variables: { language: 'EL' } });
   });
 
   it('returns the signed-in user', async () => {

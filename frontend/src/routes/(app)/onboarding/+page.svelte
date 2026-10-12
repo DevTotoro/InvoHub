@@ -1,7 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import { ApiError } from '#lib/api/client.ts';
   import { createCompany, invalidInput } from '#lib/api/companies.ts';
   import { rememberCompany } from '#lib/company/last-company.ts';
   import Button from '#lib/components/ui/Button.svelte';
@@ -9,6 +8,9 @@
   import Link from '#lib/components/ui/Link.svelte';
   import Select from '#lib/components/ui/Select.svelte';
   import { countryName, currencyName } from '#lib/format/names.ts';
+  import { errorMessage } from '#lib/i18n/errors.ts';
+  import { getLocale } from '#lib/paraglide/runtime.js';
+  import { m } from '#lib/paraglide/messages.js';
   import type { PageProps } from './$types';
 
   let { data }: PageProps = $props();
@@ -17,17 +19,17 @@
   const DEFAULT_COUNTRY = 'GR';
 
   /** Messages for the backend's invalid_input field and reason */
-  const INVALID_INPUT: Record<string, string> = {
-    'name.required': 'Enter a company name.',
-    'name.too_long': 'Use at most 200 characters.',
-    'country.unknown': 'Choose a country from the list.'
+  const INVALID_INPUT: Record<string, () => string> = {
+    'name.required': m.onboarding_name_required,
+    'name.too_long': m.onboarding_name_too_long,
+    'country.unknown': m.onboarding_country_unknown
   };
 
-  const title = $derived(data.firstCompany ? 'Set up your company' : 'New company');
+  const title = $derived(data.firstCompany ? m.onboarding_title() : m.company_new());
   const countryOptions = $derived(
     data.countries
       .map((c) => ({ value: c.code, label: countryName(c.code) }))
-      .sort((a, b) => a.label.localeCompare(b.label))
+      .sort((a, b) => a.label.localeCompare(b.label, getLocale()))
   );
 
   let name = $state('');
@@ -51,13 +53,13 @@
       await goto(resolve('/(app)/c/[companyId]', { companyId: company.id }), { invalidateAll: true });
     } catch (e) {
       const invalid = invalidInput(e);
-      const message = invalid && (INVALID_INPUT[`${invalid.field}.${invalid.reason}`] ?? 'Check this field.');
+      const message = invalid && (INVALID_INPUT[`${invalid.field}.${invalid.reason}`] ?? m.onboarding_check_field)();
       if (invalid?.field === 'name') {
         nameError = message;
       } else if (invalid?.field === 'country') {
         countryError = message;
       } else {
-        formError = e instanceof ApiError ? e.message : 'Something went wrong. Please try again.';
+        formError = errorMessage(e);
       }
     } finally {
       saving = false;
@@ -75,7 +77,7 @@
 
     <form class="mt-4 space-y-4" onsubmit={submit}>
       <Input
-        label="Company name"
+        label={m.onboarding_name()}
         name="name"
         required
         maxlength={200}
@@ -86,18 +88,17 @@
       />
 
       <Select
-        label="Country"
+        label={m.onboarding_country()}
         name="country"
         options={countryOptions}
         bind:value={country}
         error={countryError}
-        hint={selected && `Currency: ${currencyName(selected.currency)}`}
+        hint={selected && m.onboarding_currency({ currency: currencyName(selected.currency) })}
       />
 
       {#if selected && !selected.invoicingSupported}
         <p class="text-sm text-gray-600" role="status">
-          Invoicing in {countryName(selected.code)} isn't available yet. You can set up your company and team now, and start
-          invoicing once {countryName(selected.code)} is supported.
+          {m.onboarding_invoicing_unavailable({ country: countryName(selected.code) })}
         </p>
       {/if}
 
@@ -105,11 +106,13 @@
         <p class="text-sm text-red-600" role="alert">{formError}</p>
       {/if}
 
-      <Button type="submit" fullWidth loading={saving}>{saving ? 'Creating…' : 'Create company'}</Button>
+      <Button type="submit" fullWidth loading={saving}
+        >{saving ? m.onboarding_creating() : m.onboarding_submit()}</Button
+      >
     </form>
 
     {#if !data.firstCompany}
-      <Link href={resolve('/(app)')} class="mt-4">Cancel</Link>
+      <Link href={resolve('/(app)')} class="mt-4">{m.onboarding_cancel()}</Link>
     {/if}
   </div>
 </main>
