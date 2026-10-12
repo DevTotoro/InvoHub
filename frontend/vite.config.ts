@@ -7,14 +7,8 @@ import { sveltekit } from '@sveltejs/kit/vite';
 
 export default defineConfig({
   plugins: [
-    paraglideVitePlugin({
-      project: './project.inlang',
-      outdir: './src/lib/paraglide',
-      // The language picked in InvoHub (kept in a cookie, and on the user once signed in), else the browser's.
-      // Not in the URL: pages render in the browser and aren't indexed, so localized URLs would add nothing.
-      strategy: ['cookie', 'preferredLanguage', 'baseLocale'],
-      emitTsDeclarations: true
-    }),
+    // Settings in project.inlang/paraglide.config.js
+    paraglideVitePlugin({ project: './project.inlang' }),
     tailwindcss(),
     sveltekit({
       compilerOptions: {
