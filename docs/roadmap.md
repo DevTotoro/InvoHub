@@ -23,9 +23,14 @@ What's planned, what's decided, and what must happen before the first deployment
 
 **Company in the URL** (`/c/<public id>/…`). The URL only says which company is being viewed; the backend checks the user's role in it on every request.
 
-**A company has** a legal name, country, tax ID, address and currency. Onboarding asks only for the country and the tax ID; the rest comes from the country's business registry where there is one (Greece: AADE), with manual entry as the fallback when the registry is unreachable or the country has none. The currency always comes from the country (JDK data). The tax ID is validated for the country (Greek ΑΦΜ: 9 digits with a check digit) but not unique across InvoHub, so nobody can block a business by registering its tax ID first.
+**Creating a company asks for the minimum: a name and a country.** Any country is allowed. The currency comes from the country (JDK data). Everything else is only needed to issue invoices, so it is asked for just in time, in the company's invoicing setup checklist: the tax ID, legal name, address and the country's own details. A company can do everything except issue invoices before that; drafts are fine. The country can change until the first invoice is issued, then it is fixed.
 
-**Country rules.** Each country has a rules module: how to check its tax ID, its registry lookup if any, the extra company details it needs (Greece: tax office, main activity) and later its e-invoicing. Countries without rules get manual entry and a basic check. Common fields are columns; country-specific details live in one JSON column checked by that country's rules, so adding a country never changes the companies table.
+**Country rules.** Each country InvoHub supports has a rules module: how to check its tax ID, its business registry if any, and its invoicing setup checklist (later also e-invoicing, tax rates, numbering). A country is supported exactly when it has a module. Companies in any other country get a checklist that can't be completed, "Invoicing in <country> isn't available yet", and onboarding says so up front; once we add the country's rules, those companies see real steps. Common fields are columns; country-specific details live in one JSON column checked by that country's rules, so adding a country never changes the companies table.
+
+**Greece's invoicing setup checklist:**
+1. Tax ID (ΑΦΜ): 9 digits with a check digit. Not unique across InvoHub, so nobody can block a business by registering its tax ID first.
+2. Business details: legal name, address, tax office (ΔΟΥ), main activity (ΚΑΔ). Entered by hand for now; later filled in from AADE's registry (see Later).
+3. Connect myDATA with the company's own user ID and key. This also verifies the ΑΦΜ (to confirm against AADE's documentation when built).
 
 **Customers belong to a company**, not shared between companies. Invoices store the customer's details as they were when issued.
 
@@ -57,26 +62,26 @@ Reads and page views are not recorded.
 
 ## Next up
 
-1. **Companies and roles** (`feat/companies`). Tables, the country-rules framework with Greek ΑΦΜ validation, "Set up your company" with manual entry (also the registry fallback), currency from the country, `me` returns the user's companies with their roles, company in the URL and a company switcher. Records `company.created`.
-2. **AADE lookup** (`feat/aade-lookup`). Onboarding asks for country and tax ID, then fills in legal name, trade name, address, tax office and main activity from AADE's RgWsPublic2 service (SOAP, WS-Security username/password: InvoHub's own AADE access codes). Deactivated or unknown ΑΦΜs are refused; if AADE doesn't answer within a few seconds, the manual form is shown and the company is marked unverified, to be re-checked later. A fake registry with test ΑΦΜs for local development and tests.
-3. **Translations.** Greek and English throughout, so every later page starts translated:
+1. **Companies and roles** (`feat/companies`). Tables (with empty columns for the invoicing details), the country-rules framework (Greece, plus unsupported countries), "Set up your company" with name and country, currency from the country, `me` returns the user's companies with their roles, company in the URL and a company switcher. Records `company.created`.
+2. **Translations.** Greek and English throughout, so every later page starts translated:
    - UI text through Paraglide (SvelteKit's recommended i18n), language chosen per user and stored on the user, defaulting to the browser's
    - Dates, numbers and amounts formatted for the language (`Intl`)
    - Error messages from the backend's problem `code`s, not its English `detail`
    - Emails (the sign-in link, later invitations) in the user's language
-4. **Permission checks.** Resolve the user's role in the company on every request, together with the company status, in one central place. Tests proving nobody can reach another company's data.
-5. **Members.** List members, change roles, remove people, leave a company.
-6. **Invitations.** Invite an email to one or more companies, each with a role (inviters can only pick companies they own or administer). The emailed link signs the person in. Invitations expire after 7 days, can be resent and revoked, with a cap on pending invites and at most one resend per hour.
-7. **Company settings.** Admins edit the company's details, bank details and logo; anyone can create more companies.
-8. **Ownership transfer and company deletion.**
+3. **Permission checks.** Resolve the user's role in the company on every request, together with the company status, in one central place. Tests proving nobody can reach another company's data.
+4. **Members.** List members, change roles, remove people, leave a company.
+5. **Invitations.** Invite an email to one or more companies, each with a role (inviters can only pick companies they own or administer). The emailed link signs the person in. Invitations expire after 7 days, can be resent and revoked, with a cap on pending invites and at most one resend per hour.
+6. **Company settings.** Admins edit the company's details (including the tax ID, legal name, address and country details from the checklist), bank details and logo; anyone can create more companies.
+7. **Ownership transfer and company deletion.**
 
 ## Later
 
 - **Audit archive job** (separate PR; design below) and monthly partitioning of the audit table, which also gives the job its by-time lookups (the existing indexes are by company, actor and target).
+- **AADE registry lookup:** fill in a Greek company's legal name, trade name, address, tax office and activities from its ΑΦΜ through AADE's RgWsPublic2 service (SOAP, WS-Security username/password). Needs AADE access codes: InvoHub's own, which need an ΑΦΜ of its own, or optionally the company's. Fall back to manual entry when AADE doesn't answer.
 - **Activity page** for owners and admins; a "your sign-in history" page for users.
 - **InvoHub staff tool:** suspend users, change company status.
 - **Billing:** billing profiles, where one payer covers several companies with one bill (`companies.billing_profile_id`); unpaid leads to a grace period, then read-only.
-- **Invoices:** numbering per company, immutable once issued, corrections through credit notes. Rules depend on the country (required fields, numbering, tamper-evidence, mandatory e-invoicing). For **Greece**, check the current rules when designing this:
+- **Invoices:** the invoicing setup checklist screens and the block on issuing until it is complete; numbering per company, immutable once issued, corrections through credit notes. Rules depend on the country (required fields, numbering, tamper-evidence, mandatory e-invoicing). For **Greece**, check the current rules when designing this:
   - the issuer's tax office (ΔΟΥ) and business activity on invoices: add them to the company then
   - reporting every invoice to AADE's myDATA
   - mandatory B2B e-invoicing, being phased in: each invoice is transmitted (to myDATA or through a certified provider) and gets back its MARK and a QR code, both printed on the invoice
