@@ -113,7 +113,6 @@
   "invite_invalid_email": "Εισαγάγετε μια έγκυρη διεύθυνση email.",
   "invite_already_member": "Το {email} ανήκει ήδη στην εταιρεία {company}.",
   "invite_already_invited": "Το {email} έχει ήδη ανοιχτή πρόσκληση για την εταιρεία {company}.",
-  "invite_company_daily_limit": "Η εταιρεία {company} έστειλε όσες προσκλήσεις επιτρέπονται για σήμερα. Δοκιμάστε ξανά αύριο.",
   "invite_daily_limit": "Στείλατε όσες προσκλήσεις επιτρέπονται για σήμερα. Δοκιμάστε ξανά αύριο.",
 
   "team_invitations": "Ανοιχτές προσκλήσεις",
@@ -122,5 +121,14 @@
   "team_revoke_of": "Ανάκληση της πρόσκλησης για {email}",
   "team_revoke_confirm": "Να ανακληθεί η πρόσκληση για {email};",
 
-  "error_invitation_not_found": "Αυτή η πρόσκληση δεν είναι πια ανοιχτή."
+  "error_invitation_not_found": "Αυτή η πρόσκληση δεν είναι πια ανοιχτή.",
+
+  "verify_expired_title": "Ο σύνδεσμος σύνδεσης έχει λήξει",
+  "verify_expired_detail": "Κάθε σύνδεσμος ισχύει για μία ώρα και μία φορά. Μπορούμε να σας στείλουμε νέο.",
+  "verify_renew": "Στείλτε μου νέο σύνδεσμο",
+  "verify_renewing": "Αποστολή…",
+  "verify_renewed_title": "Ελέγξτε τα εισερχόμενά σας",
+  "verify_renewed_detail": "Σας στείλαμε νέο σύνδεσμο σύνδεσης.",
+  "invite_recipient_daily_limit": "Το {email} έλαβε πολλές προσκλήσεις σήμερα. Δοκιμάστε ξανά αύριο.",
+  "error_email_delivery_failed_invite": "Δεν ήταν δυνατή η αποστολή του email πρόσκλησης αυτή τη στιγμή, οπότε δεν στάλθηκε τίποτα. Δοκιμάστε ξανά σε λίγα λεπτά."
 }

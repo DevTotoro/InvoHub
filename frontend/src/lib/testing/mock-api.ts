@@ -44,7 +44,9 @@ export interface MockApiOptions {
   /** The user's companies */
   companies?: UserCompany[];
   /** How POST /api/auth/verify answers */
-  verify?: 'ok' | 'invalid' | 'suspended';
+  verify?: 'ok' | 'invalid' | 'expired' | 'suspended';
+  /** Where the link leads when it signs in */
+  destination?: 'DEFAULT' | 'INVITATIONS';
   /** The language TEST_USER's account has when signing in, unless already signed in as [user] */
   accountLanguage?: Language;
   /** Other people in the user's companies, by company ID; the user is always listed with their own role */
@@ -91,6 +93,7 @@ export async function mockApi(
     user = null,
     companies = [],
     verify = 'ok',
+    destination = 'DEFAULT',
     accountLanguage = 'EN',
     people = {},
     invitations = [],
@@ -241,10 +244,14 @@ export async function mockApi(
     if (verify === 'invalid') {
       return route.fulfill(problem(401, 'This sign-in link is invalid or has expired.', 'invalid_link'));
     }
+    if (verify === 'expired') return route.fulfill(problem(401, 'This sign-in link has expired.', 'expired_link'));
     if (verify === 'suspended') return route.fulfill(problem(403, 'This account is suspended.', 'account_suspended'));
     currentUser = { ...TEST_USER, language: accountLanguage };
-    return route.fulfill({ status: 204 });
+    return route.fulfill({ json: { destination } });
   });
+  await page.route('**/api/auth/renew', (route) =>
+    route.fulfill({ json: { message: 'Check your inbox for a sign-in link.' } })
+  );
   await page.route('**/api/auth/logout', (route) => {
     currentUser = null;
     return route.fulfill({ status: 204 });

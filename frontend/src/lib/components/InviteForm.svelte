@@ -57,6 +57,8 @@
       const problem = graphqlProblem(e);
       if (problem?.code === 'invalid_input') {
         emailError = m.invite_invalid_email();
+      } else if (problem?.code === 'email_delivery_failed') {
+        formError = m.error_email_delivery_failed_invite();
       } else {
         formError = refusal(e) ?? errorMessage(e);
       }
@@ -76,8 +78,8 @@
         return m.invite_already_member({ email: who, company });
       case 'already_invited':
         return m.invite_already_invited({ email: who, company });
-      case 'company_daily_limit':
-        return m.invite_company_daily_limit({ company });
+      case 'recipient_daily_limit':
+        return m.invite_recipient_daily_limit({ email: who });
       case 'daily_limit':
         return m.invite_daily_limit();
       default:

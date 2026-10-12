@@ -3,7 +3,7 @@
   import { goto, replaceState } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
-  import { verifyMagicLink } from '#lib/api/auth.ts';
+  import { renewMagicLink, verifyMagicLink } from '#lib/api/auth.ts';
   import { ApiError } from '#lib/api/client.ts';
   import { consumeRedirect } from '#lib/auth/redirect.ts';
   import Button from '#lib/components/ui/Button.svelte';
@@ -11,7 +11,7 @@
   import { apiLanguage } from '#lib/i18n/language.ts';
   import { m } from '#lib/paraglide/messages.js';
 
-  type Status = 'ready' | 'verifying' | 'invalid' | 'suspended' | 'error';
+  type Status = 'ready' | 'verifying' | 'invalid' | 'expired' | 'renewing' | 'renewed' | 'suspended' | 'error';
 
   // Read once: the address bar is cleared right away, but the token stays here until the user continues
   const token = page.url.searchParams.get('token');
@@ -27,10 +27,13 @@
     if (!token) return;
     status = 'verifying';
 
+    let destination;
     try {
-      await verifyMagicLink(token, apiLanguage());
+      destination = await verifyMagicLink(token, apiLanguage());
     } catch (e) {
-      if (e instanceof ApiError && e.code === 'invalid_link') {
+      if (e instanceof ApiError && e.code === 'expired_link') {
+        status = 'expired';
+      } else if (e instanceof ApiError && e.code === 'invalid_link') {
         status = 'invalid';
       } else if (e instanceof ApiError && e.code === 'account_suspended') {
         status = 'suspended';
@@ -40,10 +43,28 @@
       return;
     }
 
+    // Always taken, so a stored destination doesn't linger for a later sign-in
+    const stored = consumeRedirect();
+    // A link from an invitation email opens the invitations; others go where the person was headed.
     // invalidateAll: the session is new, so everything loaded so far was loaded signed out.
-    // resolve() only takes route IDs; this is a stored path that consumeRedirect() already validated.
+    // resolve() only takes route IDs; stored is a path that consumeRedirect() already validated.
     // eslint-disable-next-line svelte/no-navigation-without-resolve
-    await goto(consumeRedirect(), { replaceState: true, invalidateAll: true });
+    await goto(destination === 'INVITATIONS' ? resolve('/(app)/invitations') : stored, {
+      replaceState: true,
+      invalidateAll: true
+    });
+  }
+
+  /** A fresh link in place of the expired one, to the same address and leading to the same place */
+  async function renew() {
+    if (!token) return;
+    status = 'renewing';
+    try {
+      await renewMagicLink(token, apiLanguage());
+      status = 'renewed';
+    } catch (e) {
+      status = e instanceof ApiError && e.code === 'invalid_link' ? 'invalid' : 'error';
+    }
   }
 </script>
 
@@ -57,6 +78,15 @@
   <Button fullWidth class="mt-4" loading={status === 'verifying'} onclick={signIn}>
     {status === 'verifying' ? m.verify_signing_in() : m.verify_continue()}
   </Button>
+{:else if status === 'expired' || status === 'renewing'}
+  <h2 class="text-xl font-semibold">{m.verify_expired_title()}</h2>
+  <p class="mt-2 text-sm text-gray-600">{m.verify_expired_detail()}</p>
+  <Button fullWidth class="mt-4" loading={status === 'renewing'} onclick={renew}>
+    {status === 'renewing' ? m.verify_renewing() : m.verify_renew()}
+  </Button>
+{:else if status === 'renewed'}
+  <h2 class="text-xl font-semibold">{m.verify_renewed_title()}</h2>
+  <p class="mt-2 text-sm text-gray-600">{m.verify_renewed_detail()}</p>
 {:else if status === 'invalid'}
   <h2 class="text-xl font-semibold">{m.verify_invalid_title()}</h2>
   <p class="mt-2 text-sm text-gray-600">{m.verify_invalid_detail()}</p>

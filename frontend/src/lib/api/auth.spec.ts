@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser, jsonResponse } from '#lib/testing/fake-browser.ts';
-import { getCurrentUser, requestMagicLink, setLanguage, verifyMagicLink } from './auth.ts';
+import { getCurrentUser, renewMagicLink, requestMagicLink, setLanguage, verifyMagicLink } from './auth.ts';
 import { ApiError, onSessionLost } from './client.ts';
 
 describe('auth', () => {
@@ -18,14 +18,24 @@ describe('auth', () => {
     expect(browser.sentBody()).toEqual({ email: 'jane@example.com', language: 'EL' });
   });
 
-  it('verifies a magic link, in the language in use', async () => {
+  it('verifies a magic link, in the language in use, and says where it leads', async () => {
     const browser = fakeBrowser();
-    browser.fetch.mockResolvedValue(new Response(null, { status: 204 }));
+    browser.fetch.mockResolvedValue(jsonResponse({ destination: 'INVITATIONS' }));
 
-    await verifyMagicLink('abc', 'EL');
+    await expect(verifyMagicLink('abc', 'EL')).resolves.toBe('INVITATIONS');
 
     expect(browser.fetch.mock.calls[0][0]).toBe('/api/auth/verify');
     expect(browser.sentBody()).toEqual({ token: 'abc', language: 'EL' });
+  });
+
+  it('asks for a fresh link in place of an expired one', async () => {
+    const browser = fakeBrowser();
+    browser.fetch.mockResolvedValue(jsonResponse({ message: 'Check your inbox for a sign-in link.' }));
+
+    await renewMagicLink('old', 'EN');
+
+    expect(browser.fetch.mock.calls[0][0]).toBe('/api/auth/renew');
+    expect(browser.sentBody()).toEqual({ token: 'old', language: 'EN' });
   });
 
   it("saves the user's language", async () => {

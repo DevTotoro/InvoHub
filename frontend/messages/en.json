@@ -113,7 +113,6 @@
   "invite_invalid_email": "Enter a valid email address.",
   "invite_already_member": "{email} is already in {company}.",
   "invite_already_invited": "{email} already has an open invitation to {company}.",
-  "invite_company_daily_limit": "{company} has sent its invitations for today. Try again tomorrow.",
   "invite_daily_limit": "You've sent your invitations for today. Try again tomorrow.",
 
   "team_invitations": "Open invitations",
@@ -122,5 +121,14 @@
   "team_revoke_of": "Revoke the invitation for {email}",
   "team_revoke_confirm": "Revoke the invitation for {email}?",
 
-  "error_invitation_not_found": "This invitation is no longer open."
+  "error_invitation_not_found": "This invitation is no longer open.",
+
+  "verify_expired_title": "This sign-in link has expired",
+  "verify_expired_detail": "Links work for an hour, and once. We can email you a new one.",
+  "verify_renew": "Send me a new link",
+  "verify_renewing": "Sending…",
+  "verify_renewed_title": "Check your inbox",
+  "verify_renewed_detail": "We've emailed you a new sign-in link.",
+  "invite_recipient_daily_limit": "{email} has had too many invitations today. Try again tomorrow.",
+  "error_email_delivery_failed_invite": "We couldn't send the invitation email right now, so nothing was sent. Please try again in a few minutes."
 }
