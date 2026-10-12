@@ -18,8 +18,7 @@ enum class InvitationStatus {
 
 /**
  * An invitation for an email address to join a company with a role. It belongs to the address: whoever signs
- * in with it sees it on their Invitations page. The email that tells them is sent separately and may be held
- * back a while (see InvitationNotifier).
+ * in with it sees it on their Invitations page. The email about it, sent when inviting, signs them in there.
  *
  * The partial indexes (one pending invitation per company and email, pending ones by email) can't be written in
  * @Table; they are in the migration only.
@@ -28,8 +27,7 @@ enum class InvitationStatus {
 @Table(
     name = "invitations",
     indexes = [
-        Index(name = "ix_invitations_company_created", columnList = "company_id, created_at"),
-        Index(name = "ix_invitations_invited_by_created", columnList = "invited_by_user_id, created_at"),
+        Index(name = "ix_invitations_company", columnList = "company_id"),
     ],
 )
 class Invitation(
@@ -60,16 +58,6 @@ class Invitation(
     var status: InvitationStatus = InvitationStatus.PENDING
         protected set
 
-    /** When a sender claimed the email about it; cleared if sending failed */
-    @Column(name = "notification_claimed_at")
-    var notificationClaimedAt: Instant? = null
-        protected set
-
-    /** When the email about it went out; null while it is still due */
-    @Column(name = "notified_at")
-    var notifiedAt: Instant? = null
-        protected set
-
     @Column(name = "closed_at")
     var closedAt: Instant? = null
         protected set
@@ -80,18 +68,6 @@ class Invitation(
 
     /** Pending and not expired: it can still be accepted */
     fun isOpen(now: Instant) = status == InvitationStatus.PENDING && expiresAt.isAfter(now)
-
-    fun claimNotification(at: Instant) {
-        notificationClaimedAt = at
-    }
-
-    fun releaseNotification() {
-        notificationClaimedAt = null
-    }
-
-    fun markNotified(at: Instant) {
-        notifiedAt = at
-    }
 
     fun close(
         status: InvitationStatus,

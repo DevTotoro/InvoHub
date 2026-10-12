@@ -13,8 +13,30 @@ import org.springframework.web.util.UriComponentsBuilder
 import java.net.URI
 import java.security.MessageDigest
 import java.security.SecureRandom
+import java.time.Duration
 import java.util.Base64
 import java.util.HexFormat
+
+/** A verified sign-in link: who signed in, and where the link takes them */
+data class SignIn(
+    val user: User,
+    val destination: SignInDestination,
+)
+
+/** A sign-in link to put in an email, and how long it works */
+data class IssuedLink(
+    val link: URI,
+    val validFor: Duration,
+)
+
+/** What verifying a link found when it didn't sign anyone in */
+enum class LinkProblem {
+    /** Unknown: nothing can be done with it */
+    INVALID,
+
+    /** Expired or already used, but recent enough to be renewed */
+    RENEWABLE,
+}
 
 @Service
 class MagicLinkService(
@@ -41,43 +63,47 @@ class MagicLinkService(
         rawEmail: String,
         language: Language,
     ) {
-        val email = normalizeEmail(rawEmail)
+        sendLink(normalizeEmail(rawEmail), SignInDestination.DEFAULT, language)
+    }
 
-        // Atomic, so concurrent requests can't both pass and send two links
-        if (!tokenStore.tryLock(email, properties.magicLinkTtl)) {
-            return
-        }
+    /**
+     * A sign-in link for an invitation email: it signs the person in and opens their Invitations page. Not
+     * held back by the per-email lock, as the invitation email must go out; invitations have limits of their
+     * own (InvitationLimits).
+     */
+    fun invitationLink(rawEmail: String): IssuedLink {
+        val rawToken = issue(MagicLinkToken(normalizeEmail(rawEmail), SignInDestination.INVITATIONS))
+        return IssuedLink(buildLink(rawToken), properties.magicLinkTtl)
+    }
 
-        val rawToken = generateToken()
-        val tokenHash = hashToken(rawToken)
-        tokenStore.saveToken(tokenHash, email, properties.magicLinkTtl)
-
-        try {
-            val emailLanguage = userService.findByEmail(email)?.language ?: language
-            emailPort.sendMagicLink(email, buildLink(rawToken), properties.magicLinkTtl, emailLanguage)
-        } catch (e: EmailDeliveryException) {
-            // Nothing was sent, so release the lock rather than make the user wait out the full TTL
-            tokenStore.removeToken(tokenHash)
-            tokenStore.unlock(email)
-            throw e
-        }
+    /**
+     * Emails a fresh link in place of an expired or used one: to the same address, leading to the same place.
+     * Like requesting one, nothing is sent while a link for the address is active.
+     * @throws InvalidSignInLinkException if the old link is unknown or too old to renew
+     */
+    fun renew(
+        rawToken: String,
+        language: Language,
+    ) {
+        val old = tokenStore.findRenewable(hashToken(rawToken)) ?: throw InvalidSignInLinkException()
+        sendLink(old.email, old.destination, language)
     }
 
     /**
      * Consumes the token, so it works at most once even under concurrent requests. Signing in for the first
      * time creates the user, in [language] (the one the person is using right now).
-     * @return Newly-created or pre-existing User associated with the token, or null if it is invalid or expired
+     * @return the user and where the link leads, or null if it doesn't sign anyone in (see [problemWith])
      * @throws AccountSuspendedException if the user is suspended
      */
     fun verifyToken(
         rawToken: String,
         language: Language,
-    ): User? {
-        val email = tokenStore.consumeToken(hashToken(rawToken)) ?: return null
+    ): SignIn? {
+        val token = tokenStore.consumeToken(hashToken(rawToken)) ?: return null
         // The active token is used up, so allow requesting a new one (e.g. to sign in on another device)
-        tokenStore.unlock(email)
+        tokenStore.unlock(token.email)
 
-        val user = userService.getOrCreateUser(email, language)
+        val user = userService.getOrCreateUser(token.email, language)
         if (user.suspended) {
             auditLog.recordStandalone(
                 AuditEvent(
@@ -93,7 +119,48 @@ class MagicLinkService(
         auditLog.recordStandalone(
             AuditEvent(AuditAction.USER_SIGNED_IN, actorUserId = user.id, target = AuditTarget.user(user.id)),
         )
-        return user
+        return SignIn(user, token.destination)
+    }
+
+    /** Why a link didn't sign anyone in: unknown, or expired/used and renewable */
+    fun problemWith(rawToken: String): LinkProblem =
+        if (tokenStore.findRenewable(hashToken(rawToken)) != null) LinkProblem.RENEWABLE else LinkProblem.INVALID
+
+    /** Emails a new link unless one for the address is still active */
+    private fun sendLink(
+        email: String,
+        destination: SignInDestination,
+        language: Language,
+    ) {
+        // Atomic, so concurrent requests can't both pass and send two links
+        if (!tokenStore.tryLock(email, properties.magicLinkTtl)) {
+            return
+        }
+
+        val rawToken = generateToken()
+        val tokenHash = hashToken(rawToken)
+        tokenStore.saveToken(
+            tokenHash,
+            MagicLinkToken(email, destination),
+            properties.magicLinkTtl,
+            properties.magicLinkRenewableFor,
+        )
+
+        try {
+            val emailLanguage = userService.findByEmail(email)?.language ?: language
+            emailPort.sendMagicLink(email, buildLink(rawToken), properties.magicLinkTtl, emailLanguage)
+        } catch (e: EmailDeliveryException) {
+            // Nothing was sent, so release the lock rather than make the user wait out the full TTL
+            tokenStore.removeToken(tokenHash)
+            tokenStore.unlock(email)
+            throw e
+        }
+    }
+
+    private fun issue(token: MagicLinkToken): String {
+        val rawToken = generateToken()
+        tokenStore.saveToken(hashToken(rawToken), token, properties.magicLinkTtl, properties.magicLinkRenewableFor)
+        return rawToken
     }
 
     private fun buildLink(rawToken: String): URI =
@@ -114,3 +181,9 @@ class MagicLinkService(
         return HexFormat.of().formatHex(hashBytes)
     }
 }
+
+/** The sign-in link's token is unknown, or too old to renew */
+class InvalidSignInLinkException : RuntimeException("Invalid sign-in link")
+
+/** The sign-in link has expired or was used, and can be renewed */
+class ExpiredSignInLinkException : RuntimeException("Expired sign-in link")

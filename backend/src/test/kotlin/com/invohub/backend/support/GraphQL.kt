@@ -51,7 +51,7 @@ fun MockMvc.signIn(
         with(csrf())
         contentType = MediaType.APPLICATION_JSON
         content = """{"token": "$token"}"""
-    }.andExpect { status { isNoContent() } }
+    }.andExpect { status { isOk() } }
         .andReturn()
         .response
         .getCookie("SESSION")!!

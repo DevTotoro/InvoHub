@@ -20,6 +20,7 @@ import java.time.Duration
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 
 /** Sends through real SMTP into Mailpit and reads the message back through its API. */
 class SmtpEmailAdapterTest {
@@ -48,7 +49,12 @@ class SmtpEmailAdapterTest {
         assertEquals("jane@example.com", message.at("/To/0/Address").asString())
         assertEquals("no-reply@invohub.com", message.at("/From/Address").asString())
         assertContains(message.at("/Text").asString(), link.toString())
-        assertContains(message.at("/Text").asString(), "expire in 1 hour")
+        assertContains(message.at("/Text").asString(), "expires in 1 hour")
+        // HTML, with the link as a button and written out for when the button doesn't work
+        val html = message.at("/HTML").asString()
+        assertContains(html, """<a href="$link" style="display:inline-block""")
+        assertContains(html, ">Sign in</a>")
+        assertContains(html, "Button not working?")
     }
 
     @Test
@@ -72,14 +78,15 @@ class SmtpEmailAdapterTest {
             )
 
         adapter(port = mailpit.getMappedPort(1025))
-            .sendInvitations("maria@example.com", notices, URI("https://app.example.com/invitations"), Language.EL)
+            .sendInvitations("maria@example.com", notices, link, Duration.ofHours(1), Language.EL)
 
         val message = latestMessage()
         assertEquals("InvoHub - Πρόσκληση", message.at("/Subject").asString())
         val text = message.at("/Text").asString()
         assertContains(text, "- Acme: Διαχειριστής, πρόσκληση από jane@example.com")
         assertContains(text, "- Globex: Μόνο προβολή, πρόσκληση από john@example.com")
-        assertContains(text, "https://app.example.com/invitations")
+        assertContains(text, link.toString())
+        assertContains(message.at("/HTML").asString(), ">Προβολή προσκλήσεων</a>")
     }
 
     @Test
@@ -87,13 +94,31 @@ class SmtpEmailAdapterTest {
         adapter(port = mailpit.getMappedPort(1025)).sendInvitations(
             "maria@example.com",
             listOf(InvitationNotice("Acme", "jane@example.com", CompanyRole.MEMBER)),
-            URI("https://app.example.com/invitations"),
+            link,
+            Duration.ofHours(1),
             Language.EN,
         )
 
         val text = latestMessage().at("/Text").asString()
         assertContains(text, "You've been invited to InvoHub:")
         assertContains(text, "- Acme: Member, invited by jane@example.com")
+    }
+
+    @Test
+    fun `other people's words can't add markup`() {
+        adapter(port = mailpit.getMappedPort(1025)).sendInvitations(
+            "maria@example.com",
+            listOf(
+                InvitationNotice("<a href=\"https://evil.example\">Click</a>", "jane@example.com", CompanyRole.MEMBER),
+            ),
+            link,
+            Duration.ofHours(1),
+            Language.EN,
+        )
+
+        val html = latestMessage().at("/HTML").asString()
+        assertContains(html, "&lt;a href=&quot;https://evil.example&quot;&gt;Click&lt;/a&gt;")
+        assertFalse(html.contains("<a href=\"https://evil.example\""))
     }
 
     @Test

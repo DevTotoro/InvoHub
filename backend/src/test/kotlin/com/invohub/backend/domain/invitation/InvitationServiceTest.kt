@@ -1,6 +1,9 @@
 package com.invohub.backend.domain.invitation
 
 import com.invohub.backend.domain.audit.AuditEventRepository
+import com.invohub.backend.domain.auth.EmailDeliveryException
+import com.invohub.backend.domain.auth.MagicLinkService
+import com.invohub.backend.domain.auth.SignInDestination
 import com.invohub.backend.domain.common.InvalidInputException
 import com.invohub.backend.domain.company.Company
 import com.invohub.backend.domain.company.CompanyAccessService
@@ -17,10 +20,10 @@ import com.invohub.backend.domain.user.UserService
 import com.invohub.backend.support.CapturingEmailPort
 import com.invohub.backend.support.DatabaseCleaner
 import com.invohub.backend.support.IntegrationTest
-import io.hypersistence.tsid.TSID
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.data.redis.core.StringRedisTemplate
 import org.springframework.jdbc.core.JdbcTemplate
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -61,6 +64,15 @@ class InvitationServiceTest {
     @Autowired
     private lateinit var jdbcTemplate: JdbcTemplate
 
+    @Autowired
+    private lateinit var limits: InvitationLimits
+
+    @Autowired
+    private lateinit var magicLinkService: MagicLinkService
+
+    @Autowired
+    private lateinit var redisTemplate: StringRedisTemplate
+
     private val maria = "maria@example.com"
 
     private var owner = 0L
@@ -71,6 +83,7 @@ class InvitationServiceTest {
     fun reset() {
         emailPort.clear()
         databaseCleaner.clean()
+        redisTemplate.connectionFactory!!.connection.use { it.serverCommands().flushAll() }
         owner = newUser("owner@example.com")
         acme = companyService.createCompany(owner, "Acme", "GR")
         globex = companyService.createCompany(owner, "Globex", "GR")
@@ -91,7 +104,7 @@ class InvitationServiceTest {
             },
         )
         assertEquals("owner@example.com", email.invitations.first().invitedByEmail)
-        assertEquals("http://localhost:5173/invitations", email.link.toString())
+        assertEquals("http://localhost:5173/auth/verify", email.link.toString().substringBefore('?'))
         assertEquals(Language.EN, email.language)
         assertEquals(listOf("invitation.sent"), actionsFor(invitations.first()))
     }
@@ -166,31 +179,53 @@ class InvitationServiceTest {
     }
 
     @Test
-    fun `a company can't send more than its daily limit`() {
-        repeat(100) { insertInvitation(acme.id, "person$it@example.com", owner) }
-
-        assertRefused("company_daily_limit", acme) { invite(maria, acme to CompanyRole.MEMBER) }
-        invite(maria, globex to CompanyRole.MEMBER)
-    }
-
-    @Test
     fun `an inviter can't send more than their daily limit, across companies`() {
-        repeat(150) { insertInvitation(globex.id, "person$it@example.com", owner, daysAgo = 2) }
-        val third = companyService.createCompany(owner, "Initech", "GR")
-        repeat(99) { insertInvitation(acme.id, "a$it@example.com", owner) }
-        repeat(99) { insertInvitation(third.id, "b$it@example.com", owner) }
+        // 99 sent today already, by the same person
+        limits.reserve(owner, "earlier@example.com", 99)
 
-        // 198 in the last day; the older ones don't count
         invite(maria, acme to CompanyRole.MEMBER)
         val refused =
             assertFailsWith<InvitationRefusedException> {
                 invite(
                     "john@example.com",
-                    acme to CompanyRole.MEMBER,
-                    third to CompanyRole.MEMBER,
+                    globex to CompanyRole.MEMBER,
                 )
             }
+
         assertEquals("daily_limit", refused.reason)
+        assertEquals(listOf(), openNames("john@example.com"))
+    }
+
+    @Test
+    fun `an address can't get more than its daily limit of invitation emails, whoever sends them`() {
+        repeat(10) { limits.reserve(newUser("sender$it@example.com"), maria, 1) }
+
+        val refused = assertFailsWith<InvitationRefusedException> { invite(maria, acme to CompanyRole.MEMBER) }
+
+        assertEquals("recipient_daily_limit", refused.reason)
+        assertEquals(listOf(), emailPort.invitationEmails)
+    }
+
+    @Test
+    fun `if the email can't be sent, nothing is saved or counted`() {
+        emailPort.failure = EmailDeliveryException("SMTP down")
+
+        assertFailsWith<EmailDeliveryException> { invite(maria, acme to CompanyRole.MEMBER) }
+        emailPort.failure = null
+
+        assertEquals(listOf(), openNames(maria))
+        // Nothing was used up: the full allowance is still there
+        limits.reserve(owner, maria, 100)
+    }
+
+    @Test
+    fun `the email signs the person in on their Invitations page`() {
+        invite(maria, acme to CompanyRole.MEMBER)
+
+        val signIn = magicLinkService.verifyToken(emailPort.invitationEmails.single().rawToken, Language.EN)
+
+        assertEquals(maria, signIn?.user?.email)
+        assertEquals(SignInDestination.INVITATIONS, signIn?.destination)
     }
 
     @Test
@@ -308,23 +343,6 @@ class InvitationServiceTest {
         jdbcTemplate.update(
             "UPDATE invitations SET expires_at = now() - interval '1 minute' WHERE id = ?",
             invitation.id,
-        )
-    }
-
-    private fun insertInvitation(
-        companyId: Long,
-        email: String,
-        invitedBy: Long,
-        daysAgo: Int = 0,
-    ) {
-        jdbcTemplate.update(
-            "INSERT INTO invitations (id, company_id, email, role, invited_by_user_id, expires_at, created_at) " +
-                "VALUES (?, ?, ?, 'MEMBER', ?, now() + interval '7 days', now() - make_interval(days => ?))",
-            TSID.fast().toLong(),
-            companyId,
-            email,
-            invitedBy,
-            daysAgo,
         )
     }
 

@@ -37,7 +37,8 @@ class MagicLinkServiceTest {
         every { userService.findByEmail(any()) } returns null
         every { userService.getOrCreateUser(any(), any()) } answers { User(firstArg(), secondArg()) }
         auditLog = mockk(relaxed = true)
-        val properties = AuthProperties(URI("https://app.example.com"), Duration.ofHours(1), Duration.ofDays(7))
+        val properties =
+            AuthProperties(URI("https://app.example.com"), Duration.ofHours(1), Duration.ofDays(7), Duration.ofDays(7))
         service = MagicLinkService(tokenStore, emailPort, userService, properties, auditLog)
     }
 
@@ -45,9 +46,10 @@ class MagicLinkServiceTest {
     fun `sends a token that verifies to the requesting email`() {
         service.requestToken(email, Language.EN)
 
-        val user = service.verifyToken(sentTokens.single(), Language.EN)
+        val signIn = service.verifyToken(sentTokens.single(), Language.EN)
 
-        assertEquals(email, user?.email)
+        assertEquals(email, signIn?.user?.email)
+        assertEquals(SignInDestination.DEFAULT, signIn?.destination)
     }
 
     @Test
@@ -64,7 +66,7 @@ class MagicLinkServiceTest {
         service.requestToken(email, Language.EN)
 
         verify(exactly = 1) { emailPort.sendMagicLink(email, any(), any(), any()) }
-        assertEquals(email, service.verifyToken(sentTokens.single(), Language.EN)?.email)
+        assertEquals(email, service.verifyToken(sentTokens.single(), Language.EN)?.user?.email)
     }
 
     @Test
@@ -110,7 +112,7 @@ class MagicLinkServiceTest {
     fun `a sign-in is recorded`() {
         service.requestToken(email, Language.EN)
 
-        val user = service.verifyToken(sentTokens.single(), Language.EN)!!
+        val user = service.verifyToken(sentTokens.single(), Language.EN)!!.user
 
         verify {
             auditLog.recordStandalone(
@@ -145,7 +147,7 @@ class MagicLinkServiceTest {
         service.requestToken(email, Language.EN)
 
         assertNull(service.verifyToken(undeliveredToken, Language.EN))
-        assertEquals(email, service.verifyToken(sentTokens.last(), Language.EN)?.email)
+        assertEquals(email, service.verifyToken(sentTokens.last(), Language.EN)?.user?.email)
     }
 
     @Test
@@ -168,8 +170,69 @@ class MagicLinkServiceTest {
     fun `signing in for the first time creates the user in the language they are using`() {
         service.requestToken(email, Language.EL)
 
-        val user = service.verifyToken(sentTokens.single(), Language.EL)
+        val signIn = service.verifyToken(sentTokens.single(), Language.EL)
 
-        assertEquals(Language.EL, user?.language)
+        assertEquals(Language.EL, signIn?.user?.language)
+    }
+
+    @Test
+    fun `an invitation link signs the person in on their Invitations page`() {
+        val issued = service.invitationLink("  Maria@Example.com ")
+
+        val signIn = service.verifyToken(issued.link.query.removePrefix("token="), Language.EN)
+
+        assertEquals("maria@example.com", signIn?.user?.email)
+        assertEquals(SignInDestination.INVITATIONS, signIn?.destination)
+        assertEquals(Duration.ofHours(1), issued.validFor)
+    }
+
+    @Test
+    fun `an invitation link goes out even while a sign-in link is active`() {
+        service.requestToken(email, Language.EN)
+
+        val issued = service.invitationLink(email)
+
+        assertEquals(email, service.verifyToken(issued.link.query.removePrefix("token="), Language.EN)?.user?.email)
+    }
+
+    @Test
+    fun `an expired or used link is renewable, an unknown one isn't`() {
+        service.requestToken(email, Language.EN)
+        val token = sentTokens.single()
+        service.verifyToken(token, Language.EN)
+
+        assertEquals(LinkProblem.RENEWABLE, service.problemWith(token))
+        assertEquals(LinkProblem.INVALID, service.problemWith("not-a-real-token"))
+    }
+
+    @Test
+    fun `renewing sends a fresh link to the same address, leading to the same place`() {
+        val old =
+            service
+                .invitationLink(email)
+                .link.query
+                .removePrefix("token=")
+        tokenStore.expireAll()
+
+        service.renew(old, Language.EN)
+
+        val fresh = service.verifyToken(sentTokens.single(), Language.EN)
+        assertEquals(email, fresh?.user?.email)
+        assertEquals(SignInDestination.INVITATIONS, fresh?.destination)
+    }
+
+    @Test
+    fun `renewing sends nothing while a link for the address is active`() {
+        service.requestToken(email, Language.EN)
+        val first = sentTokens.single()
+
+        service.renew(first, Language.EN)
+
+        assertEquals(1, sentLinks.size)
+    }
+
+    @Test
+    fun `an unknown link can't be renewed`() {
+        assertFailsWith<InvalidSignInLinkException> { service.renew("not-a-real-token", Language.EN) }
     }
 }

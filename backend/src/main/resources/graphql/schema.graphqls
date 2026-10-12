@@ -41,10 +41,10 @@ type Mutation {
     leaveCompany(companyId: ID!): Boolean!
     """
     Invites an email address to one or more companies, each with a role; needs the owner or an admin of each.
-    All or nothing. The person is emailed (at most once an hour; later invitations are in the next email) and
-    accepts after signing in. Refusals: invalid_input (field "email", "companies" or "role"), or
-    invitation_refused with a reason ("already_member", "already_invited", "company_daily_limit",
-    "daily_limit") and the companyId it is about, if any.
+    All or nothing, including the email: one email about all of them, whose button signs the person in on their
+    Invitations page. Refusals: invalid_input (field "email", "companies" or "role"); invitation_refused with a
+    reason ("already_member", "already_invited", "daily_limit" for the inviter, "recipient_daily_limit" for the
+    address) and the companyId it is about, if any; email_delivery_failed if the email couldn't be sent.
     """
     inviteMembers(input: InviteMembersInput!): [Invitation!]!
     "Revokes an open invitation to the company; needs the owner or an admin. Otherwise invitation_not_found."

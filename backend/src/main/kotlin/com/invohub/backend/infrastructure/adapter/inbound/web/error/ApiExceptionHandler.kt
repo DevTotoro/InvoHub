@@ -2,7 +2,8 @@ package com.invohub.backend.infrastructure.adapter.inbound.web.error
 
 import com.invohub.backend.domain.auth.AccountSuspendedException
 import com.invohub.backend.domain.auth.EmailDeliveryException
-import com.invohub.backend.infrastructure.adapter.inbound.web.auth.InvalidSignInLinkException
+import com.invohub.backend.domain.auth.ExpiredSignInLinkException
+import com.invohub.backend.domain.auth.InvalidSignInLinkException
 import com.invohub.backend.infrastructure.adapter.inbound.web.filter.RequestIdFilter
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.slf4j.MDC
@@ -62,6 +63,19 @@ class ApiExceptionHandler : ResponseEntityExceptionHandler() {
             "This sign-in link is invalid or has expired.",
             request,
             code = "invalid_link",
+        )
+
+    @ExceptionHandler(ExpiredSignInLinkException::class)
+    fun handleExpiredSignInLink(
+        e: ExpiredSignInLinkException,
+        request: WebRequest,
+    ): ResponseEntity<Any>? =
+        problem(
+            e,
+            HttpStatus.UNAUTHORIZED,
+            "This sign-in link has expired or was already used. Ask for a new one.",
+            request,
+            code = "expired_link",
         )
 
     // Raised when a save is based on a stale version of the row (see BaseEntity.version)

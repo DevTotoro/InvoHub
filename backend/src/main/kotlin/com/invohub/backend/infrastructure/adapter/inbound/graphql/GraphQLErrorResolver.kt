@@ -1,5 +1,6 @@
 package com.invohub.backend.infrastructure.adapter.inbound.graphql
 
+import com.invohub.backend.domain.auth.EmailDeliveryException
 import com.invohub.backend.domain.common.InvalidInputException
 import com.invohub.backend.domain.common.NotAllowedException
 import com.invohub.backend.domain.common.TSIDCodec
@@ -54,6 +55,8 @@ class GraphQLErrorResolver : DataFetcherExceptionResolverAdapter() {
                             "companyId" to ex.companyId?.let(TSIDCodec::encode),
                         ).filterValues { it != null },
                     ).build()
+            is EmailDeliveryException ->
+                error(env, ErrorType.INTERNAL_ERROR, "The email couldn't be sent", "email_delivery_failed")
             is InvitationNotFoundException ->
                 error(env, ErrorType.NOT_FOUND, "Invitation not found", "invitation_not_found")
             is MemberNotFoundException -> error(env, ErrorType.NOT_FOUND, "Member not found", "member_not_found")

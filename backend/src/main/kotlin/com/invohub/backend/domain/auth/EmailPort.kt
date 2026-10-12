@@ -22,13 +22,15 @@ interface EmailPort {
     )
 
     /**
-     * Tells [email] it has been invited to companies; [link] is the Invitations page, where they accept.
+     * Tells [email] it has been invited to companies. [link] signs them in on their Invitations page, where they
+     * accept or decline, and works for [validFor].
      * @throws EmailDeliveryException if the email could not be handed off for delivery
      */
     fun sendInvitations(
         email: String,
         invitations: List<InvitationNotice>,
         link: URI,
+        validFor: Duration,
         language: Language,
     )
 }

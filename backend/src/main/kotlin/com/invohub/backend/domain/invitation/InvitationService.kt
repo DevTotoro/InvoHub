@@ -4,6 +4,10 @@ import com.invohub.backend.domain.audit.AuditAction
 import com.invohub.backend.domain.audit.AuditEvent
 import com.invohub.backend.domain.audit.AuditLog
 import com.invohub.backend.domain.audit.AuditTarget
+import com.invohub.backend.domain.auth.EmailDeliveryException
+import com.invohub.backend.domain.auth.EmailPort
+import com.invohub.backend.domain.auth.InvitationNotice
+import com.invohub.backend.domain.auth.MagicLinkService
 import com.invohub.backend.domain.common.InvalidInputException
 import com.invohub.backend.domain.company.Company
 import com.invohub.backend.domain.company.CompanyAccess
@@ -17,13 +21,12 @@ import com.invohub.backend.domain.company.CompanyRole
 import com.invohub.backend.domain.company.CompanyStatus
 import com.invohub.backend.domain.company.CompanySuspendedException
 import com.invohub.backend.domain.company.UserCompany
+import com.invohub.backend.domain.user.Language
 import com.invohub.backend.domain.user.User
 import com.invohub.backend.domain.user.UserRepository
 import com.invohub.backend.domain.user.normalizeEmail
-import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import java.time.Duration
 import java.time.Instant
 
 /** One company to invite to, as the inviter's access to it, with the role to give */
@@ -39,14 +42,10 @@ data class InvitationDetails(
     val invitedByEmail: String,
 )
 
-/** Published once invitations are saved; the email about them goes out after the commit */
-data class InvitationsCreated(
-    val email: String,
-)
-
 /**
  * Inviting people to companies, and accepting or declining as the invitee. Inviting checks every company
- * against the inviter's access and the limits, and saves all or nothing.
+ * against the inviter's access and the limits, saves the invitations and sends one email about them, all or
+ * nothing: if the email can't be sent, nothing is saved and the inviter can try again.
  */
 @Service
 class InvitationService(
@@ -55,19 +54,21 @@ class InvitationService(
     private val memberRepository: CompanyMemberRepository,
     private val userRepository: UserRepository,
     private val properties: InvitationProperties,
+    private val limits: InvitationLimits,
+    private val magicLinkService: MagicLinkService,
+    private val emailPort: EmailPort,
     private val auditLog: AuditLog,
-    private val events: ApplicationEventPublisher,
 ) {
     companion object {
         private val EMAIL = Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")
-        private val DAY = Duration.ofDays(1)
     }
 
     /**
      * @throws InvalidInputException for a malformed email ("email", "invalid"), no companies ("companies",
      * "required") or the owner role ("role", "owner")
-     * @throws InvitationRefusedException when someone is already in a company or invited to it, or a limit
-     * is reached
+     * @throws InvitationRefusedException when someone is already in a company or invited to it, or a daily
+     * limit is reached
+     * @throws EmailDeliveryException if the email couldn't be sent; nothing is saved
      */
     @Transactional
     fun invite(
@@ -82,10 +83,6 @@ class InvitationService(
 
         val now = Instant.now()
         val invitedUser = userRepository.findByEmail(email)
-        val sentToday = invitationRepository.countByInvitedByUserIdAndCreatedAtAfter(inviterUserId, now - DAY)
-        if (sentToday + distinct.size > properties.maxPerInviterPerDay) {
-            throw InvitationRefusedException(null, "daily_limit")
-        }
 
         val invitations =
             distinct.map { (access, role) ->
@@ -106,8 +103,36 @@ class InvitationService(
                 ),
             )
         }
-        events.publishEvent(InvitationsCreated(email))
+
+        // Last, so a refused or failed invite counts for nothing and sends nothing
+        limits.reserve(inviterUserId, email, invitations.size)
+        try {
+            sendEmail(
+                email,
+                invitations,
+                distinct.associate { it.access.companyId to it.access.company.name },
+                inviterUserId,
+            )
+        } catch (e: EmailDeliveryException) {
+            limits.release(inviterUserId, email, invitations.size)
+            throw e
+        }
         return invitations
+    }
+
+    /** One email about all of them, with a link that signs the person in on their Invitations page */
+    private fun sendEmail(
+        email: String,
+        invitations: List<Invitation>,
+        companyNames: Map<Long, String>,
+        inviterUserId: Long,
+    ) {
+        val inviter = userRepository.findById(inviterUserId).orElseThrow().email
+        val notices = invitations.map { InvitationNotice(companyNames.getValue(it.companyId), inviter, it.role) }
+        // Their own language if they have an account; otherwise English, not the inviter's, which may not be theirs
+        val language = userRepository.findByEmail(email)?.language ?: Language.DEFAULT
+        val signIn = magicLinkService.invitationLink(email)
+        emailPort.sendInvitations(email, notices, signIn.link, signIn.validFor, language)
     }
 
     /** The company's open invitations, for its owner and admins */
@@ -246,12 +271,6 @@ class InvitationService(
             it.close(InvitationStatus.EXPIRED, now)
             invitationRepository.saveAndFlush(it)
         }
-
-        if (invitationRepository.countByCompanyIdAndCreatedAtAfter(company.id, now - DAY) >=
-            properties.maxPerCompanyPerDay
-        ) {
-            throw InvitationRefusedException(company.id, "company_daily_limit")
-        }
     }
 
     private fun openInvitationOf(
@@ -275,7 +294,7 @@ class InvitationService(
 
 /**
  * Inviting was refused for [companyId] (null when it isn't about one company), for [reason]: "already_member",
- * "already_invited", "company_daily_limit" or "daily_limit".
+ * "already_invited", "daily_limit" (the inviter's) or "recipient_daily_limit" (the address's).
  */
 class InvitationRefusedException(
     val companyId: Long?,

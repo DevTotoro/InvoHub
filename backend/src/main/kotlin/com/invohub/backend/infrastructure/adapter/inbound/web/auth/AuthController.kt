@@ -1,6 +1,10 @@
 package com.invohub.backend.infrastructure.adapter.inbound.web.auth
 
+import com.invohub.backend.domain.auth.ExpiredSignInLinkException
+import com.invohub.backend.domain.auth.InvalidSignInLinkException
+import com.invohub.backend.domain.auth.LinkProblem
 import com.invohub.backend.domain.auth.MagicLinkService
+import com.invohub.backend.domain.auth.SignInDestination
 import com.invohub.backend.domain.user.Language
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
@@ -23,8 +27,16 @@ data class VerifyMagicLinkRequestDto(
     val language: Language = Language.DEFAULT,
 )
 
-/** The sign-in link's token is unknown, expired or already used. */
-class InvalidSignInLinkException : RuntimeException("Invalid or expired sign-in link")
+/** Where to go once signed in: `INVITATIONS` for a link from an invitation email, else `DEFAULT` */
+data class VerifyMagicLinkResponseDto(
+    val destination: SignInDestination,
+)
+
+/** [token] is the old link's; [language] the one in use, for someone who has no account yet */
+data class RenewMagicLinkRequestDto(
+    @field:NotBlank val token: String,
+    val language: Language = Language.DEFAULT,
+)
 
 @RestController
 @RequestMapping("/auth")
@@ -53,17 +65,34 @@ class AuthController(
     /**
      * POST, not GET: email security scanners prefetch links in emails, and a GET would let them consume the
      * single-use token before the user clicks. The link opens a frontend page that posts the token here.
+     *
+     * A link that doesn't sign in fails with `expired_link` if it expired or was used but can be renewed
+     * (see /renew), else `invalid_link`.
      */
     @PostMapping("/verify")
     fun verifyMagicLink(
         @Valid @RequestBody request: VerifyMagicLinkRequestDto,
         httpRequest: HttpServletRequest,
         httpResponse: HttpServletResponse,
-    ): ResponseEntity<Void> {
-        val user = magicLinkService.verifyToken(request.token, request.language) ?: throw InvalidSignInLinkException()
+    ): VerifyMagicLinkResponseDto {
+        val signIn =
+            magicLinkService.verifyToken(request.token, request.language)
+                ?: when (magicLinkService.problemWith(request.token)) {
+                    LinkProblem.RENEWABLE -> throw ExpiredSignInLinkException()
+                    LinkProblem.INVALID -> throw InvalidSignInLinkException()
+                }
 
-        sessionAuthenticator.signIn(user, httpRequest, httpResponse)
+        sessionAuthenticator.signIn(signIn.user, httpRequest, httpResponse)
 
-        return ResponseEntity.noContent().build()
+        return VerifyMagicLinkResponseDto(signIn.destination)
+    }
+
+    /** Emails a fresh link in place of an expired or used one, to the same address and leading to the same place */
+    @PostMapping("/renew")
+    fun renewMagicLink(
+        @Valid @RequestBody request: RenewMagicLinkRequestDto,
+    ): ResponseEntity<Map<String, String>> {
+        magicLinkService.renew(request.token, request.language)
+        return ResponseEntity.ok(mapOf("message" to "Check your inbox for a sign-in link."))
     }
 }

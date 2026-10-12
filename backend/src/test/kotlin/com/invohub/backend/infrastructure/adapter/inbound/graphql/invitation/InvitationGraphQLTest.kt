@@ -1,5 +1,6 @@
 package com.invohub.backend.infrastructure.adapter.inbound.graphql.invitation
 
+import com.invohub.backend.domain.auth.EmailDeliveryException
 import com.invohub.backend.domain.company.Company
 import com.invohub.backend.domain.company.CompanyService
 import com.invohub.backend.domain.user.UserRepository
@@ -158,6 +159,27 @@ class InvitationGraphQLTest {
             jsonPath("$.errors[0].extensions.code") { value("invalid_input") }
             jsonPath("$.errors[0].extensions.field") { value("email") }
         }
+    }
+
+    @Test
+    fun `an email that can't be sent says so, and nothing is invited`() {
+        emailPort.failure = EmailDeliveryException("SMTP down")
+
+        inviteMaria(acme to "MEMBER").andExpect {
+            jsonPath("$.errors[0].extensions.code") { value("email_delivery_failed") }
+        }
+        emailPort.failure = null
+
+        mockMvc
+            .graphql(
+                owner,
+                "query(${'$'}c: ID!) { invitations(companyId: ${'$'}c) { email } }",
+                mapOf(
+                    "c" to acme.getPublicId(),
+                ),
+            ).andExpect {
+                jsonPath("$.data.invitations") { isEmpty() }
+            }
     }
 
     private fun inviteMaria(vararg companies: Pair<Company, String>) =

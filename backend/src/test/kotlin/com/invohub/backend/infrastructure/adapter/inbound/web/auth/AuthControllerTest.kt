@@ -51,8 +51,42 @@ class AuthControllerTest {
         requestLink("jane@example.com")
         val token = emailPort.sent.single().rawToken
 
-        verify(token).andExpect { status { isNoContent() } }
+        verify(token).andExpect { status { isOk() } }
         verify(token).andExpect { status { isUnauthorized() } }
+    }
+
+    @Test
+    fun `verifying says where the link leads`() {
+        requestLink("jane@example.com")
+
+        verify(emailPort.sent.single().rawToken).andExpect {
+            status { isOk() }
+            jsonPath("$.destination") { value("DEFAULT") }
+        }
+    }
+
+    @Test
+    fun `a used link says it can be renewed, and renewing sends a fresh one`() {
+        requestLink("jane@example.com")
+        val token = emailPort.sent.single().rawToken
+        verify(token)
+
+        verify(token).andExpect {
+            status { isUnauthorized() }
+            jsonPath("$.code") { value("expired_link") }
+        }
+        renew(token).andExpect { status { isOk() } }
+
+        assertEquals(2, emailPort.sent.size)
+        verify(emailPort.sent.last().rawToken).andExpect { status { isOk() } }
+    }
+
+    @Test
+    fun `an unknown link can't be renewed`() {
+        renew("not-a-real-token").andExpect {
+            status { isUnauthorized() }
+            jsonPath("$.code") { value("invalid_link") }
+        }
     }
 
     @Test
@@ -86,7 +120,7 @@ class AuthControllerTest {
 
         mockMvc.get("/api/auth/verify") { param("token", token) }.andExpect { status { isMethodNotAllowed() } }
 
-        verify(token).andExpect { status { isNoContent() } }
+        verify(token).andExpect { status { isOk() } }
     }
 
     @Test
@@ -141,7 +175,7 @@ class AuthControllerTest {
         requestLink("jane@example.com", language = "EL")
         val sent = emailPort.sent.single()
 
-        verify(sent.rawToken, language = "EL").andExpect { status { isNoContent() } }
+        verify(sent.rawToken, language = "EL").andExpect { status { isOk() } }
 
         assertEquals(Language.EL, sent.language)
         assertEquals(Language.EL, userRepository.findByEmail("jane@example.com")?.language)
@@ -152,7 +186,7 @@ class AuthControllerTest {
         requestLink("jane@example.com")
         val sent = emailPort.sent.single()
 
-        verify(sent.rawToken).andExpect { status { isNoContent() } }
+        verify(sent.rawToken).andExpect { status { isOk() } }
 
         assertEquals(Language.EN, sent.language)
         assertEquals(Language.EN, userRepository.findByEmail("jane@example.com")?.language)
@@ -188,6 +222,13 @@ class AuthControllerTest {
         contentType = MediaType.APPLICATION_JSON
         content = json("token" to token, "language" to language)
     }
+
+    private fun renew(token: String) =
+        mockMvc.post("/api/auth/renew") {
+            with(csrf())
+            contentType = MediaType.APPLICATION_JSON
+            content = json("token" to token)
+        }
 
     private fun json(vararg fields: Pair<String, String?>) =
         fields.filter { it.second != null }.joinToString(", ", "{", "}") { (k, v) -> "\"$k\": \"$v\"" }

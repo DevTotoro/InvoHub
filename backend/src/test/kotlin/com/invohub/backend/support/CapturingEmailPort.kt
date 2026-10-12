@@ -35,7 +35,15 @@ class CapturingEmailPort : EmailPort {
         val invitations: List<InvitationNotice>,
         val link: URI,
         val language: Language,
-    )
+    ) {
+        val rawToken: String
+            get() =
+                UriComponentsBuilder
+                    .fromUri(link)
+                    .build()
+                    .queryParams
+                    .getFirst("token")!!
+    }
 
     val invitationEmails = CopyOnWriteArrayList<SentInvitations>()
 
@@ -57,6 +65,7 @@ class CapturingEmailPort : EmailPort {
         email: String,
         invitations: List<InvitationNotice>,
         link: URI,
+        validFor: Duration,
         language: Language,
     ) {
         failure?.let { throw it }

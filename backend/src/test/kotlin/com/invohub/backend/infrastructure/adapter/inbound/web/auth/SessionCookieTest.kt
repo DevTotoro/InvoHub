@@ -74,7 +74,7 @@ class SessionCookieTest {
 
         val token = emailPort.sent.last { it.email == "john@example.com" }.rawToken
         val verified = send(postJson("/api/auth/verify", """{"token": "$token"}""", csrf))
-        assertEquals(204, verified.statusCode())
+        assertEquals(200, verified.statusCode())
 
         val sessionCookie = verified.setCookies().single { it.startsWith("SESSION=") }
         assertContains(sessionCookie, "HttpOnly")
