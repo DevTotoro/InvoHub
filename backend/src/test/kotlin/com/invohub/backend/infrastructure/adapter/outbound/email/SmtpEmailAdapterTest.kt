@@ -1,6 +1,7 @@
 package com.invohub.backend.infrastructure.adapter.outbound.email
 
 import com.invohub.backend.domain.auth.EmailDeliveryException
+import com.invohub.backend.domain.user.Language
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
@@ -36,7 +37,9 @@ class SmtpEmailAdapterTest {
 
     @Test
     fun `sends the magic link`() {
-        adapter(port = mailpit.getMappedPort(1025)).sendMagicLink("jane@example.com", link, Duration.ofHours(1))
+        adapter(
+            port = mailpit.getMappedPort(1025),
+        ).sendMagicLink("jane@example.com", link, Duration.ofHours(1), Language.EN)
 
         val message = latestMessage()
         assertEquals("jane@example.com", message.at("/To/0/Address").asString())
@@ -50,7 +53,7 @@ class SmtpEmailAdapterTest {
         val unreachable = adapter(port = 1)
 
         assertFailsWith<EmailDeliveryException> {
-            unreachable.sendMagicLink("jane@example.com", link, Duration.ofHours(1))
+            unreachable.sendMagicLink("jane@example.com", link, Duration.ofHours(1), Language.EN)
         }
     }
 

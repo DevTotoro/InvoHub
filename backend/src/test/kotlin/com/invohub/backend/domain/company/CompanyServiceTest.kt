@@ -2,6 +2,7 @@ package com.invohub.backend.domain.company
 
 import com.invohub.backend.domain.audit.AuditEventRepository
 import com.invohub.backend.domain.common.InvalidInputException
+import com.invohub.backend.domain.user.Language
 import com.invohub.backend.domain.user.UserService
 import com.invohub.backend.support.AuditEvents
 import com.invohub.backend.support.IntegrationTest
@@ -107,7 +108,7 @@ class CompanyServiceTest {
         assertEquals(CompanyMember(company.id, user, CompanyRole.MEMBER), found)
     }
 
-    private fun newUser() = userService.getOrCreateUser("user-${TSID.fast()}@example.com").id
+    private fun newUser() = userService.getOrCreateUser("user-${TSID.fast()}@example.com", Language.EN).id
 
     private fun assertInvalid(
         field: String,

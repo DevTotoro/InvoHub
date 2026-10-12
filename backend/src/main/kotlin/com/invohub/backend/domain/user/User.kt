@@ -12,9 +12,15 @@ import jakarta.persistence.*
 )
 class User(
     email: String,
+    language: Language = Language.DEFAULT,
 ) : BaseEntity() {
     @Column(name = "email", nullable = false)
     var email: String = normalizeEmail(email)
+        protected set
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "language", nullable = false)
+    var language: Language = language
         protected set
 
     @Column(name = "suspended", nullable = false)
@@ -32,6 +38,10 @@ class User(
     fun suspend(reason: String) {
         suspended = true
         suspensionReason = reason
+    }
+
+    fun changeLanguage(language: Language) {
+        this.language = language
     }
 
     fun unsuspend() {

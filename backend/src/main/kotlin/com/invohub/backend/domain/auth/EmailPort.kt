@@ -1,5 +1,6 @@
 package com.invohub.backend.domain.auth
 
+import com.invohub.backend.domain.user.Language
 import java.net.URI
 import java.time.Duration
 
@@ -9,6 +10,7 @@ interface EmailPort {
         email: String,
         link: URI,
         validFor: Duration,
+        language: Language,
     )
 }
 

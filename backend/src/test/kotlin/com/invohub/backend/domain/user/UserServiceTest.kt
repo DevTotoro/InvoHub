@@ -35,16 +35,16 @@ class UserServiceTest {
 
     @Test
     fun `creates a user with a normalized email`() {
-        val user = userService.getOrCreateUser(" Jane@Example.com ")
+        val user = userService.getOrCreateUser(" Jane@Example.com ", Language.EN)
 
         assertEquals("jane@example.com", user.email)
     }
 
     @Test
     fun `returns the existing user for any case variant`() {
-        val created = userService.getOrCreateUser("jane@example.com")
+        val created = userService.getOrCreateUser("jane@example.com", Language.EN)
 
-        val found = userService.getOrCreateUser("JANE@example.com")
+        val found = userService.getOrCreateUser("JANE@example.com", Language.EN)
 
         assertEquals(created.id, found.id)
         assertEquals(1, userRepository.count())
@@ -55,7 +55,7 @@ class UserServiceTest {
         val ids =
             Executors.newFixedThreadPool(8).use { pool ->
                 pool
-                    .invokeAll(List(8) { Callable { userService.getOrCreateUser("jane@example.com").id } })
+                    .invokeAll(List(8) { Callable { userService.getOrCreateUser("jane@example.com", Language.EN).id } })
                     .map { it.get() }
             }
 
@@ -64,8 +64,27 @@ class UserServiceTest {
     }
 
     @Test
+    fun `a new user gets the language given, an existing user keeps theirs`() {
+        val created = userService.getOrCreateUser("jane@example.com", Language.EL)
+
+        val found = userService.getOrCreateUser("jane@example.com", Language.EN)
+
+        assertEquals(Language.EL, created.language)
+        assertEquals(Language.EL, found.language)
+    }
+
+    @Test
+    fun `changes a user's language`() {
+        val user = userService.getOrCreateUser("jane@example.com", Language.EN)
+
+        userService.changeLanguage(user.id, Language.EL)
+
+        assertEquals(Language.EL, userRepository.findById(user.id).get().language)
+    }
+
+    @Test
     fun `suspending a user records the suspension`() {
-        val user = userService.getOrCreateUser("jane@example.com")
+        val user = userService.getOrCreateUser("jane@example.com", Language.EN)
 
         userService.suspendUser(user.id, "chargeback")
 
@@ -76,7 +95,7 @@ class UserServiceTest {
 
     @Test
     fun `unsuspending a user lifts the suspension`() {
-        val user = userService.getOrCreateUser("jane@example.com")
+        val user = userService.getOrCreateUser("jane@example.com", Language.EN)
         userService.suspendUser(user.id, "chargeback")
 
         userService.unsuspendUser(user.id)

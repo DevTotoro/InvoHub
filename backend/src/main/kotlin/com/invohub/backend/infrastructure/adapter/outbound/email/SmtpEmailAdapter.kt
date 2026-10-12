@@ -2,6 +2,7 @@ package com.invohub.backend.infrastructure.adapter.outbound.email
 
 import com.invohub.backend.domain.auth.EmailDeliveryException
 import com.invohub.backend.domain.auth.EmailPort
+import com.invohub.backend.domain.user.Language
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.mail.MailException
 import org.springframework.mail.SimpleMailMessage
@@ -21,6 +22,7 @@ class SmtpEmailAdapter(
         email: String,
         link: URI,
         validFor: Duration,
+        language: Language,
     ) {
         val message =
             SimpleMailMessage().apply {

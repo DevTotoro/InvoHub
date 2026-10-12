@@ -1,6 +1,7 @@
 package com.invohub.backend.support
 
 import com.invohub.backend.domain.auth.EmailPort
+import com.invohub.backend.domain.user.Language
 import org.springframework.boot.test.context.TestComponent
 import org.springframework.context.annotation.Primary
 import org.springframework.web.util.UriComponentsBuilder
@@ -15,6 +16,7 @@ class CapturingEmailPort : EmailPort {
     data class SentMagicLink(
         val email: String,
         val link: URI,
+        val language: Language,
     ) {
         val rawToken: String
             get() =
@@ -35,9 +37,10 @@ class CapturingEmailPort : EmailPort {
         email: String,
         link: URI,
         validFor: Duration,
+        language: Language,
     ) {
         failure?.let { throw it }
-        sent += SentMagicLink(email, link)
+        sent += SentMagicLink(email, link, language)
     }
 
     fun clear() {
