@@ -34,4 +34,7 @@ enum class AuditAction(
     USER_SUSPENDED("user.suspended"),
     USER_UNSUSPENDED("user.unsuspended"),
     COMPANY_CREATED("company.created"),
+    MEMBER_ROLE_CHANGED("member.role_changed"),
+    MEMBER_REMOVED("member.removed"),
+    MEMBER_LEFT("member.left"),
 }

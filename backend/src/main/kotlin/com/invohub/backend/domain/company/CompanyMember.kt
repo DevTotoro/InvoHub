@@ -41,8 +41,16 @@ class CompanyMember(
         protected set
 
     init {
-        require(role != CompanyRole.OWNER) { "The owner is stored on the company, not as a member" }
+        requireNotOwner(role)
     }
+
+    fun changeRole(role: CompanyRole) {
+        requireNotOwner(role)
+        this.role = role
+    }
+
+    private fun requireNotOwner(role: CompanyRole) =
+        require(role != CompanyRole.OWNER) { "The owner is stored on the company, not as a member" }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

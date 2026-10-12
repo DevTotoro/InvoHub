@@ -62,5 +62,32 @@
   "onboarding_check_field": "Check this field.",
   "onboarding_submit": "Create company",
   "onboarding_creating": "Creating…",
-  "onboarding_cancel": "Cancel"
+  "onboarding_cancel": "Cancel",
+
+  "error_not_found": "This no longer exists, or you don't have access to it.",
+  "error_company_read_only": "This company is read-only, so it can't be changed right now.",
+  "error_company_suspended": "This company is suspended.",
+  "error_member_not_found": "This person is no longer in the company.",
+  "error_not_allowed_owner": "The owner's access can't be changed.",
+  "error_not_allowed_self": "You can't change your own access.",
+  "error_owner_cannot_leave": "The owner can't leave the company.",
+
+  "role_owner": "Owner",
+  "role_admin": "Admin",
+  "role_member": "Member",
+  "role_viewer": "Viewer",
+
+  "company_nav": "Company",
+  "company_nav_overview": "Overview",
+  "company_nav_team": "Team",
+
+  "team_title": "Team",
+  "team_you": "you",
+  "team_since": "Since {date}",
+  "team_role_of": "Role of {email}",
+  "team_remove": "Remove",
+  "team_remove_of": "Remove {email}",
+  "team_remove_confirm": "Remove {email} from {company}? They lose access right away.",
+  "team_leave": "Leave company",
+  "team_leave_confirm": "Leave {company}? You'll need a new invitation to come back."
 }

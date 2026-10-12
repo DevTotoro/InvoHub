@@ -18,6 +18,17 @@ export class GraphQLError extends Error {
   }
 }
 
+/** The `code` (and `reason`, if any) the backend gave a failed operation, e.g. `{ code: 'not_allowed', reason: 'self' }` */
+export function graphqlProblem(error: unknown): { code: string; reason?: string } | undefined {
+  if (!(error instanceof GraphQLError)) return undefined;
+  const extensions = error.errors.find((e) => typeof e.extensions?.code === 'string')?.extensions;
+  if (!extensions) return undefined;
+  return {
+    code: String(extensions.code),
+    reason: extensions.reason === undefined ? undefined : String(extensions.reason)
+  };
+}
+
 /** Runs a GraphQL operation and returns its `data`. Throws ApiError (HTTP level) or GraphQLError. */
 export async function graphql<TData, TVariables extends Record<string, unknown> = Record<string, never>>(
   query: string,

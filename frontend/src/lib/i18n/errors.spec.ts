@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ApiError } from '#lib/api/client.ts';
+import { GraphQLError } from '#lib/api/graphql.ts';
 import { testLocale } from '#lib/testing/locale.ts';
 import { errorMessage } from './errors.ts';
 
@@ -32,5 +33,15 @@ describe('errorMessage', () => {
     useLocale('el');
 
     expect(errorMessage(problem(500, 'internal_error'))).toBe('Κάτι πήγε στραβά από την πλευρά μας. Δοκιμάστε ξανά.');
+  });
+
+  it('reads GraphQL errors by their code and reason', () => {
+    const graphqlError = (code: string, reason?: string) =>
+      new GraphQLError([{ message: 'English, for developers', extensions: { code, reason } }]);
+
+    expect(errorMessage(graphqlError('not_found'))).toBe("This no longer exists, or you don't have access to it.");
+    expect(errorMessage(graphqlError('not_allowed', 'self'))).toBe("You can't change your own access.");
+    expect(errorMessage(graphqlError('not_allowed', 'owner_cannot_leave'))).toBe("The owner can't leave the company.");
+    expect(errorMessage(graphqlError('something_new'))).toBe('Something went wrong. Please try again.');
   });
 });

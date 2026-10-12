@@ -1,10 +1,12 @@
 package com.invohub.backend.infrastructure.adapter.inbound.graphql
 
 import com.invohub.backend.domain.common.InvalidInputException
+import com.invohub.backend.domain.common.NotAllowedException
 import com.invohub.backend.domain.company.CompanyNotFoundException
 import com.invohub.backend.domain.company.CompanyPermissionDeniedException
 import com.invohub.backend.domain.company.CompanyReadOnlyException
 import com.invohub.backend.domain.company.CompanySuspendedException
+import com.invohub.backend.domain.company.MemberNotFoundException
 import graphql.GraphQLError
 import graphql.GraphqlErrorBuilder
 import graphql.schema.DataFetchingEnvironment
@@ -30,6 +32,14 @@ class GraphQLErrorResolver : DataFetcherExceptionResolverAdapter() {
                     .message("Invalid ${ex.field}: ${ex.reason}")
                     .extensions(mapOf("code" to "invalid_input", "field" to ex.field, "reason" to ex.reason))
                     .build()
+            is NotAllowedException ->
+                GraphqlErrorBuilder
+                    .newError(env)
+                    .errorType(ErrorType.FORBIDDEN)
+                    .message("Not allowed: ${ex.reason}")
+                    .extensions(mapOf("code" to "not_allowed", "reason" to ex.reason))
+                    .build()
+            is MemberNotFoundException -> error(env, ErrorType.NOT_FOUND, "Member not found", "member_not_found")
             is CompanyNotFoundException -> error(env, ErrorType.NOT_FOUND, "Company not found", "not_found")
             is CompanyPermissionDeniedException ->
                 error(env, ErrorType.FORBIDDEN, "Your role in this company doesn't allow this", "forbidden")
