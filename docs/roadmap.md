@@ -22,6 +22,7 @@ What's planned, what's decided, and what must happen before the first deployment
 
 - Exactly one owner per company, stored on the company (`owner_user_id`). Anyone can create a company and becomes its owner.
 - Removing someone deletes their membership; the user remains, so their past work keeps their name. The history lives in the audit log.
+- Members (built): everyone in a company sees its people. The owner and admins change roles and remove people, never the owner, and nobody changes or removes themselves (they leave instead). The owner role is never given from the role menu, and the owner can't leave: ownership moves only through a transfer. A removed member loses access with their next request.
 
 **Company in the URL** (`/c/<public id>/…`). The URL only says which company is being viewed; the backend checks the user's role in it on every request.
 
@@ -70,12 +71,11 @@ Reads and page views are not recorded.
 
 ## Next up
 
-Built so far: companies and roles, translations, and permission checks. Every new page and email is written in both languages, and every company-scoped operation goes through the permission checks.
+Built so far: companies and roles, translations, permission checks, and members. Every new page and email is written in both languages, and every company-scoped operation goes through the permission checks.
 
-1. **Members.** List members, change roles, remove people, leave a company.
-2. **Invitations.** Invite an email to one or more companies, each with a role (inviters can only pick companies they own or administer). The emailed link signs the person in. Invitations expire after 7 days, can be resent and revoked, with a cap on pending invites and at most one resend per hour.
-3. **Company settings.** Admins edit the company's details (including the tax ID, legal name, address and country details from the checklist), bank details and logo; anyone can create more companies.
-4. **Ownership transfer and company deletion.**
+1. **Invitations.** Invite an email to one or more companies, each with a role (inviters can only pick companies they own or administer). The emailed link signs the person in. Invitations expire after 7 days, can be resent and revoked, with a cap on pending invites and at most one resend per hour.
+2. **Company settings.** Admins edit the company's details (including the tax ID, legal name, address and country details from the checklist), bank details and logo; anyone can create more companies.
+3. **Ownership transfer and company deletion.**
 
 ## Later
 
