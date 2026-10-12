@@ -14,6 +14,8 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.jdbc.core.JdbcTemplate
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -48,6 +50,9 @@ class InvitationNotifierTest {
     @Autowired
     private lateinit var jdbcTemplate: JdbcTemplate
 
+    @Autowired
+    private lateinit var properties: InvitationProperties
+
     private val maria = "maria@example.com"
     private var owner = 0L
     private lateinit var acme: Company
@@ -55,7 +60,7 @@ class InvitationNotifierTest {
     private lateinit var initech: Company
 
     // Built here: the scheduled bean is off in tests
-    private val job by lazy { InvitationNotificationJob(invitationRepository, notifier) }
+    private val job by lazy { InvitationNotificationJob(invitationRepository, notifier, properties) }
 
     @BeforeEach
     fun reset() {
@@ -117,6 +122,56 @@ class InvitationNotifierTest {
     }
 
     @Test
+    fun `servers sending at the same time send one email`() {
+        // An invitation saved without its email, as if it is about to be sent
+        emailPort.failure = EmailDeliveryException("not yet")
+        invite(acme)
+        emailPort.failure = null
+
+        val start = CountDownLatch(1)
+        val sent =
+            Executors.newFixedThreadPool(8).use { pool ->
+                val calls = List(8) { pool.submit<Boolean> { start.await().let { notifier.notifyIfDue(maria) } } }
+                start.countDown()
+                calls.map { it.get() }
+            }
+
+        assertEquals(1, sent.count { it })
+        assertEquals(listOf(listOf("Acme")), emailedCompanies())
+    }
+
+    @Test
+    fun `an email whose sender died before confirming is sent again later`() {
+        val invitation = invite(acme)
+        // As if the server died right after claiming, before sending
+        jdbcTemplate.update(
+            "UPDATE invitations SET notified_at = NULL, notification_claimed_at = now() - interval '11 minutes' WHERE id = ?",
+            invitation.id,
+        )
+        emailPort.clear()
+        anHourPasses()
+
+        job.run()
+
+        assertEquals(listOf(listOf("Acme")), emailedCompanies())
+    }
+
+    @Test
+    fun `a claimed email still being sent isn't sent twice`() {
+        val invitation = invite(acme)
+        jdbcTemplate.update(
+            "UPDATE invitations SET notified_at = NULL, notification_claimed_at = now() WHERE id = ?",
+            invitation.id,
+        )
+        emailPort.clear()
+        anHourPasses()
+
+        job.run()
+
+        assertEquals(listOf(), emailedCompanies())
+    }
+
+    @Test
     fun `each address has its own hour`() {
         invite(acme)
         invite(acme, "john@example.com")
@@ -135,7 +190,7 @@ class InvitationNotifierTest {
 
     private fun anHourPasses() {
         jdbcTemplate.update(
-            "UPDATE invitations SET notified_at = notified_at - interval '61 minutes' WHERE notified_at IS NOT NULL",
+            "UPDATE invitation_recipients SET last_notified_at = last_notified_at - interval '61 minutes'",
         )
     }
 }

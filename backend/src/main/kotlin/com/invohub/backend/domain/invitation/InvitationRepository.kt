@@ -33,36 +33,31 @@ interface InvitationRepository : JpaRepository<Invitation, Long> {
         since: Instant,
     ): Long
 
-    /** When the address last got an invitation email, if ever */
-    @Query("select max(i.notifiedAt) from Invitation i where i.email = :email")
-    fun lastNotifiedAt(email: String): Instant?
-
-    /** Open invitations the address hasn't been emailed about yet */
+    /**
+     * Open invitations the address hasn't been emailed about: never claimed, or claimed by a sender that never
+     * confirmed (before [staleBefore])
+     */
     @Query(
         "select i from Invitation i where i.email = :email " +
             "and i.status = com.invohub.backend.domain.invitation.InvitationStatus.PENDING " +
-            "and i.notifiedAt is null and i.expiresAt > :now order by i.createdAt",
+            "and i.notifiedAt is null and i.expiresAt > :now " +
+            "and (i.notificationClaimedAt is null or i.notificationClaimedAt < :staleBefore) order by i.createdAt",
     )
     fun findDue(
         email: String,
         now: Instant,
+        staleBefore: Instant,
     ): List<Invitation>
 
-    /** Addresses with open invitations they haven't been emailed about yet */
+    /** Addresses with invitations [findDue] would return */
     @Query(
         "select distinct i.email from Invitation i " +
             "where i.status = com.invohub.backend.domain.invitation.InvitationStatus.PENDING " +
-            "and i.notifiedAt is null and i.expiresAt > :now",
+            "and i.notifiedAt is null and i.expiresAt > :now " +
+            "and (i.notificationClaimedAt is null or i.notificationClaimedAt < :staleBefore)",
     )
-    fun emailsWithDueNotifications(now: Instant): List<String>
-
-    /**
-     * Serializes the work on one address's invitation email until the transaction ends, across every server,
-     * so two can't both decide the address is due and send it two emails.
-     */
-    @Query(
-        value = "select 1 from (select pg_advisory_xact_lock(hashtextextended(:email, 0))) as locked",
-        nativeQuery = true,
-    )
-    fun lockEmail(email: String): Int
+    fun emailsWithDueNotifications(
+        now: Instant,
+        staleBefore: Instant,
+    ): List<String>
 }

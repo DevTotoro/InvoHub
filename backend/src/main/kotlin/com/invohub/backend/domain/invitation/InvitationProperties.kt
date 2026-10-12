@@ -14,6 +14,11 @@ data class InvitationProperties(
      */
     @DefaultValue("1h") val notifyAtMostEvery: Duration,
     /**
+     * A claimed email not confirmed sent by then (its server died mid-send) is sent again. So in that rare case
+     * someone may get it twice, but never not at all.
+     */
+    @DefaultValue("10m") val notificationClaimTimeout: Duration,
+    /**
      * Limits that real use never reaches; they bound how much email one account can make InvoHub send before
      * someone notices. Counted over the last day.
      */

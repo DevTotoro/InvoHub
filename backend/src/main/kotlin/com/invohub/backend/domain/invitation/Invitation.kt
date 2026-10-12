@@ -30,7 +30,6 @@ enum class InvitationStatus {
     indexes = [
         Index(name = "ix_invitations_company_created", columnList = "company_id, created_at"),
         Index(name = "ix_invitations_invited_by_created", columnList = "invited_by_user_id, created_at"),
-        Index(name = "ix_invitations_email_notified", columnList = "email, notified_at"),
     ],
 )
 class Invitation(
@@ -61,7 +60,12 @@ class Invitation(
     var status: InvitationStatus = InvitationStatus.PENDING
         protected set
 
-    /** When the person was emailed about it; null while that email is still due */
+    /** When a sender claimed the email about it; cleared if sending failed */
+    @Column(name = "notification_claimed_at")
+    var notificationClaimedAt: Instant? = null
+        protected set
+
+    /** When the email about it went out; null while it is still due */
     @Column(name = "notified_at")
     var notifiedAt: Instant? = null
         protected set
@@ -76,6 +80,14 @@ class Invitation(
 
     /** Pending and not expired: it can still be accepted */
     fun isOpen(now: Instant) = status == InvitationStatus.PENDING && expiresAt.isAfter(now)
+
+    fun claimNotification(at: Instant) {
+        notificationClaimedAt = at
+    }
+
+    fun releaseNotification() {
+        notificationClaimedAt = null
+    }
 
     fun markNotified(at: Instant) {
         notifiedAt = at

@@ -80,7 +80,8 @@ CREATE INDEX ix_company_members_user ON company_members (user_id);
 
 -- Invitations to join a company, one row per company and email. They belong to the email address, not to a
 -- link: the email only tells the person, who signs in as usual and accepts or declines on the Invitations page.
--- notified_at is when that email went out; NULL means it is still due (see InvitationNotifier).
+-- The email about it is claimed (notification_claimed_at), sent, then confirmed (notified_at); see
+-- InvitationNotifier. Both NULL means it is still due.
 CREATE TABLE invitations (
     id BIGINT NOT NULL,
     version BIGINT NOT NULL DEFAULT 0,
@@ -91,6 +92,7 @@ CREATE TABLE invitations (
     invited_by_user_id BIGINT NOT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
     expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    notification_claimed_at TIMESTAMP WITH TIME ZONE,
     notified_at TIMESTAMP WITH TIME ZONE,
     closed_at TIMESTAMP WITH TIME ZONE,
     --
@@ -114,8 +116,22 @@ CREATE INDEX ix_invitations_email_pending ON invitations (email) WHERE status = 
 -- The daily caps: invitations per company and per inviter in the last day
 CREATE INDEX ix_invitations_company_created ON invitations (company_id, created_at);
 CREATE INDEX ix_invitations_invited_by_created ON invitations (invited_by_user_id, created_at);
--- When the person was last emailed, for the hourly notification limit
-CREATE INDEX ix_invitations_email_notified ON invitations (email, notified_at);
+
+-- Everyone who has been emailed about invitations, and when last: at most one email an hour per address. Claiming
+-- an email updates this row (with its version), so two servers sending at once can't both win, on classic
+-- Postgres or Aurora DSQL alike, without database locks.
+CREATE TABLE invitation_recipients (
+    email VARCHAR(255) NOT NULL,
+    version BIGINT NOT NULL DEFAULT 0,
+    --
+    last_notified_at TIMESTAMP WITH TIME ZONE,
+    --
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    --
+    CONSTRAINT pk_invitation_recipients PRIMARY KEY (email),
+    CONSTRAINT ck_invitation_recipients_email_normalized CHECK (email = lower(btrim(email)))
+);
 
 -- Audit log: what happened, who did it, when. Append-only: the app's login may only add and read events, and
 -- a trigger refuses changes from every login, migrations included. No foreign keys: events must outlive the
