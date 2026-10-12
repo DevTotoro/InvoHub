@@ -72,11 +72,6 @@
 <main class="flex justify-center px-4 py-16">
   <div class="w-full max-w-sm">
     <h2 class="text-xl font-semibold">{title}</h2>
-    {#if data.firstCompany}
-      <p class="mt-2 text-sm text-gray-600">
-        Just the basics for now. You'll add the details invoices need when you set up invoicing.
-      </p>
-    {/if}
 
     <form class="mt-4 space-y-4" onsubmit={submit}>
       <Input
@@ -102,7 +97,7 @@
       {#if selected && !selected.invoicingSupported}
         <p class="text-sm text-gray-600" role="status">
           Invoicing in {countryName(selected.code)} isn't available yet. You can set up your company and team now, and start
-          invoicing once InvoHub supports {countryName(selected.code)}.
+          invoicing once {countryName(selected.code)} is supported.
         </p>
       {/if}
 
