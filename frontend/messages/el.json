@@ -49,11 +49,11 @@
   "company_invoicing_unavailable": "Η τιμολόγηση δεν είναι ακόμη διαθέσιμη για τη χώρα {country}.",
   "company_invoices_placeholder": "Τα τιμολόγιά σας θα εμφανίζονται εδώ.",
 
-  "onboarding_title": "Ρυθμίστε την εταιρεία σας",
+  "onboarding_title": "Δημιουργήστε την εταιρεία σας",
   "onboarding_name": "Επωνυμία εταιρείας",
   "onboarding_country": "Χώρα",
   "onboarding_currency": "Νόμισμα: {currency}",
-  "onboarding_invoicing_unavailable": "Η τιμολόγηση δεν είναι ακόμη διαθέσιμη για τη χώρα {country}. Μπορείτε να ρυθμίσετε την εταιρεία και την ομάδα σας από τώρα και να ξεκινήσετε την τιμολόγηση μόλις υποστηριχθεί.",
+  "onboarding_invoicing_unavailable": "Η τιμολόγηση δεν είναι ακόμη διαθέσιμη για τη χώρα {country}. Μπορείτε να δημιουργήσετε την εταιρεία και την ομάδα σας από τώρα και να ξεκινήσετε την τιμολόγηση μόλις υποστηριχθεί.",
   "onboarding_name_required": "Εισαγάγετε την επωνυμία της εταιρείας.",
   "onboarding_name_too_long": "Χρησιμοποιήστε έως 200 χαρακτήρες.",
   "onboarding_country_unknown": "Επιλέξτε μια χώρα από τη λίστα.",

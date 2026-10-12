@@ -79,7 +79,7 @@ test('country names and the currency follow the language', async ({ page, baseUR
 
   await page.goto('/onboarding');
 
-  await expect(page.getByRole('heading', { level: 2 })).toHaveText('Ρυθμίστε την εταιρεία σας');
+  await expect(page.getByRole('heading', { level: 2 })).toHaveText('Δημιουργήστε την εταιρεία σας');
   await expect(page.getByLabel('Χώρα')).toHaveValue('GR');
   await expect(page.getByRole('option', { name: 'Ελλάδα' })).toBeAttached();
   await expect(page.getByText('Νόμισμα: Ευρώ (EUR)')).toBeVisible();
