@@ -24,3 +24,13 @@ test('the switcher lists the companies and switches between them', async ({ page
   await expect(page.getByRole('button', { name: 'Globex' })).toBeVisible();
   await expect(companies).toBeHidden();
 });
+
+test('a suspended company says so instead of opening', async ({ page, baseURL }) => {
+  const suspended = { ...ACME, company: { ...ACME.company, status: 'SUSPENDED' as const } };
+  await mockApi(page, baseURL!, { user: TEST_USER, companies: [suspended] });
+
+  await page.goto(`/c/${ACME.company.id}`);
+
+  await expect(page.getByRole('heading', { level: 2 })).toHaveText('This company is suspended');
+  await expect(page.getByText(`Welcome, ${TEST_USER.email}`)).toHaveCount(0);
+});

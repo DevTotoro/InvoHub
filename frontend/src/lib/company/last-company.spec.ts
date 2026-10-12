@@ -4,7 +4,7 @@ import { pickCompany, rememberCompany } from './last-company.ts';
 
 const company = (id: string): UserCompany => ({
   role: 'OWNER',
-  company: { id, name: id, country: 'GR', currency: 'EUR', invoicingSupported: true }
+  company: { id, name: id, country: 'GR', currency: 'EUR', status: 'ACTIVE', invoicingSupported: true }
 });
 
 describe('last company', () => {

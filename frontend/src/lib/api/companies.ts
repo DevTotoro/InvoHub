@@ -3,6 +3,9 @@ import { GraphQLError, graphql } from './graphql.ts';
 
 export type CompanyRole = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
 
+/** Set by InvoHub: READ_ONLY when unpaid (can be viewed, not changed), SUSPENDED by staff (can't be used) */
+export type CompanyStatus = 'ACTIVE' | 'READ_ONLY' | 'SUSPENDED';
+
 export interface Company {
   /** Public ID, as used in URLs */
   id: string;
@@ -11,6 +14,7 @@ export interface Company {
   country: string;
   /** ISO 4217, e.g. EUR */
   currency: string;
+  status: CompanyStatus;
   /** Whether InvoHub supports invoicing in the company's country yet */
   invoicingSupported: boolean;
 }
@@ -28,7 +32,7 @@ export interface Country {
 }
 
 /** The fields every query asks for, so a Company always has the same shape */
-export const COMPANY_FIELDS = 'id name country currency invoicingSupported';
+export const COMPANY_FIELDS = 'id name country currency status invoicingSupported';
 
 export async function getCountries(fetch?: Fetch): Promise<Country[]> {
   const { countries } = await graphql<{ countries: Country[] }>(

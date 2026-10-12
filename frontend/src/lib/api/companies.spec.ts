@@ -10,7 +10,14 @@ describe('companies', () => {
 
   it('creates a company with just a name and a country', async () => {
     const browser = fakeBrowser();
-    const company = { id: '0ACME', name: 'Acme', country: 'GR', currency: 'EUR', invoicingSupported: true };
+    const company = {
+      id: '0ACME',
+      name: 'Acme',
+      country: 'GR',
+      currency: 'EUR',
+      status: 'ACTIVE',
+      invoicingSupported: true
+    };
     browser.fetch.mockResolvedValue(jsonResponse({ data: { createCompany: company } }));
 
     await expect(createCompany({ name: 'Acme', country: 'GR' })).resolves.toEqual(company);

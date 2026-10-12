@@ -48,6 +48,8 @@
   "company_welcome": "Καλώς ήρθατε, {email}",
   "company_invoicing_unavailable": "Η τιμολόγηση δεν είναι ακόμη διαθέσιμη για τη χώρα {country}.",
   "company_invoices_placeholder": "Τα τιμολόγιά σας θα εμφανίζονται εδώ.",
+  "company_suspended_title": "Αυτή η εταιρεία έχει ανασταλεί",
+  "company_suspended_detail": "Επικοινωνήστε με την υποστήριξη του InvoHub για περισσότερες πληροφορίες.",
 
   "onboarding_title": "Δημιουργήστε την εταιρεία σας",
   "onboarding_name": "Επωνυμία εταιρείας",
