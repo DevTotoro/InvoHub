@@ -2,6 +2,7 @@ package com.invohub.backend.infrastructure.adapter.outbound.email
 
 import com.invohub.backend.domain.auth.EmailDeliveryException
 import com.invohub.backend.domain.auth.EmailPort
+import com.invohub.backend.domain.auth.InvitationNotice
 import com.invohub.backend.domain.user.Language
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.context.MessageSource
@@ -37,12 +38,44 @@ class SmtpEmailAdapter(
                 from = properties.from
             }
 
+        send(message, "magic link")
+    }
+
+    private fun send(
+        message: SimpleMailMessage,
+        what: String,
+    ) {
         try {
             mailSender.send(message)
         } catch (e: MailException) {
-            logger.error(e) { "Failed to send magic link" }
-            throw EmailDeliveryException("Failed to send magic link email", e)
+            logger.error(e) { "Failed to send $what" }
+            throw EmailDeliveryException("Failed to send $what email", e)
         }
+    }
+
+    override fun sendInvitations(
+        email: String,
+        invitations: List<InvitationNotice>,
+        link: URI,
+        language: Language,
+    ) {
+        val locale = language.locale
+        // Plain text: the company name and the inviter's email are other people's words, never markup
+        val lines =
+            invitations.joinToString("\n") {
+                val role = messages.getMessage("role.${it.role.name}", null, locale)
+                messages.getMessage("invitations.line", arrayOf(it.companyName, role, it.invitedByEmail), locale)
+            }
+        val message =
+            SimpleMailMessage().apply {
+                setTo(email)
+                subject = messages.getMessage("invitations.subject", null, locale)
+                text =
+                    messages.getMessage("invitations.intro", null, locale) + "\n\n" + lines + "\n\n" +
+                    messages.getMessage("invitations.outro", arrayOf(link.toString()), locale)
+                from = properties.from
+            }
+        send(message, "invitations")
     }
 
     private fun humanize(

@@ -14,6 +14,8 @@ type Query {
     company(id: ID!): UserCompany
     "The company's people: its owner first, then its members by email. Anyone in the company can see them."
     members(companyId: ID!): [Member!]!
+    "The company's open invitations, for its owner and admins"
+    invitations(companyId: ID!): [Invitation!]!
 }
 
 type Mutation {
@@ -37,6 +39,19 @@ type Mutation {
     removeMember(companyId: ID!, userId: ID!): Boolean!
     "Leaves the company. The owner can't (not_allowed, reason \"owner_cannot_leave\"): they transfer ownership first."
     leaveCompany(companyId: ID!): Boolean!
+    """
+    Invites an email address to one or more companies, each with a role; needs the owner or an admin of each.
+    All or nothing. The person is emailed (at most once an hour; later invitations are in the next email) and
+    accepts after signing in. Refusals: invalid_input (field "email", "companies" or "role"), or
+    invitation_refused with a reason ("already_member", "already_invited", "company_daily_limit",
+    "daily_limit") and the companyId it is about, if any.
+    """
+    inviteMembers(input: InviteMembersInput!): [Invitation!]!
+    "Revokes an open invitation to the company; needs the owner or an admin. Otherwise invitation_not_found."
+    revokeInvitation(companyId: ID!, invitationId: ID!): Boolean!
+    "Accepts one of the signed-in user's invitations, joining the company. Otherwise invitation_not_found."
+    acceptInvitation(invitationId: ID!): UserCompany!
+    declineInvitation(invitationId: ID!): Boolean!
 }
 
 type User {
@@ -46,6 +61,8 @@ type User {
     language: Language!
     "Companies the user owns or is a member of, by name"
     companies: [UserCompany!]!
+    "Open invitations for the user's email address, oldest first"
+    invitations: [Invitation!]!
 }
 
 enum Language {
@@ -69,6 +86,28 @@ type Company {
     status: CompanyStatus!
     "Whether InvoHub supports invoicing in the company's country yet"
     invoicingSupported: Boolean!
+}
+
+type Invitation {
+    id: ID!
+    "The address invited"
+    email: String!
+    role: CompanyRole!
+    company: Company!
+    "The inviter's email address"
+    invitedBy: String!
+    "ISO-8601"
+    expiresAt: String!
+}
+
+input InviteMembersInput {
+    email: String!
+    companies: [InvitationCompanyInput!]!
+}
+
+input InvitationCompanyInput {
+    companyId: ID!
+    role: CompanyRole!
 }
 
 type Member {

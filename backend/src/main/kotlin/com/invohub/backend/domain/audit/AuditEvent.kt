@@ -20,6 +20,8 @@ data class AuditTarget(
         fun user(id: Long) = AuditTarget("user", id)
 
         fun company(id: Long) = AuditTarget("company", id)
+
+        fun invitation(id: Long) = AuditTarget("invitation", id)
     }
 }
 
@@ -34,7 +36,12 @@ enum class AuditAction(
     USER_SUSPENDED("user.suspended"),
     USER_UNSUSPENDED("user.unsuspended"),
     COMPANY_CREATED("company.created"),
+    MEMBER_ADDED("member.added"),
     MEMBER_ROLE_CHANGED("member.role_changed"),
     MEMBER_REMOVED("member.removed"),
     MEMBER_LEFT("member.left"),
+    INVITATION_SENT("invitation.sent"),
+    INVITATION_REVOKED("invitation.revoked"),
+    INVITATION_ACCEPTED("invitation.accepted"),
+    INVITATION_DECLINED("invitation.declined"),
 }

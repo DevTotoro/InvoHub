@@ -6,3 +6,7 @@ spring:
 invohub:
   auth:
     frontend-url: http://localhost:5173
+  invitations:
+    # Tests run the job themselves, when they want it
+    notification-job:
+      enabled: false

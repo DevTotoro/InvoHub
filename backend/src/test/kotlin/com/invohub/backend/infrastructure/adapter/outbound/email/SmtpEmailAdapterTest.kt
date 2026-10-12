@@ -1,6 +1,8 @@
 package com.invohub.backend.infrastructure.adapter.outbound.email
 
 import com.invohub.backend.domain.auth.EmailDeliveryException
+import com.invohub.backend.domain.auth.InvitationNotice
+import com.invohub.backend.domain.company.CompanyRole
 import com.invohub.backend.domain.user.Language
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
@@ -59,6 +61,39 @@ class SmtpEmailAdapterTest {
         assertEquals("InvoHub - Σύνδεσμος σύνδεσης", message.at("/Subject").asString())
         assertContains(message.at("/Text").asString(), link.toString())
         assertContains(message.at("/Text").asString(), "λήγει σε 30 λεπτά")
+    }
+
+    @Test
+    fun `sends an invitation email listing every company, in the person's language`() {
+        val notices =
+            listOf(
+                InvitationNotice("Acme", "jane@example.com", CompanyRole.ADMIN),
+                InvitationNotice("Globex", "john@example.com", CompanyRole.VIEWER),
+            )
+
+        adapter(port = mailpit.getMappedPort(1025))
+            .sendInvitations("maria@example.com", notices, URI("https://app.example.com/invitations"), Language.EL)
+
+        val message = latestMessage()
+        assertEquals("InvoHub - Πρόσκληση", message.at("/Subject").asString())
+        val text = message.at("/Text").asString()
+        assertContains(text, "- Acme: Διαχειριστής, πρόσκληση από jane@example.com")
+        assertContains(text, "- Globex: Μόνο προβολή, πρόσκληση από john@example.com")
+        assertContains(text, "https://app.example.com/invitations")
+    }
+
+    @Test
+    fun `the English invitation email keeps its apostrophes`() {
+        adapter(port = mailpit.getMappedPort(1025)).sendInvitations(
+            "maria@example.com",
+            listOf(InvitationNotice("Acme", "jane@example.com", CompanyRole.MEMBER)),
+            URI("https://app.example.com/invitations"),
+            Language.EN,
+        )
+
+        val text = latestMessage().at("/Text").asString()
+        assertContains(text, "You've been invited to InvoHub:")
+        assertContains(text, "- Acme: Member, invited by jane@example.com")
     }
 
     @Test

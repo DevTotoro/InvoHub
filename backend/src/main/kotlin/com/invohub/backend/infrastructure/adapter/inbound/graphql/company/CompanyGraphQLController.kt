@@ -23,7 +23,21 @@ data class CompanyView(
     val currency: String,
     val status: CompanyStatus,
     val invoicingSupported: Boolean,
-)
+) {
+    companion object {
+        fun of(
+            company: Company,
+            countryRules: CountryRulesRegistry,
+        ) = CompanyView(
+            id = company.getPublicId(),
+            name = company.name,
+            country = company.country,
+            currency = company.currency,
+            status = company.status,
+            invoicingSupported = countryRules.forCountry(company.country).invoicingSupported,
+        )
+    }
+}
 
 data class UserCompanyView(
     val company: CompanyView,
@@ -74,13 +88,5 @@ class CompanyGraphQLController(
         @AuthenticationPrincipal principal: AuthenticatedUser,
     ): CompanyView = view(companyService.createCompany(principal.userId, input.name, input.country))
 
-    private fun view(company: Company) =
-        CompanyView(
-            id = company.getPublicId(),
-            name = company.name,
-            country = company.country,
-            currency = company.currency,
-            status = company.status,
-            invoicingSupported = countryRules.forCountry(company.country).invoicingSupported,
-        )
+    private fun view(company: Company) = CompanyView.of(company, countryRules)
 }

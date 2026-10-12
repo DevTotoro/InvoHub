@@ -7,7 +7,10 @@ import com.invohub.backend.support.DatabaseCleaner
 import com.invohub.backend.support.IntegrationTest
 import com.invohub.backend.support.graphql
 import com.invohub.backend.support.signIn
+import graphql.schema.GraphQLInputObjectType
 import graphql.schema.GraphQLObjectType
+import graphql.schema.GraphQLType
+import graphql.schema.GraphQLTypeUtil
 import io.hypersistence.tsid.TSID
 import jakarta.servlet.http.Cookie
 import org.junit.jupiter.api.BeforeEach
@@ -20,8 +23,8 @@ import org.springframework.test.web.servlet.MockMvc
 import kotlin.test.assertEquals
 
 /**
- * Nobody can reach another company's data. Every company-scoped root field (one taking `companyId`, or
- * `company(id)`) must have an operation in [operations]; the first test fails for a field that doesn't, so a
+ * Nobody can reach another company's data. Every company-scoped root field (one taking `companyId`, also
+ * inside an input, or `company(id)`) must have an operation in [operations]; the first test fails for a field that doesn't, so a
  * new field can't skip this check. Each operation is then run by someone outside the company.
  */
 @IntegrationTest
@@ -49,6 +52,24 @@ class CompanyIsolationTest {
             },
             "Mutation.leaveCompany" to { id ->
                 "mutation(${'$'}id: ID!) { leaveCompany(companyId: ${'$'}id) }" to mapOf("id" to id)
+            },
+            "Query.invitations" to { id ->
+                "query(${'$'}id: ID!) { invitations(companyId: ${'$'}id) { email } }" to mapOf("id" to id)
+            },
+            "Mutation.inviteMembers" to { id ->
+                "mutation(${'$'}input: InviteMembersInput!) { inviteMembers(input: ${'$'}input) { id } }" to
+                    mapOf(
+                        "input" to
+                            mapOf(
+                                "email" to "someone@example.com",
+                                "companies" to listOf(mapOf("companyId" to id, "role" to "VIEWER")),
+                            ),
+                    )
+            },
+            "Mutation.revokeInvitation" to { id ->
+                """
+                mutation(${'$'}id: ID!, ${'$'}inv: ID!) { revokeInvitation(companyId: ${'$'}id, invitationId: ${'$'}inv) }
+                """.trimIndent() to mapOf("id" to id, "inv" to TSID.fast().toString())
             },
         )
 
@@ -114,8 +135,21 @@ class CompanyIsolationTest {
 
     private fun companyScopedFields(type: GraphQLObjectType) =
         type.fieldDefinitions
-            .filter { field -> field.name == "company" || field.arguments.any { it.name == "companyId" } }
-            .map { "${type.name}.${it.name}" }
+            .filter { field ->
+                field.name == "company" ||
+                    field.arguments.any { it.name == "companyId" || takesCompany(GraphQLTypeUtil.unwrapAll(it.type)) }
+            }.map { "${type.name}.${it.name}" }
+
+    /** An input type with a companyId somewhere inside it */
+    private fun takesCompany(
+        type: GraphQLType,
+        seen: Set<String> = emptySet(),
+    ): Boolean {
+        if (type !is GraphQLInputObjectType || type.name in seen) return false
+        return type.fieldDefinitions.any {
+            it.name == "companyId" || takesCompany(GraphQLTypeUtil.unwrapAll(it.type), seen + type.name)
+        }
+    }
 
     private fun expectNotFound(
         session: Cookie,

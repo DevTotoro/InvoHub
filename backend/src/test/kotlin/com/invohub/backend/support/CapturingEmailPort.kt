@@ -1,6 +1,7 @@
 package com.invohub.backend.support
 
 import com.invohub.backend.domain.auth.EmailPort
+import com.invohub.backend.domain.auth.InvitationNotice
 import com.invohub.backend.domain.user.Language
 import org.springframework.boot.test.context.TestComponent
 import org.springframework.context.annotation.Primary
@@ -29,6 +30,15 @@ class CapturingEmailPort : EmailPort {
 
     val sent = CopyOnWriteArrayList<SentMagicLink>()
 
+    data class SentInvitations(
+        val email: String,
+        val invitations: List<InvitationNotice>,
+        val link: URI,
+        val language: Language,
+    )
+
+    val invitationEmails = CopyOnWriteArrayList<SentInvitations>()
+
     /** When set, sending fails with this exception instead of recording the link. */
     @Volatile
     var failure: Exception? = null
@@ -43,8 +53,19 @@ class CapturingEmailPort : EmailPort {
         sent += SentMagicLink(email, link, language)
     }
 
+    override fun sendInvitations(
+        email: String,
+        invitations: List<InvitationNotice>,
+        link: URI,
+        language: Language,
+    ) {
+        failure?.let { throw it }
+        invitationEmails += SentInvitations(email, invitations, link, language)
+    }
+
     fun clear() {
         sent.clear()
+        invitationEmails.clear()
         failure = null
     }
 }
