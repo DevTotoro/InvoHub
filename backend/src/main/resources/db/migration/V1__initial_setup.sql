@@ -20,6 +20,58 @@ CREATE TABLE users (
     CONSTRAINT ck_users_email_normalized CHECK (email = lower(btrim(email)))
 );
 
+-- Companies. Created with just a name and a country; the invoicing details stay empty until the company works
+-- through its invoicing setup checklist. The tax ID is deliberately not unique.
+CREATE TABLE companies (
+    id BIGINT NOT NULL,
+    version BIGINT NOT NULL DEFAULT 0,
+    --
+    name VARCHAR(200) NOT NULL,
+    country VARCHAR(2) NOT NULL,
+    currency VARCHAR(3) NOT NULL,
+    owner_user_id BIGINT NOT NULL,
+    --
+    tax_id VARCHAR(50),
+    tax_id_verified_at TIMESTAMP WITH TIME ZONE,
+    legal_name VARCHAR(255),
+    address_street VARCHAR(255),
+    address_city VARCHAR(100),
+    address_postal_code VARCHAR(20),
+    country_details JSONB NOT NULL DEFAULT '{}',
+    --
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    --
+    CONSTRAINT pk_companies PRIMARY KEY (id),
+    CONSTRAINT fk_companies_owner FOREIGN KEY (owner_user_id) REFERENCES users (id),
+    CONSTRAINT ck_companies_name CHECK (btrim(name) <> ''),
+    CONSTRAINT ck_companies_country CHECK (country ~ '^[A-Z]{2}$'),
+    CONSTRAINT ck_companies_currency CHECK (currency ~ '^[A-Z]{3}$')
+);
+
+CREATE INDEX ix_companies_owner ON companies (owner_user_id);
+
+-- Everyone with access to a company except its owner, who is companies.owner_user_id
+CREATE TABLE company_members (
+    id BIGINT NOT NULL,
+    version BIGINT NOT NULL DEFAULT 0,
+    --
+    company_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    role VARCHAR(20) NOT NULL,
+    --
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    --
+    CONSTRAINT pk_company_members PRIMARY KEY (id),
+    CONSTRAINT uq_company_members UNIQUE (company_id, user_id),
+    CONSTRAINT fk_company_members_company FOREIGN KEY (company_id) REFERENCES companies (id),
+    CONSTRAINT fk_company_members_user FOREIGN KEY (user_id) REFERENCES users (id),
+    CONSTRAINT ck_company_members_role CHECK (role IN ('ADMIN', 'MEMBER', 'VIEWER'))
+);
+
+CREATE INDEX ix_company_members_user ON company_members (user_id);
+
 -- Audit log: what happened, who did it, when. Append-only: the app's login may only add and read events, and
 -- a trigger refuses changes from every login, migrations included. No foreign keys: events must outlive the
 -- users and companies they mention. The database sets the time.

@@ -4,6 +4,7 @@ import com.invohub.backend.domain.auth.EmailDeliveryException
 import com.invohub.backend.domain.user.User
 import com.invohub.backend.domain.user.UserRepository
 import com.invohub.backend.support.CapturingEmailPort
+import com.invohub.backend.support.DatabaseCleaner
 import com.invohub.backend.support.IntegrationTest
 import org.hamcrest.Matchers.containsString
 import org.hamcrest.Matchers.not
@@ -26,6 +27,9 @@ class AuthControllerTest {
     private lateinit var mockMvc: MockMvc
 
     @Autowired
+    private lateinit var databaseCleaner: DatabaseCleaner
+
+    @Autowired
     private lateinit var emailPort: CapturingEmailPort
 
     @Autowired
@@ -37,7 +41,7 @@ class AuthControllerTest {
     @BeforeEach
     fun reset() {
         emailPort.clear()
-        userRepository.deleteAll()
+        databaseCleaner.clean()
         redisTemplate.connectionFactory!!.connection.use { it.serverCommands().flushAll() }
     }
 

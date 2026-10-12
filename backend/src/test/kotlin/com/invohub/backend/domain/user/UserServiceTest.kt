@@ -1,5 +1,6 @@
 package com.invohub.backend.domain.user
 
+import com.invohub.backend.support.DatabaseCleaner
 import com.invohub.backend.support.IntegrationTest
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -21,13 +22,16 @@ class UserServiceTest {
     private lateinit var userService: UserService
 
     @Autowired
+    private lateinit var databaseCleaner: DatabaseCleaner
+
+    @Autowired
     private lateinit var userRepository: UserRepository
 
     @Autowired
     private lateinit var jdbcTemplate: JdbcTemplate
 
     @BeforeEach
-    fun clean() = userRepository.deleteAll()
+    fun clean() = databaseCleaner.clean()
 
     @Test
     fun `creates a user with a normalized email`() {

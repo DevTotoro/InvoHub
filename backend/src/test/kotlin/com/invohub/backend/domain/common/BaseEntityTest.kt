@@ -2,6 +2,7 @@ package com.invohub.backend.domain.common
 
 import com.invohub.backend.domain.user.User
 import com.invohub.backend.domain.user.UserRepository
+import com.invohub.backend.support.DatabaseCleaner
 import com.invohub.backend.support.IntegrationTest
 import jakarta.persistence.EntityManager
 import org.hibernate.proxy.HibernateProxy
@@ -24,13 +25,16 @@ class BaseEntityTest {
     private lateinit var userRepository: UserRepository
 
     @Autowired
+    private lateinit var databaseCleaner: DatabaseCleaner
+
+    @Autowired
     private lateinit var entityManager: EntityManager
 
     @Autowired
     private lateinit var transactionTemplate: TransactionTemplate
 
     @BeforeEach
-    fun clean() = userRepository.deleteAll()
+    fun clean() = databaseCleaner.clean()
 
     @Test
     fun `id is assigned at construction and unchanged by saving`() {
