@@ -4,12 +4,14 @@ import com.invohub.backend.domain.auth.EmailDeliveryException
 import com.invohub.backend.domain.auth.EmailPort
 import com.invohub.backend.domain.user.Language
 import io.github.oshai.kotlinlogging.KotlinLogging
+import org.springframework.context.MessageSource
 import org.springframework.mail.MailException
 import org.springframework.mail.SimpleMailMessage
 import org.springframework.mail.javamail.JavaMailSender
 import org.springframework.stereotype.Component
 import java.net.URI
 import java.time.Duration
+import java.util.Locale
 
 private val logger = KotlinLogging.logger {}
 
@@ -17,6 +19,7 @@ private val logger = KotlinLogging.logger {}
 class SmtpEmailAdapter(
     private val mailSender: JavaMailSender,
     private val properties: MailProperties,
+    private val messages: MessageSource,
 ) : EmailPort {
     override fun sendMagicLink(
         email: String,
@@ -24,13 +27,13 @@ class SmtpEmailAdapter(
         validFor: Duration,
         language: Language,
     ) {
+        val locale = language.locale
         val message =
             SimpleMailMessage().apply {
                 setTo(email)
-                subject = "InvoHub - Sign In Link"
+                subject = messages.getMessage("magic-link.subject", null, locale)
                 text =
-                    "Click the link below to sign in to Invohub:" +
-                    "\n\n$link\n\nThis link will expire in ${humanize(validFor)}."
+                    messages.getMessage("magic-link.body", arrayOf(link.toString(), humanize(validFor, locale)), locale)
                 from = properties.from
             }
 
@@ -42,13 +45,13 @@ class SmtpEmailAdapter(
         }
     }
 
-    private fun humanize(duration: Duration): String {
-        val (amount, unit) =
-            if (duration.toMinutesPart() == 0 && duration.toHours() > 0) {
-                duration.toHours() to "hour"
-            } else {
-                duration.toMinutes() to "minute"
-            }
-        return if (amount == 1L) "1 $unit" else "$amount ${unit}s"
-    }
+    private fun humanize(
+        duration: Duration,
+        locale: Locale,
+    ): String =
+        if (duration.toMinutesPart() == 0 && duration.toHours() > 0) {
+            messages.getMessage("duration.hours", arrayOf(duration.toHours()), locale)
+        } else {
+            messages.getMessage("duration.minutes", arrayOf(duration.toMinutes()), locale)
+        }
 }

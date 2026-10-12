@@ -5,6 +5,7 @@ import com.invohub.backend.domain.user.Language
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
+import org.springframework.context.support.ResourceBundleMessageSource
 import org.springframework.mail.javamail.JavaMailSenderImpl
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.utility.DockerImageName
@@ -49,6 +50,18 @@ class SmtpEmailAdapterTest {
     }
 
     @Test
+    fun `sends the magic link in the user's language`() {
+        adapter(
+            port = mailpit.getMappedPort(1025),
+        ).sendMagicLink("jane@example.com", link, Duration.ofMinutes(30), Language.EL)
+
+        val message = latestMessage()
+        assertEquals("InvoHub - Σύνδεσμος σύνδεσης", message.at("/Subject").asString())
+        assertContains(message.at("/Text").asString(), link.toString())
+        assertContains(message.at("/Text").asString(), "λήγει σε 30 λεπτά")
+    }
+
+    @Test
     fun `reports a delivery failure as EmailDeliveryException`() {
         val unreachable = adapter(port = 1)
 
@@ -62,8 +75,15 @@ class SmtpEmailAdapterTest {
             JavaMailSenderImpl().apply {
                 host = mailpit.host
                 this.port = port
+                defaultEncoding = "UTF-8"
             },
             MailProperties(from = "no-reply@invohub.com"),
+            // As configured in application.yaml (spring.messages)
+            ResourceBundleMessageSource().apply {
+                setBasename("i18n/emails")
+                setDefaultEncoding("UTF-8")
+                setFallbackToSystemLocale(false)
+            },
         )
 
     private fun latestMessage() = JsonMapper().readTree(get("/api/v1/message/latest"))
