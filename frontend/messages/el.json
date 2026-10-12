@@ -62,5 +62,32 @@
   "onboarding_check_field": "Ελέγξτε αυτό το πεδίο.",
   "onboarding_submit": "Δημιουργία εταιρείας",
   "onboarding_creating": "Δημιουργία…",
-  "onboarding_cancel": "Ακύρωση"
+  "onboarding_cancel": "Ακύρωση",
+
+  "error_not_found": "Αυτό δεν υπάρχει πια ή δεν έχετε πρόσβαση σε αυτό.",
+  "error_company_read_only": "Η εταιρεία είναι μόνο για ανάγνωση, οπότε δεν μπορεί να αλλάξει αυτή τη στιγμή.",
+  "error_company_suspended": "Αυτή η εταιρεία έχει ανασταλεί.",
+  "error_member_not_found": "Αυτό το άτομο δεν ανήκει πια στην εταιρεία.",
+  "error_not_allowed_owner": "Η πρόσβαση του ιδιοκτήτη δεν μπορεί να αλλάξει.",
+  "error_not_allowed_self": "Δεν μπορείτε να αλλάξετε τη δική σας πρόσβαση.",
+  "error_owner_cannot_leave": "Ο ιδιοκτήτης δεν μπορεί να αποχωρήσει από την εταιρεία.",
+
+  "role_owner": "Ιδιοκτήτης",
+  "role_admin": "Διαχειριστής",
+  "role_member": "Μέλος",
+  "role_viewer": "Μόνο προβολή",
+
+  "company_nav": "Εταιρεία",
+  "company_nav_overview": "Επισκόπηση",
+  "company_nav_team": "Ομάδα",
+
+  "team_title": "Ομάδα",
+  "team_you": "εσείς",
+  "team_since": "Από {date}",
+  "team_role_of": "Ρόλος για {email}",
+  "team_remove": "Αφαίρεση",
+  "team_remove_of": "Αφαίρεση {email}",
+  "team_remove_confirm": "Να αφαιρεθεί το {email} από την εταιρεία {company}; Η πρόσβαση χάνεται αμέσως.",
+  "team_leave": "Αποχώρηση από την εταιρεία",
+  "team_leave_confirm": "Να αποχωρήσετε από την εταιρεία {company}; Για να επιστρέψετε θα χρειαστείτε νέα πρόσκληση."
 }

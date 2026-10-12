@@ -1,6 +1,7 @@
 import type { Page, Route } from '@playwright/test';
 import type { Language, User } from '#lib/api/auth.ts';
 import type { Company, Country, UserCompany } from '#lib/api/companies.ts';
+import type { Member } from '#lib/api/members.ts';
 
 type Identity = Omit<User, 'companies'>;
 
@@ -45,7 +46,17 @@ export interface MockApiOptions {
   verify?: 'ok' | 'invalid' | 'suspended';
   /** The language TEST_USER's account has when signing in, unless already signed in as [user] */
   accountLanguage?: Language;
+  /** Other people in the user's companies, by company ID; the user is always listed with their own role */
+  people?: Record<string, Member[]>;
 }
+
+/** Someone else in a company, for the people option */
+export const person = (email: string, role: Member['role']): Member => ({
+  userId: `0${email.split('@')[0].toUpperCase().padEnd(12, 'X').slice(0, 12)}`,
+  email,
+  role,
+  since: '2026-01-15T10:00:00Z'
+});
 
 const problem = (status: number, detail: string, code?: string) => ({
   status,
@@ -61,8 +72,11 @@ const problem = (status: number, detail: string, code?: string) => ({
 export async function mockApi(
   page: Page,
   baseURL: string,
-  { user = null, companies = [], verify = 'ok', accountLanguage = 'EN' }: MockApiOptions = {}
+  { user = null, companies = [], verify = 'ok', accountLanguage = 'EN', people = {} }: MockApiOptions = {}
 ) {
+  const others: Record<string, Member[]> = Object.fromEntries(
+    Object.entries(people).map(([id, members]) => [id, [...members]])
+  );
   let currentUser = user;
   /** The body of every call to /api/auth/*, by path */
   const authCalls: Record<string, unknown[]> = {};
@@ -76,17 +90,55 @@ export async function mockApi(
     if (!currentUser) return route.fulfill(problem(401, 'Sign in to continue.'));
     const { query, variables } = route.request().postDataJSON() as {
       query: string;
-      variables?: { input?: { name: string; country: string }; language?: Language };
+      variables?: {
+        input?: { name: string; country: string };
+        language?: Language;
+        companyId?: string;
+        userId?: string;
+        role?: Member['role'];
+      };
     };
+    const access = userCompanies.find((c) => c.company.id === variables?.companyId);
 
     if (query.includes('CreateCompany')) return createCompany(route, variables!.input!);
     if (query.includes('SetLanguage')) {
       currentUser = { ...currentUser, language: variables!.language! };
       return route.fulfill({ json: { data: { setLanguage: { language: currentUser.language } } } });
     }
+    if (query.includes('Members')) {
+      if (!access) return graphqlError(route, 'not_found');
+      const me = { userId: currentUser.id, email: currentUser.email, role: access.role, since: '2026-01-01T10:00:00Z' };
+      const everyone = [me, ...(others[access.company.id] ?? [])];
+      // The owner first, then by email, like the backend
+      const owner = everyone.filter((p) => p.role === 'OWNER');
+      const rest = everyone.filter((p) => p.role !== 'OWNER').sort((a, b) => a.email.localeCompare(b.email));
+      return route.fulfill({ json: { data: { members: [...owner, ...rest] } } });
+    }
+    if (query.includes('ChangeMemberRole') || query.includes('RemoveMember')) {
+      if (!access) return graphqlError(route, 'not_found');
+      const list = others[access.company.id] ?? [];
+      const target = list.find((p) => p.userId === variables!.userId);
+      if (!target || target.role === 'OWNER') return graphqlError(route, 'member_not_found');
+      if (query.includes('RemoveMember')) {
+        list.splice(list.indexOf(target), 1);
+        return route.fulfill({ json: { data: { removeMember: true } } });
+      }
+      target.role = variables!.role!;
+      return route.fulfill({ json: { data: { changeMemberRole: target } } });
+    }
+    if (query.includes('LeaveCompany')) {
+      if (!access) return graphqlError(route, 'not_found');
+      if (access.role === 'OWNER') return graphqlError(route, 'not_allowed', 'owner_cannot_leave');
+      userCompanies.splice(userCompanies.indexOf(access), 1);
+      return route.fulfill({ json: { data: { leaveCompany: true } } });
+    }
     if (query.includes('Countries')) return route.fulfill({ json: { data: { countries: COUNTRIES } } });
     return route.fulfill({ json: { data: { me: { ...currentUser, companies: userCompanies } } } });
   });
+
+  function graphqlError(route: Route, code: string, reason?: string) {
+    return route.fulfill({ json: { data: null, errors: [{ message: code, extensions: { code, reason } }] } });
+  }
 
   function createCompany(route: Route, input: { name: string; country: string }) {
     const name = input.name.trim();
