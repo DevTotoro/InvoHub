@@ -42,8 +42,26 @@ class GreekRules : CountryRules {
                     company.countryDetails[MAIN_ACTIVITY] != null,
             ),
             // Connecting myDATA comes with e-invoicing; until then this step can't be completed
-            SetupStep("mydata", false),
+            SetupStep("mydata", done = false, available = false),
         )
+
+    /** The tax office (ΔΟΥ) as written, for now; later from AADE's registry. The main activity (ΚΑΔ) as its code */
+    override val countryDetailKeys = listOf(TAX_OFFICE, MAIN_ACTIVITY)
+
+    /** A ΚΑΔ is often written with dots (62.01.11.01): only its digits are kept */
+    override fun normalizeCountryDetail(
+        key: String,
+        raw: String,
+    ) = if (key == MAIN_ACTIVITY) raw.filter { it.isDigit() } else raw.trim()
+
+    override fun validateCountryDetail(
+        key: String,
+        value: String,
+    ): String? =
+        when {
+            key == MAIN_ACTIVITY && value.length !in 2..8 -> "invalid"
+            else -> super.validateCountryDetail(key, value)
+        }
 
     /** The first 8 digits weighted by 2^8 down to 2^1, then (sum mod 11) mod 10 */
     private fun checkDigit(taxId: String) =

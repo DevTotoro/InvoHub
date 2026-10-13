@@ -15,5 +15,8 @@ data class UnsupportedCountryRules(
 
     override fun validateTaxId(taxId: String) = if (taxId.isEmpty()) TaxIdProblem.EMPTY else null
 
-    override fun invoicingSetup(company: Company) = listOf(SetupStep("invoicing_not_available", false))
+    override fun invoicingSetup(company: Company) =
+        listOf(SetupStep("invoicing_not_available", done = false, available = false))
+
+    override val countryDetailKeys = emptyList<String>()
 }

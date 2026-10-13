@@ -22,6 +22,25 @@ interface CountryRules {
 
     /** What a company must complete before issuing its first invoice, in order */
     fun invoicingSetup(company: Company): List<SetupStep>
+
+    /** The country's own business details (stored in Company.countryDetails), in the order a form shows them */
+    val countryDetailKeys: List<String>
+
+    /** A country detail as typed, cleaned up */
+    fun normalizeCountryDetail(
+        key: String,
+        raw: String,
+    ): String = raw.trim()
+
+    /** What's wrong with a normalized country detail, as a stable reason (e.g. "invalid"), or null if it's valid */
+    fun validateCountryDetail(
+        key: String,
+        value: String,
+    ): String? = if (value.length > MAX_COUNTRY_DETAIL_LENGTH) "too_long" else null
+
+    companion object {
+        const val MAX_COUNTRY_DETAIL_LENGTH = 100
+    }
 }
 
 enum class TaxIdProblem {
@@ -30,8 +49,12 @@ enum class TaxIdProblem {
     WRONG_CHECK_DIGIT,
 }
 
-/** One item of the invoicing setup checklist. [key] is a stable identifier clients show a message for. */
+/**
+ * One item of the invoicing setup checklist. [key] is a stable identifier clients show a message for.
+ * [available] is false for steps that can't be done in InvoHub yet (e.g. connecting myDATA).
+ */
 data class SetupStep(
     val key: String,
     val done: Boolean,
+    val available: Boolean = true,
 )

@@ -71,6 +71,31 @@ class CompanyIsolationTest {
                 mutation(${'$'}id: ID!, ${'$'}inv: ID!) { revokeInvitation(companyId: ${'$'}id, invitationId: ${'$'}inv) }
                 """.trimIndent() to mapOf("id" to id, "inv" to TSID.fast().toString())
             },
+            "Query.companySettings" to { id ->
+                "query(${'$'}id: ID!) { companySettings(companyId: ${'$'}id) { taxId } }" to mapOf("id" to id)
+            },
+            "Mutation.updateCompanyProfile" to { id ->
+                """
+                mutation(${'$'}id: ID!) { updateCompanyProfile(companyId: ${'$'}id, input: { name: "X", country: "GR" }) { taxId } }
+                """.trimIndent() to mapOf("id" to id)
+            },
+            "Mutation.updateBusinessDetails" to { id ->
+                """
+                mutation(${'$'}id: ID!) { updateBusinessDetails(companyId: ${'$'}id, input: { legalName: "X" }) { taxId } }
+                """.trimIndent() to mapOf("id" to id)
+            },
+            "Mutation.addBankAccount" to { id ->
+                """
+                mutation(${'$'}id: ID!) {
+                    addBankAccount(companyId: ${'$'}id, input: { bankName: "X", iban: "GR1601101250000000012300695" }) { taxId }
+                }
+                """.trimIndent() to mapOf("id" to id)
+            },
+            "Mutation.removeBankAccount" to { id ->
+                """
+                mutation(${'$'}id: ID!, ${'$'}b: ID!) { removeBankAccount(companyId: ${'$'}id, bankAccountId: ${'$'}b) { taxId } }
+                """.trimIndent() to mapOf("id" to id, "b" to TSID.fast().toString())
+            },
         )
 
     @Autowired
