@@ -84,13 +84,21 @@ test('a link that no longer works offers to sign in, still going where it led', 
   await expect(page.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/login?redirectTo=%2Finvitations');
 });
 
-test('signed in already, the link is used right away', async ({ page, baseURL }) => {
+test('signed in already, a link just carries on where it leads, without being used', async ({ page, baseURL }) => {
   const api = await mockApi(page, baseURL!, { user: TEST_USER, companies: [ACME] });
 
   await page.goto(`/auth/verify?token=abc&redirectTo=${encodeURIComponent(`/c/${ACME.company.id}/members`)}`);
 
   await expect(page).toHaveURL(`/c/${ACME.company.id}/members`);
-  expect(api.authCalls('/api/auth/verify')).toHaveLength(1);
+  expect(api.authCalls('/api/auth/verify')).toHaveLength(0);
+});
+
+test('signed in already, a link without a destination goes home', async ({ page, baseURL }) => {
+  await mockApi(page, baseURL!, { user: TEST_USER, companies: [ACME] });
+
+  await page.goto('/auth/verify?token=used-long-ago');
+
+  await expect(page).toHaveURL(`/c/${ACME.company.id}`);
 });
 
 test('a link pointing off the site goes home instead', async ({ page, baseURL }) => {

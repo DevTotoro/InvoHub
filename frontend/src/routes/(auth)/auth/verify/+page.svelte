@@ -17,15 +17,12 @@
 
   // Read once: the address bar is cleared right away, but the token stays here until the user continues
   // svelte-ignore state_referenced_locally
-  const { token, redirectTo, signedIn } = data;
+  const { token, redirectTo } = data;
 
   let status: Status = $state(token ? 'ready' : 'invalid');
 
-  onMount(() => {
-    // Keep the token out of the address bar and history
-    replaceState(resolve('/(auth)/auth/verify'), {});
-    if (signedIn) signIn();
-  });
+  // Keep the token out of the address bar and history
+  onMount(() => replaceState(resolve('/(auth)/auth/verify'), {}));
 
   // Signing in waits for a click: email scanners open links (some even run scripts) before the user does,
   // and must not use up the single-use token. None of them press buttons.
