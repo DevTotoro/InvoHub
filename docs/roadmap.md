@@ -18,7 +18,7 @@ What's planned, what's decided, and what must happen before the first deployment
 | Create and edit invoices, customers, … | ✓ | ✓ | ✓ | |
 | Company settings | ✓ | ✓ | | |
 | Invite, remove, change roles | ✓ | ✓ (never the owner) | | |
-| Transfer ownership, delete the company, billing | ✓ | | | |
+| Transfer ownership, close the company, billing | ✓ | | | |
 
 - Exactly one owner per company, stored on the company (`owner_user_id`). Anyone can create a company and becomes its owner.
 - Removing someone deletes their membership; the user remains, so their past work keeps their name. The history lives in the audit log.
@@ -58,10 +58,17 @@ While steps of the invoicing setup checklist that can be done are left, the owne
 - Invoice PDFs are made on the server, which reads the logo from S3 directly.
 - The old logo, or a checked upload, is only deleted once the change is saved, so a failed save never leaves the company pointing at a missing file.
 
+**Ownership transfer** (built). The owner offers ownership to someone already in the company, who accepts or declines; ownership carries billing and closing, so nobody gets it without saying yes. They get an email and see it on their Invitations page; it stays open 7 days, one at a time, and the owner can cancel it. It is cancelled if the person leaves or is removed. Once accepted, the old owner stays on as an admin. Possible while the company is read-only (it can be handed to someone who'll pay) or closed, not while suspended.
+
+**Closing, not deleting** (built). The owner closes a company; nothing is deleted. It becomes read-only for everyone in it, who can still look at and export everything, and its open invitations are revoked. It moves under "Closed" in the company switcher, and `/` prefers a company in use. The owner can reopen it at any time.
+- How long a business keeps its records is its own decision (and its legal duty: in Greece at least 5 years from the end of the tax year, longer in some cases; to confirm with an accountant). Under GDPR the business is the controller of its invoices and customers, InvoHub the processor, so InvoHub never deletes a company's data on its own schedule.
+- Permanent deletion will be the owner's choice, of a closed company, with a clear warning about keeping records, once there are invoices to warn about (see Later). The terms of service say this (see Before the first deployment).
+
 **Customers belong to a company**, not shared between companies. Invoices store the customer's details as they were when issued.
 
 **Statuses:**
 - Company (`companies.status`, built): *Active*, *Read-only* (unpaid, after a grace period: can still view and export, and the owner can pay), *Suspended* (fraud or abuse, decided by InvoHub: nobody can use it, not even the owner). Unpaid companies are never fully blocked.
+- Company *closed* (`companies.closed_at`, built): the owner's choice, kept apart from the status, which only InvoHub sets. Read-only like an unpaid company; suspension still wins.
 - User *suspended*: InvoHub staff only, applies everywhere (`UserService.suspendUser`).
 
 **Database: Amazon Aurora PostgreSQL Serverless v2**, signing in with IAM. Real PostgreSQL, so production behaves like the `postgres:18` tests (if Serverless v2 doesn't offer 18 when the cluster is created, pin Docker and Testcontainers to the version it does). Capacity scales within a set range of ACUs and can pause when idle. Aurora DSQL was considered and dropped: no triggers, PL/pgSQL or extensions, retries on every write, a 3,000-row transaction limit, and no local equivalent.
@@ -77,7 +84,8 @@ Events to record (the `user.*` ones are recorded already):
 | | |
 |---|---|
 | Users | `user.created`, `user.signed_in`, `user.signed_out`, `user.sign_in_refused`, `user.suspended`, `user.unsuspended` |
-| Companies | `company.created`, `company.updated` (before/after), `company.status_changed`, `company.ownership_transferred` |
+| Companies | `company.created`, `company.updated` (before/after), `company.status_changed`, `company.closed`, `company.reopened`, `company.ownership_transferred` |
+| Ownership offers | `ownership.offered`, `ownership.cancelled`, `ownership.declined` |
 | Members | `member.added`, `member.role_changed`, `member.removed`, `member.left` |
 | Invitations | `invitation.sent`, `invitation.revoked`, `invitation.accepted`, `invitation.declined`, and `member.added` on joining |
 | Later | `invoice.issued`, `invoice.voided`, `credit_note.issued`, `export.downloaded` |
@@ -92,10 +100,9 @@ Reads and page views are not recorded.
 
 ## Next up
 
-Built so far: companies and roles, translations, permission checks, members, invitations, UI polish (the account menu, our own confirmation dialog, consistent selects), and company settings. Every new page and email is written in both languages, and every company-scoped operation goes through the permission checks.
+Built so far: companies and roles, translations, permission checks, members, invitations, UI polish (the account menu, our own confirmation dialog, consistent selects), company settings, ownership transfer and closing. Every new page and email is written in both languages, and every company-scoped operation goes through the permission checks.
 
-1. **Ownership transfer and company deletion.**
-2. **myDATA connection and AADE registry lookup.**
+1. **myDATA connection and AADE registry lookup.**
    - myDATA: the company enters its own myDATA user ID and key, stored encrypted; InvoHub checks them against AADE, which completes the checklist's last step.
    - Registry: fill in a Greek company's legal name, trade name, address, tax office and activities from its ΑΦΜ through AADE's RgWsPublic2 service (SOAP, WS-Security username/password). Needs AADE access codes: InvoHub's own, which need an ΑΦΜ of its own, or optionally the company's. Fall back to manual entry when AADE doesn't answer.
 
@@ -106,6 +113,8 @@ Built so far: companies and roles, translations, permission checks, members, inv
 - **Activity page** for owners and admins; a "your sign-in history" page for users.
 - **InvoHub staff tool:** suspend users, change company status.
 - **Billing:** billing profiles, where one payer covers several companies with one bill (`companies.billing_profile_id`); unpaid leads to a grace period, then read-only.
+- **Permanently deleting a closed company**, by its owner only: warns that they may have to keep their records, asks for the company's name, then removes its data from Postgres and S3 (the audit log keeps its history).
+- **Archive storage** for closed companies' data, if the database ever needs it (a cost saving only; reopening would bring it back first).
 - **Invoices:** the invoicing setup checklist screens and the block on issuing until it is complete; numbering per company, immutable once issued, corrections through credit notes. Rules depend on the country (required fields, numbering, tamper-evidence, mandatory e-invoicing). For **Greece**, check the current rules when designing this:
   - the issuer's tax office (ΔΟΥ) and main activity on invoices (both already part of the company's details)
   - reporting every invoice to AADE's myDATA
@@ -141,4 +150,5 @@ Built so far: companies and roles, translations, permission checks, members, inv
   - CloudFront in front of `logos/` only, reading through Origin Access Control, on its own domain (not the app's), with a response headers policy sending `X-Content-Type-Options: nosniff`;
   - if the frontend gets a Content-Security-Policy, allow the bucket for uploads (`connect-src`) and CloudFront for images (`img-src`);
   - environment: `INVOHUB_STORAGE_BUCKET`, `INVOHUB_STORAGE_PUBLIC_URL` (the CloudFront domain, e.g. `https://files.invohub.app`), and `INVOHUB_STORAGE_REGION` if not `eu-central-1`. No keys: the default AWS credentials are used.
+- Terms of service, privacy policy and data processing agreement, checked by a lawyer: InvoHub keeps a closed company's data until its owner deletes it, and processes companies' invoices and customers on their behalf.
 - From then on, schema changes go into new Flyway migrations instead of editing `V1__initial_setup.sql`.
