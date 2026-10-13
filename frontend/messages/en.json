@@ -122,5 +122,9 @@
   "error_invitation_not_found": "This invitation is no longer open.",
 
   "invite_recipient_daily_limit": "{email} can't be invited again today.",
-  "error_email_delivery_failed_invite": "The invitation couldn't be sent. Try again."
+  "error_email_delivery_failed_invite": "The invitation couldn't be sent. Try again.",
+
+  "confirm_cancel": "Cancel",
+  "user_menu": "Account",
+  "header_invitations_none": "Invitations"
 }

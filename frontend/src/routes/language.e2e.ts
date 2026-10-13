@@ -71,6 +71,7 @@ test('signed in, picking a language saves it on the account', async ({ page, bas
 
   await expect(page.getByRole('heading', { level: 2 })).toHaveText(`Καλώς ήρθατε, ${TEST_USER.email}`);
   expect(api.language()).toBe('EL');
+  await page.getByRole('button', { name: 'Λογαριασμός' }).click();
   await expect(page.getByRole('button', { name: 'Αποσύνδεση' })).toBeVisible();
 });
 

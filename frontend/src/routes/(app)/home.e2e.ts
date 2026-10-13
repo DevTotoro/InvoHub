@@ -27,10 +27,11 @@ test('a user with companies lands on one and can sign out', async ({ page, baseU
   await expect(page).toHaveURL(`/c/${ACME.company.id}`);
   await expect(page.getByRole('heading', { level: 2 })).toHaveText(`Welcome, ${TEST_USER.email}`);
 
+  await page.getByRole('button', { name: 'Account' }).click();
   await page.getByRole('button', { name: 'Sign out' }).click();
 
   await expect(page).toHaveURL('/login');
-  await expect(page.getByRole('button', { name: 'Sign out' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Account' })).toHaveCount(0);
 });
 
 test('/ returns to the company used last', async ({ page, baseURL }) => {
@@ -52,7 +53,7 @@ test('a user suspended while signed in is signed out', async ({ page, baseURL })
   await page.reload();
 
   await expect(page).toHaveURL(`/login?redirectTo=${encodeURIComponent(`/c/${ACME.company.id}`)}`);
-  await expect(page.getByRole('button', { name: 'Sign out' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Account' })).toHaveCount(0);
 });
 
 test('an unreachable API shows an error rather than the login page', async ({ page }) => {

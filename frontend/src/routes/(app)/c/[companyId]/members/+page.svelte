@@ -6,7 +6,9 @@
   import { canManageMembers, roleName } from '#lib/company/permissions.ts';
   import { revokeInvitation, type Invitation } from '#lib/api/invitations.ts';
   import InviteForm from '#lib/components/InviteForm.svelte';
+  import { confirmAction } from '#lib/components/confirm.svelte.ts';
   import Button from '#lib/components/ui/Button.svelte';
+  import NativeSelect from '#lib/components/ui/NativeSelect.svelte';
   import { formatDate } from '#lib/format/intl.ts';
   import { errorMessage } from '#lib/i18n/errors.ts';
   import { m } from '#lib/paraglide/messages.js';
@@ -15,6 +17,7 @@
   let { data }: PageProps = $props();
 
   const canManage = $derived(canManageMembers(data.role, data.company));
+  const roleOptions = ASSIGNABLE_ROLES.map((role) => ({ value: role, label: roleName(role) }));
   /** Where the user can invite to: the companies they manage, this one first */
   const invitable = $derived(
     data.user.companies
@@ -49,24 +52,30 @@
     });
   }
 
-  function remove(member: Member) {
-    if (!confirm(m.team_remove_confirm({ email: member.email, company: data.company.name }))) return;
+  async function remove(member: Member) {
+    if (
+      !(await confirmAction(
+        m.team_remove_confirm({ email: member.email, company: data.company.name }),
+        m.team_remove()
+      ))
+    )
+      return;
     return run(member.userId, async () => {
       await removeMember(data.company.id, member.userId);
       await invalidate('app:members');
     });
   }
 
-  function revoke(invitation: Invitation) {
-    if (!confirm(m.team_revoke_confirm({ email: invitation.email }))) return;
+  async function revoke(invitation: Invitation) {
+    if (!(await confirmAction(m.team_revoke_confirm({ email: invitation.email }), m.team_revoke()))) return;
     return run(invitation.id, async () => {
       await revokeInvitation(data.company.id, invitation.id);
       await invalidate('app:members');
     });
   }
 
-  function leave() {
-    if (!confirm(m.team_leave_confirm({ company: data.company.name }))) return;
+  async function leave() {
+    if (!(await confirmAction(m.team_leave_confirm({ company: data.company.name }), m.team_leave()))) return;
     return run('leave', async () => {
       await leaveCompany(data.company.id);
       // The user's companies have changed; / opens another one, or onboarding
@@ -99,17 +108,14 @@
 
         <div class="flex items-center gap-2">
           {#if manageable(member)}
-            <select
+            <NativeSelect
               aria-label={m.team_role_of({ email: member.email })}
               value={member.role}
+              options={roleOptions}
               disabled={busy === member.userId}
               onchange={(e) => changeRole(member, e.currentTarget.value as CompanyRole)}
-              class="border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900 focus:border-taupe-500 focus:ring-2 focus:ring-taupe-500/20 focus:outline-none disabled:opacity-60"
-            >
-              {#each ASSIGNABLE_ROLES as role (role)}
-                <option value={role}>{roleName(role)}</option>
-              {/each}
-            </select>
+              class="w-40"
+            />
             <Button
               variant="ghost"
               aria-label={m.team_remove_of({ email: member.email })}

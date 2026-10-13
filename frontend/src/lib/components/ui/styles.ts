@@ -1,5 +1,5 @@
 /** Visual styles shared by Button and Link, so a link styled as a button looks exactly like one. */
-export type Variant = 'primary' | 'secondary' | 'ghost' | 'link' | 'icon';
+export type Variant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'link' | 'icon';
 
 const base =
   'inline-flex items-center justify-center gap-2 text-sm font-medium transition-colors ' +
@@ -9,6 +9,8 @@ const base =
 const variants: Record<Variant, string> = {
   primary: 'bg-taupe-600 px-4 py-2 text-white hover:bg-taupe-500',
   secondary: 'border border-gray-300 bg-white px-4 py-2 text-gray-900 hover:bg-gray-50',
+  // For actions that remove or end something, e.g. confirming a removal
+  danger: 'bg-red-600 px-4 py-2 text-white hover:bg-red-500',
   ghost: 'px-3 py-2 text-gray-700 hover:bg-gray-100 hover:text-gray-900',
   link: 'text-taupe-600 hover:text-taupe-500 hover:underline',
   // Low-key icon actions: muted until hovered; the padding enlarges the click target, not the icon

@@ -122,5 +122,9 @@
   "error_invitation_not_found": "Αυτή η πρόσκληση δεν είναι πια ανοιχτή.",
 
   "invite_recipient_daily_limit": "Το {email} δεν μπορεί να προσκληθεί ξανά σήμερα.",
-  "error_email_delivery_failed_invite": "Η πρόσκληση δεν στάλθηκε. Δοκιμάστε ξανά."
+  "error_email_delivery_failed_invite": "Η πρόσκληση δεν στάλθηκε. Δοκιμάστε ξανά.",
+
+  "confirm_cancel": "Ακύρωση",
+  "user_menu": "Λογαριασμός",
+  "header_invitations_none": "Προσκλήσεις"
 }

@@ -31,7 +31,7 @@
 
 <!--
   The select is see-through and laid over its own label, so it opens the browser's native list (and works with
-  screen readers and the keyboard), while the label can be shorter than an option on small screens.
+  screen readers and the keyboard), while the label shows just the short code (EN, ΕΛ) and the list the full names.
 -->
 <div
   class={[
@@ -42,8 +42,7 @@
   ]}
 >
   <span aria-hidden="true">
-    <span class="sm:hidden">{selected.short}</span>
-    <span class="hidden sm:inline">{selected.name}</span>
+    {selected.short}
   </span>
   <svg class="size-4 shrink-0 text-gray-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
     <path

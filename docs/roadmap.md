@@ -49,13 +49,13 @@ What's planned, what's decided, and what must happen before the first deployment
 - Company (`companies.status`, built): *Active*, *Read-only* (unpaid, after a grace period: can still view and export, and the owner can pay), *Suspended* (fraud or abuse, decided by InvoHub: nobody can use it, not even the owner). Unpaid companies are never fully blocked.
 - User *suspended*: InvoHub staff only, applies everywhere (`UserService.suspendUser`).
 
-**Database: Amazon Aurora DSQL**, not classic PostgreSQL. Locally and in tests we run `postgres:18`, so code must stay within what both support. DSQL has no advisory locks, triggers, PL/pgSQL, savepoints, temporary tables or table partitioning; it uses optimistic concurrency (conflicting transactions fail at commit with SQLSTATE 40001 and must be retried); a transaction holds at most one DDL statement and can't mix DDL with data changes; indexes are built with `CREATE INDEX ASYNC`; logins use IAM tokens. Prefer conflict-based claims over locks, like `InvitationNotifier`. Making the existing schema and setup DSQL-ready is step 1 below.
+**Database: Amazon Aurora PostgreSQL Serverless v2**, signing in with IAM. Real PostgreSQL, so production behaves like the `postgres:18` tests (if Serverless v2 doesn't offer 18 when the cluster is created, pin Docker and Testcontainers to the version it does). Capacity scales within a set range of ACUs and can pause when idle. Aurora DSQL was considered and dropped: no triggers, PL/pgSQL or extensions, retries on every write, a 3,000-row transaction limit, and no local equivalent.
 
-**Audit log** (built: `AuditLog`, table `audit.events`). Events are written in the same transaction as the change they describe (`AuditLog.record`; `recordStandalone` for events that belong to no other change, like sign-ins). The app's database login may only insert and read there, and a trigger refuses changes from every login (on DSQL, which has no triggers, only the grants remain; see step 1). Recent months stay in Postgres for the activity page; the permanent copy goes to S3 with Object Lock (see the archive job below).
+**Audit log** (built: `AuditLog`, table `audit.events`). Events are written in the same transaction as the change they describe (`AuditLog.record`; `recordStandalone` for events that belong to no other change, like sign-ins). The app's database login may only insert and read there, and a trigger refuses changes from every login, migrations included. Recent months stay in Postgres for the activity page; the permanent copy goes to S3 with Object Lock (see the archive job below).
 
 **Public IDs outside the app.** Internal (numeric) IDs are only used inside the app and in Postgres. Everything stored or shown elsewhere uses public IDs: URLs and the API, Redis keys, the session, logs, exports.
 
-**Two database logins.** Migrations run as the schema owner (`spring.flyway.user`); the app connects with its own login (`spring.datasource.username`), which can read and write data but never change the schema. Grants are in `V1__initial_setup.sql`. On DSQL: the `admin` role runs migrations, the app's role is mapped to its IAM role (`AWS IAM GRANT`), and both sign in with IAM tokens.
+**Two database logins.** Migrations run as the schema owner (`spring.flyway.user`); the app connects with its own login (`spring.datasource.username`), which can read and write data but never change the schema. Grants are in `V1__initial_setup.sql`. In production both sign in with IAM (their database roles are granted `rds_iam`) through AWS's Advanced JDBC Wrapper; the master password, managed by RDS in Secrets Manager, is for emergencies only.
 
 Events to record (the `user.*` ones are recorded already):
 
@@ -77,28 +77,16 @@ Reads and page views are not recorded.
 
 ## Next up
 
-Built so far: companies and roles, translations, permission checks, members, and invitations. Every new page and email is written in both languages, and every company-scoped operation goes through the permission checks.
+Built so far: companies and roles, translations, permission checks, members, invitations, and UI polish (the account menu, our own confirmation dialog, consistent selects). Every new page and email is written in both languages, and every company-scoped operation goes through the permission checks.
 
-1. **Aurora DSQL readiness.** Make what's built run on DSQL, before more is built on it:
-   - Migrations: one DDL statement per transaction and no DDL mixed with data (Flyway's DSQL dialect, or `executeInTransaction=false`); confirm how that dialect handles Flyway's own lock, which on Postgres is an advisory lock. `CREATE INDEX ASYNC` on DSQL but plain `CREATE INDEX` on local Postgres, e.g. through a Flyway placeholder, waiting for each index before it's used.
-   - Audit log immutability without the trigger: the app's role gets only `SELECT, INSERT` on `audit.events`; nobody else writes there; the S3 Object Lock archive is the tamper-proof copy.
-   - IAM authentication with the AWS Aurora DSQL JDBC connector, for the app's role and for migrations as `admin`; replaces the passwords and `create-app-login.sh` in production.
-   - Retry on serialization conflicts (SQLSTATE 40001): every write transaction can fail at commit. One central retry for the GraphQL and REST entry points, with idempotent operations.
-   - The connection pool recycles connections well before DSQL's 1-hour limit.
-   - Grants without `ALTER DEFAULT PRIVILEGES` if DSQL refuses it: grant per table in the migrations.
-   - A CI job (or a pre-deploy check) that runs the migrations and the integration tests against a real DSQL cluster: `postgres:18` can't catch DSQL differences.
-2. **UI polish** (`feat/ui-polish`):
-   - A user menu on the right of the header: a round button with the user's initial (and a dot with the count while invitations are open) opening the email, Invitations (n), the language and Sign out (set apart, in a muted red). Signed out, the header keeps the standalone language picker
-   - On phones, the company switcher on a row of its own if the header is still tight
-   - Our own confirmation dialog (on the native `<dialog>`, styled like the app, red for destructive actions) instead of the browser's `confirm()`
-   - Selects: our own chevron and spacing for every closed select, like the language picker. Possibly a custom list (Bits UI) for the short role selects; the country list stays native
-3. **Company settings.** Admins edit the company's details (including the tax ID, legal name, address and country details from the checklist), bank details and logo; anyone can create more companies.
-4. **Ownership transfer and company deletion.**
+1. **Company settings.** Admins edit the company's details (including the tax ID, legal name, address and country details from the checklist), bank details and logo; anyone can create more companies.
+2. **Ownership transfer and company deletion.**
 
 ## Later
 
-- **Audit archive job** (separate PR; design below), with an index on `occurred_at` for its by-time lookups (the existing indexes are by company, actor and target). DSQL has no table partitioning, so old months are deleted in batches: a transaction changes at most 3,000 rows.
+- **Audit archive job** (separate PR; design below) and monthly partitioning of the audit table, which also gives the job its by-time lookups (the existing indexes are by company, actor and target).
 - **AADE registry lookup:** fill in a Greek company's legal name, trade name, address, tax office and activities from its ΑΦΜ through AADE's RgWsPublic2 service (SOAP, WS-Security username/password). Needs AADE access codes: InvoHub's own, which need an ΑΦΜ of its own, or optionally the company's. Fall back to manual entry when AADE doesn't answer.
+- **User names** (first and last, optional): shown on the account button instead of the email, and on the Team page next to each email.
 - **Activity page** for owners and admins; a "your sign-in history" page for users.
 - **InvoHub staff tool:** suspend users, change company status.
 - **Billing:** billing profiles, where one payer covers several companies with one bill (`companies.billing_profile_id`); unpaid leads to a grace period, then read-only.
@@ -117,16 +105,16 @@ Built so far: companies and roles, translations, permission checks, members, and
 - Each window becomes one S3 object with a fixed name (`audit/YYYY/MM/DD/HH.jsonl.gz`), uploaded with "create only if absent", in a bucket with Object Lock in compliance mode.
 - Progress is recorded in `audit.export_windows`: window, object key, event count, checksum. Each run exports the oldest finished window without a row, so the job resumes by itself.
 - Crash after upload but before the row: the next run finds the object, checks its checksum, and records the row. Retry with backoff; stop at the first failing window, never skip one.
-- Only one runner at a time: a claim row it updates before each window (conflicting claims fail, as in `InvitationNotifier`), or a standalone scheduled task. Not an advisory lock: DSQL has none.
+- Only one runner at a time: a Postgres advisory lock, or a standalone scheduled task.
 - Alarm when the oldest unexported window is more than a few hours old.
 - Removing months from Postgres is a separate step: only when every hour is exported, counts match a recount, and the month is older than the activity page's window (about 12 months). Otherwise, alert.
 
 ## Before the first deployment
 
 - Serve the frontend and `/api` from the same site (e.g. route `/api` at the CDN or on Vercel); HTTPS only, the session cookie is `Secure`.
-- Aurora DSQL readiness (step 1 of Next up) is done.
-- Create the app's database role in the DSQL cluster and map it to the app's IAM role (`AWS IAM GRANT`), with no rights of its own (the migrations grant them). Locally `backend/docker/postgres-init/create-app-login.sh` does the equivalent.
-- Environment: `SPRING_PROFILES_ACTIVE=prod`, `INVOHUB_AUTH_FRONTEND_URL` (required), `SPRING_DATASOURCE_URL` and `SPRING_DATASOURCE_USERNAME` for the app's DSQL role and `SPRING_FLYWAY_USER` for `admin` (passwords come from IAM tokens), `SPRING_DATA_REDIS_*` with `SPRING_DATA_REDIS_SSL_ENABLED=true` (ElastiCache Serverless requires TLS), `SPRING_MAIL_*`, `INVOHUB_MAIL_FROM`.
+- The Aurora PostgreSQL Serverless v2 cluster, with IAM authentication enabled: the app's database role and the migration (schema owner) role are granted `rds_iam`, the app's with no rights of its own (the migrations grant them; locally `backend/docker/postgres-init/create-app-login.sh` does the equivalent). The app and Flyway connect through AWS's Advanced JDBC Wrapper with its IAM plugin, tried once on staging since it can't be locally.
+- Monitoring: Performance Insights, CloudWatch alarms (CPU, capacity, connections, latency) and a slow-query log. A load test against staging decides the capacity range.
+- Environment: `SPRING_PROFILES_ACTIVE=prod`, `INVOHUB_AUTH_FRONTEND_URL` (required), `SPRING_DATASOURCE_URL` (an `aws-wrapper` URL with the IAM plugin) and `SPRING_DATASOURCE_USERNAME` for the app's role, `SPRING_FLYWAY_USER` for the schema owner (no passwords: IAM tokens), `SPRING_DATA_REDIS_*` with `SPRING_DATA_REDIS_SSL_ENABLED=true` (ElastiCache Serverless requires TLS), `SPRING_MAIL_*`, `INVOHUB_MAIL_FROM`.
 - Run once against a real ElastiCache Serverless cache: its sharding can't be reproduced locally.
 - Per-IP rate limiting at the CDN.
 - Email sending (e.g. Amazon SES): handle bounces and complaints, stop sending to addresses that bounce or complain, and alert on a rising complaint rate. Invitation emails go to addresses other users type in, so they are the ones to watch.

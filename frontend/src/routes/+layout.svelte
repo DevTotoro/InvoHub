@@ -5,6 +5,7 @@
 
   import type { LayoutProps } from './$types';
 
+  import ConfirmDialog from '#lib/components/ConfirmDialog.svelte';
   import Header from '#lib/components/Header.svelte';
   import { getLocale } from '#lib/paraglide/runtime.js';
 
@@ -20,3 +21,4 @@
 
 <Header />
 {@render children()}
+<ConfirmDialog />
