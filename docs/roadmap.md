@@ -47,11 +47,16 @@ What's planned, what's decided, and what must happen before the first deployment
 - Company: name and country. Moving the country clears the tax ID and the country's own details, after asking; the currency follows the country.
 - Business details: legal name, address, tax ID and the country's own details, checked by the country's rules.
 - Bank accounts: up to 10, each a bank name and an IBAN (check digits verified, unique within the company).
-- Logo, optional: PNG, JPEG or WebP (recognized by the file's contents; SVG is refused, as it can carry scripts), up to 1 MB. Served by the API behind the session, at a URL that changes with each new logo, so it can be cached.
+- Logo, optional: PNG, JPEG or WebP (recognized by the file's contents; SVG is refused, as it can carry scripts), up to 1 MB. Public, as it's printed on every invoice (see Files in S3).
 
 While steps of the invoicing setup checklist that can be done are left, the owner and admins see the checklist on Overview and a dot on the Settings tab; each section says whether it's done, needed or optional. Every change is recorded as `company.updated` with each changed field before and after.
 
-**Files in S3.** Logos now, and later invoice PDFs. Locally and in tests, an S3-compatible server in Docker: [Silo](https://github.com/pgsty/silo), a MinIO fork. It only runs alongside the app, so its AGPL licence doesn't reach InvoHub's code. In production, a private bucket the app reaches with its IAM role.
+**Files in S3.** Logos now, and later invoice PDFs, attachments and exports. Locally and in tests, an S3-compatible server in Docker: [Silo](https://github.com/pgsty/silo), a MinIO fork. It only runs alongside the app, so its AGPL licence doesn't reach InvoHub's code. In production, a private bucket the app reaches with its IAM role.
+- Uploads go from the browser straight to the bucket, never through the app. The app signs a URL for one file under `pending/`: one key, one content type and one exact size, for 5 minutes, and S3 refuses anything else. The browser then names the upload, and the app checks what arrived (the real size, and the file's first bytes against the type) before using it; a file that fails is deleted. The key is built from the company, so nobody can name another company's upload. Unused uploads under `pending/` expire after a day.
+- Public files (logos) are served by CloudFront from `logos/`, the only part it may read. Each logo has its own key, so it is cached for good (`immutable`) and a new logo is simply a new URL: nothing is ever invalidated. A removed logo stays in CloudFront's cache until it expires, unlinked; one that must go at once is invalidated by hand. Being on another domain than the app also means an uploaded file can never run as part of InvoHub.
+- Private files (later: attachments, exports) are never public: the app checks access, then hands out a short-lived signed URL to download.
+- Invoice PDFs are made on the server, which reads the logo from S3 directly.
+- The old logo, or a checked upload, is only deleted once the change is saved, so a failed save never leaves the company pointing at a missing file.
 
 **Customers belong to a company**, not shared between companies. Invoices store the customer's details as they were when issued.
 
@@ -130,5 +135,10 @@ Built so far: companies and roles, translations, permission checks, members, inv
 - Per-IP rate limiting at the CDN.
 - Email sending (e.g. Amazon SES): handle bounces and complaints, stop sending to addresses that bounce or complain, and alert on a rising complaint rate. Invitation emails go to addresses other users type in, so they are the ones to watch.
 - The S3 bucket with Object Lock, and the audit archive job.
-- The S3 bucket for files (logos): private, encrypted, with the app's IAM role allowed only to read, write and delete objects in it. Set `INVOHUB_STORAGE_BUCKET` (and `INVOHUB_STORAGE_REGION` if not `eu-central-1`); no keys, the default AWS credentials are used.
+- The S3 bucket for files: private (Block Public Access on), encrypted, with the app's IAM role allowed only to read, write, copy and delete objects in it. Also:
+  - a lifecycle rule expiring `pending/` after a day (locally the app sets it up itself);
+  - CORS allowing `PUT` from the frontend's origin, with the `Content-Type` header;
+  - CloudFront in front of `logos/` only, reading through Origin Access Control, on its own domain (not the app's), with a response headers policy sending `X-Content-Type-Options: nosniff`;
+  - if the frontend gets a Content-Security-Policy, allow the bucket for uploads (`connect-src`) and CloudFront for images (`img-src`);
+  - environment: `INVOHUB_STORAGE_BUCKET`, `INVOHUB_STORAGE_PUBLIC_URL` (the CloudFront domain, e.g. `https://files.invohub.app`), and `INVOHUB_STORAGE_REGION` if not `eu-central-1`. No keys: the default AWS credentials are used.
 - From then on, schema changes go into new Flyway migrations instead of editing `V1__initial_setup.sql`.
