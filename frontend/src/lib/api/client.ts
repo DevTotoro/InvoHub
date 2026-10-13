@@ -9,8 +9,6 @@ export type Fetch = typeof fetch;
 export interface RequestOptions extends Omit<RequestInit, 'body'> {
   /** Request body, sent as JSON */
   json?: unknown;
-  /** Request body, sent as multipart form data, e.g. a file upload */
-  form?: FormData;
   /** Pass SvelteKit's `fetch` when calling from a load function */
   fetch?: Fetch;
   /** Set to false for calls that handle a lost session themselves, so the onSessionLost handler stays quiet */
@@ -57,7 +55,7 @@ export class ApiError extends Error {
  * backend issues as a readable cookie and expects back in a header.
  */
 export async function request<T = unknown>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { json, form, fetch: fetchFn = globalThis.fetch, notifySessionLost = true, ...init } = options;
+  const { json, fetch: fetchFn = globalThis.fetch, notifySessionLost = true, ...init } = options;
 
   const headers = new Headers(init.headers);
   if (json !== undefined) {
@@ -72,7 +70,7 @@ export async function request<T = unknown>(path: string, options: RequestOptions
     response = await fetchFn(path, {
       ...init,
       headers,
-      body: json === undefined ? form : JSON.stringify(json),
+      body: json === undefined ? undefined : JSON.stringify(json),
       credentials: 'same-origin'
     });
   } catch (cause) {

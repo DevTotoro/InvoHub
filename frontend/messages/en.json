@@ -182,5 +182,6 @@
   "setup_step_mydata": "myDATA connection",
   "setup_continue": "Go to settings",
   "error_bank_account_not_found": "This bank account no longer exists.",
-  "error_too_many_bank_accounts": "You can add up to 10 bank accounts."
+  "error_too_many_bank_accounts": "You can add up to 10 bank accounts.",
+  "settings_logo_upload_failed": "The upload didn't go through. Try again."
 }

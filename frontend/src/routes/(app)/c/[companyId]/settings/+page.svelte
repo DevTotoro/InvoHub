@@ -37,7 +37,8 @@
     'iban.duplicate': m.settings_iban_duplicate,
     'logo.too_large': m.settings_logo_too_large,
     'logo.unsupported_type': m.settings_logo_unsupported,
-    'logo.empty': m.settings_logo_empty
+    'logo.empty': m.settings_logo_empty,
+    'logo.upload_missing': m.settings_logo_upload_failed
   };
   const COUNTRY_DETAIL_LABELS: Record<string, () => string> = {
     taxOffice: m.settings_tax_office,

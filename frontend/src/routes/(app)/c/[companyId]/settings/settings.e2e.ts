@@ -109,9 +109,16 @@ test('a logo is uploaded, refused when not an image, and removed', async ({ page
     .getByLabel('Upload logo')
     .setInputFiles({ name: 'logo.svg', mimeType: 'image/svg+xml', buffer: Buffer.from('<svg/>') });
   await expect(logo.getByRole('alert')).toHaveText('Use a PNG, JPEG or WebP image.');
+  // Claiming to be a PNG isn't enough: what was uploaded is checked
+  await logo
+    .getByLabel('Upload logo')
+    .setInputFiles({ name: 'fake.png', mimeType: 'image/png', buffer: Buffer.from('<svg/>') });
+  await expect(logo.getByRole('alert')).toHaveText('Use a PNG, JPEG or WebP image.');
 
   await logo.getByLabel('Upload logo').setInputFiles({ name: 'logo.png', mimeType: 'image/png', buffer: LOGO_PNG });
-  await expect(logo.getByRole('img', { name: 'Acme logo' })).toBeVisible();
+  // Loaded from storage, not from InvoHub
+  await expect(logo.getByRole('img', { name: 'Acme logo' })).toHaveAttribute('src', /\/mock-storage\/logos\//);
+  await expect(logo.getByRole('img', { name: 'Acme logo' })).toHaveJSProperty('naturalWidth', 1);
   await expect(logo.getByRole('alert')).toHaveCount(0);
 
   await logo.getByLabel('Replace logo').setInputFiles({

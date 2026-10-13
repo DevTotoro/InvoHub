@@ -1,4 +1,4 @@
-import { request, type Fetch } from './client.ts';
+import { ApiError, type Fetch } from './client.ts';
 import { COMPANY_FIELDS, type Company } from './companies.ts';
 import { graphql } from './graphql.ts';
 
@@ -136,13 +136,65 @@ export async function removeBankAccount(companyId: string, bankAccountId: string
   return removeBankAccount;
 }
 
-/** PNG, JPEG or WebP, up to 1 MB. @throws ApiError with `invalid_input`, field `logo` and the reason */
-export async function uploadLogo(companyId: string, file: Blob): Promise<void> {
-  const form = new FormData();
-  form.append('file', file);
-  await request(`/api/companies/${encodeURIComponent(companyId)}/logo`, { method: 'PUT', form });
+/** Where the browser uploads a logo itself, from prepareLogoUpload */
+interface LogoUpload {
+  uploadId: string;
+  url: string;
+  headers: { name: string; value: string }[];
 }
 
-export async function removeLogo(companyId: string): Promise<void> {
-  await request(`/api/companies/${encodeURIComponent(companyId)}/logo`, { method: 'DELETE' });
+/**
+ * Changes the logo: the file goes straight to storage, never through InvoHub, and is checked there before it
+ * becomes the logo. PNG, JPEG or WebP, up to 1 MB.
+ * @throws GraphQLError with `invalid_input`, field `logo` and the reason; ApiError if the upload itself fails
+ */
+export async function uploadLogo(companyId: string, file: Blob): Promise<CompanySettings> {
+  const { prepareLogoUpload: upload } = await graphql<
+    { prepareLogoUpload: LogoUpload },
+    { companyId: string; input: { contentType: string; size: number } }
+  >(
+    `
+      mutation PrepareLogoUpload($companyId: ID!, $input: LogoUploadInput!) {
+        prepareLogoUpload(companyId: $companyId, input: $input) {
+          uploadId
+          url
+          headers {
+            name
+            value
+          }
+        }
+      }
+    `,
+    { companyId, input: { contentType: file.type, size: file.size } }
+  );
+
+  // Not through request(): this goes to storage, which must get neither the session cookie nor the CSRF token
+  let response: Response;
+  try {
+    response = await fetch(upload.url, {
+      method: 'PUT',
+      headers: Object.fromEntries(upload.headers.map((h) => [h.name, h.value])),
+      body: file,
+      credentials: 'omit'
+    });
+  } catch (cause) {
+    throw new ApiError(0, undefined, undefined, { cause });
+  }
+  if (!response.ok) throw new ApiError(response.status);
+
+  const { changeLogo } = await graphql<{ changeLogo: CompanySettings }, { companyId: string; uploadId: string }>(
+    `mutation ChangeLogo($companyId: ID!, $uploadId: ID!) {
+      changeLogo(companyId: $companyId, uploadId: $uploadId) { ${SETTINGS_FIELDS} }
+    }`,
+    { companyId, uploadId: upload.uploadId }
+  );
+  return changeLogo;
+}
+
+export async function removeLogo(companyId: string): Promise<CompanySettings> {
+  const { removeLogo } = await graphql<{ removeLogo: CompanySettings }, { companyId: string }>(
+    `mutation RemoveLogo($companyId: ID!) { removeLogo(companyId: $companyId) { ${SETTINGS_FIELDS} } }`,
+    { companyId }
+  );
+  return removeLogo;
 }

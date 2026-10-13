@@ -76,7 +76,7 @@ export const person = (email: string, role: Member['role']): Member => ({
   since: '2026-01-15T10:00:00Z'
 });
 
-/** A logo, as served by GET /api/companies/{id}/logo */
+/** A small PNG, to upload as a logo */
 export const LOGO_PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
   'base64'
@@ -163,7 +163,9 @@ export async function mockApi(
   const userCompanies = companies.map((c) => ({ ...c }));
   let created = 0;
   const savedSettings: Record<string, CompanySettings> = {};
-  let logoVersion = 0;
+  /** Files in mock storage, by key */
+  const storedFiles: Record<string, Buffer> = {};
+  let uploads = 0;
 
   /** The company's settings as saved, with the setup checklist worked out */
   function settingsOf(access: UserCompany): CompanySettings {
@@ -202,7 +204,9 @@ export async function mockApi(
     const access = userCompanies.find((c) => c.company.id === variables?.companyId);
 
     if (query.includes('CreateCompany')) return createCompany(route, variables!.input!);
-    if (/UpdateCompanyProfile|UpdateBusinessDetails|AddBankAccount|RemoveBankAccount|CompanySettings/.test(query)) {
+    if (
+      /UpdateCompanyProfile|UpdateBusinessDetails|AddBankAccount|RemoveBankAccount|Logo|CompanySettings/.test(query)
+    ) {
       if (!access) return graphqlError(route, 'not_found');
       if (access.role !== 'OWNER' && access.role !== 'ADMIN') return graphqlError(route, 'forbidden');
       return changeSettings(route, query, access, variables as Record<string, unknown>);
@@ -290,7 +294,9 @@ export async function mockApi(
 
   function changeSettings(route: Route, query: string, access: UserCompany, variables: Record<string, unknown>) {
     const current = settingsOf(access);
-    const operation = query.match(/(UpdateCompanyProfile|UpdateBusinessDetails|AddBankAccount|RemoveBankAccount)/)?.[1];
+    const operation = query.match(
+      /(UpdateCompanyProfile|UpdateBusinessDetails|AddBankAccount|RemoveBankAccount|PrepareLogoUpload|ChangeLogo|RemoveLogo)/
+    )?.[1];
     const answer = () => {
       const field = operation ? operation[0].toLowerCase() + operation.slice(1) : 'companySettings';
       return route.fulfill({ json: { data: { [field]: settingsOf(access) } } });
@@ -340,6 +346,34 @@ export async function mockApi(
       if (current.bankAccounts.some((a) => a.iban === iban)) return invalid(route, 'iban', 'duplicate');
       current.bankAccounts.push({ id: `0BANK${iban.slice(-8)}`, bankName: input.bankName.trim(), iban });
     }
+    if (operation === 'PrepareLogoUpload') {
+      const { contentType, size } = variables.input as { contentType: string; size: number };
+      if (!['image/png', 'image/jpeg', 'image/webp'].includes(contentType)) {
+        return invalid(route, 'logo', 'unsupported_type');
+      }
+      if (size > 1024 * 1024) return invalid(route, 'logo', 'too_large');
+      const uploadId = `upload-${++uploads}`;
+      const prepareLogoUpload = {
+        uploadId,
+        url: `${baseURL}/mock-storage/pending/${uploadId}`,
+        headers: [{ name: 'content-type', value: contentType }]
+      };
+      return route.fulfill({ json: { data: { prepareLogoUpload } } });
+    }
+    if (operation === 'ChangeLogo') {
+      const pending = `pending/${variables.uploadId}`;
+      const file = storedFiles[pending];
+      if (!file) return invalid(route, 'logo', 'upload_missing');
+      delete storedFiles[pending];
+      // Only PNGs are recognized here, by their first bytes like the backend
+      if (!file.subarray(0, 4).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47]))) {
+        return invalid(route, 'logo', 'unsupported_type');
+      }
+      const key = `logos/${access.company.id}/${uploads}.png`;
+      storedFiles[key] = file;
+      current.logoUrl = `${baseURL}/mock-storage/${key}`;
+    }
+    if (operation === 'RemoveLogo') current.logoUrl = null;
     if (operation === 'RemoveBankAccount') {
       const index = current.bankAccounts.findIndex((a) => a.id === variables.bankAccountId);
       if (index < 0) return graphqlError(route, 'bank_account_not_found');
@@ -348,32 +382,15 @@ export async function mockApi(
     return answer();
   }
 
-  await page.route('**/api/companies/*/logo*', async (route) => {
-    const companyId = new URL(route.request().url()).pathname.split('/')[3];
-    const access = userCompanies.find((c) => c.company.id === companyId);
-    if (!currentUser || !access) return route.fulfill(problem(404, 'Company not found.', 'not_found'));
-    const current = settingsOf(access);
-    const method = route.request().method();
-    if (method === 'GET') {
-      return current.logoUrl
-        ? route.fulfill({ status: 200, contentType: 'image/png', body: LOGO_PNG })
-        : route.fulfill({ status: 404 });
+  // Storage, which the browser uploads logos to and loads them from, as it would S3 and the CDN
+  await page.route('**/mock-storage/**', async (route) => {
+    const key = new URL(route.request().url()).pathname.replace('/mock-storage/', '');
+    if (route.request().method() === 'PUT') {
+      storedFiles[key] = route.request().postDataBuffer() ?? Buffer.alloc(0);
+      return route.fulfill({ status: 200 });
     }
-    if (method === 'PUT') {
-      const body = route.request().postDataBuffer() ?? Buffer.alloc(0);
-      // Only PNGs are recognized here, by their first bytes like the backend
-      if (!body.includes(Buffer.from([0x89, 0x50, 0x4e, 0x47]))) {
-        return route.fulfill({
-          status: 400,
-          contentType: 'application/problem+json',
-          body: JSON.stringify({ status: 400, code: 'invalid_input', field: 'logo', reason: 'unsupported_type' })
-        });
-      }
-      current.logoUrl = `/api/companies/${companyId}/logo?v=${++logoVersion}`;
-    } else {
-      current.logoUrl = null;
-    }
-    return route.fulfill({ status: 204 });
+    const file = storedFiles[key];
+    return file ? route.fulfill({ status: 200, contentType: 'image/png', body: file }) : route.fulfill({ status: 404 });
   });
 
   function createCompany(route: Route, input: { name: string; country: string }) {

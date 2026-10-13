@@ -51,21 +51,55 @@ describe('settings', () => {
     expect(browser.sentBody(4)).toMatchObject({ variables: { companyId: '0ACME', bankAccountId: '0BANK' } });
   });
 
-  it('uploads the logo as a form, with the CSRF token, and removes it', async () => {
+  it('uploads the logo straight to storage, then makes it the logo', async () => {
     const browser = fakeBrowser();
-    browser.fetch.mockImplementation(async () => new Response(null, { status: 204 }));
+    const storageUrl = 'https://storage.example/pending/0ACME/u1?X-Amz-Signature=abc';
+    browser.fetch
+      .mockResolvedValueOnce(
+        jsonResponse({
+          data: {
+            prepareLogoUpload: {
+              uploadId: 'u1',
+              url: storageUrl,
+              headers: [{ name: 'content-type', value: 'image/png' }]
+            }
+          }
+        })
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 200 }))
+      .mockResolvedValueOnce(jsonResponse({ data: { changeLogo: { logoUrl: 'https://cdn.example/logos/a.png' } } }));
     const file = new Blob(['png'], { type: 'image/png' });
 
-    await uploadLogo('0ACME', file);
+    await expect(uploadLogo('0ACME', file)).resolves.toEqual({ logoUrl: 'https://cdn.example/logos/a.png' });
+
+    expect(browser.sentBody(0)).toMatchObject({ variables: { input: { contentType: 'image/png', size: 3 } } });
+    const [url, init] = browser.fetch.mock.calls[1];
+    expect([url, init?.method, init?.body, init?.credentials]).toEqual([storageUrl, 'PUT', file, 'omit']);
+    // Storage gets the signed headers, and never InvoHub's CSRF token
+    expect(browser.sentHeaders(1).get('content-type')).toBe('image/png');
+    expect(browser.sentHeaders(1).get('X-XSRF-TOKEN')).toBeNull();
+    expect(browser.sentBody(2)).toMatchObject({ variables: { companyId: '0ACME', uploadId: 'u1' } });
+  });
+
+  it("doesn't make it the logo when the upload fails", async () => {
+    const browser = fakeBrowser();
+    browser.fetch
+      .mockResolvedValueOnce(
+        jsonResponse({ data: { prepareLogoUpload: { uploadId: 'u1', url: 'https://s', headers: [] } } })
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 403 }));
+
+    await expect(uploadLogo('0ACME', new Blob(['png']))).rejects.toMatchObject({ name: 'ApiError', status: 403 });
+    expect(browser.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('removes the logo', async () => {
+    const browser = fakeBrowser();
+    browser.fetch.mockResolvedValue(jsonResponse({ data: { removeLogo: {} } }));
+
     await removeLogo('0ACME');
 
-    const [url, init] = browser.fetch.mock.calls[0];
-    expect([url, init?.method]).toEqual(['/api/companies/0ACME/logo', 'PUT']);
-    expect((init?.body as FormData).get('file')).toBeInstanceOf(Blob);
-    expect(browser.sentHeaders(0).get('X-XSRF-TOKEN')).toBe('test-token');
-    // The browser sets the multipart boundary itself
-    expect(browser.sentHeaders(0).get('Content-Type')).toBeNull();
-    expect(browser.fetch.mock.calls[1][1]?.method).toBe('DELETE');
+    expect(browser.sentBody()).toMatchObject({ variables: { companyId: '0ACME' } });
   });
 
   it("is pending while a step that can be done isn't", () => {
