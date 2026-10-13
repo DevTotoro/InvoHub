@@ -10,7 +10,7 @@ An invoicing app. The backend is a Spring Boot (Kotlin) API in `backend/`; the f
 
 ## Running it
 
-Start the backend (Postgres, Redis and a local mail server, then the API on http://localhost:8080):
+Start the backend (Postgres, Redis, a local mail server and Silo for files, then the API on http://localhost:8080):
 
 ```sh
 cd backend
@@ -27,7 +27,7 @@ pnpm install
 pnpm dev
 ```
 
-Open http://localhost:5173 and sign in with any email address. The sign-in email doesn't really get sent: open it in Mailpit at http://localhost:8025.
+Open http://localhost:5173 and sign in with any email address. The sign-in email doesn't really get sent: open it in Mailpit at http://localhost:8025. Uploaded files, such as logos, are in Silo's console at http://localhost:9001 (sign in with `STORAGE_ACCESS_KEY` and `STORAGE_SECRET_KEY` from `.env`).
 
 ## Translations
 
