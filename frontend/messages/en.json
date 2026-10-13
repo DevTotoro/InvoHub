@@ -183,5 +183,6 @@
   "setup_continue": "Go to settings",
   "error_bank_account_not_found": "This bank account no longer exists.",
   "error_too_many_bank_accounts": "You can add up to 10 bank accounts.",
-  "settings_logo_upload_failed": "The upload didn't go through. Try again."
+  "settings_logo_upload_failed": "The upload didn't go through. Try again.",
+  "settings_main_activity_placeholder": "e.g. 47.54.10.01"
 }

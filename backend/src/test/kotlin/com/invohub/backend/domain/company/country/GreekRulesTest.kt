@@ -65,6 +65,14 @@ class GreekRulesTest {
     }
 
     @Test
+    fun `a description typed instead of the ΚΑΔ is refused, not dropped`() {
+        val value = rules.normalizeCountryDetail(GreekRules.MAIN_ACTIVITY, "ΗΛΕΚΤΡΟΛΟΓΙΚΟ ΥΛΙΚΟ")
+
+        assertEquals("invalid", rules.validateCountryDetail(GreekRules.MAIN_ACTIVITY, value))
+        assertEquals("invalid", rules.validateCountryDetail(GreekRules.MAIN_ACTIVITY, "47.54a"))
+    }
+
+    @Test
     fun `the tax office is free text, trimmed and not too long`() {
         assertEquals("Α' Αθηνών", rules.normalizeCountryDetail(GreekRules.TAX_OFFICE, "  Α' Αθηνών "))
         assertNull(rules.validateCountryDetail(GreekRules.TAX_OFFICE, "x".repeat(100)))

@@ -40,6 +40,10 @@
     'logo.empty': m.settings_logo_empty,
     'logo.upload_missing': m.settings_logo_upload_failed
   };
+  /** What a value looks like, where that helps: a ΚΑΔ is a number, not its description */
+  const COUNTRY_DETAIL_PLACEHOLDERS: Record<string, () => string> = {
+    mainActivity: m.settings_main_activity_placeholder
+  };
   const COUNTRY_DETAIL_LABELS: Record<string, () => string> = {
     taxOffice: m.settings_tax_office,
     mainActivity: m.settings_main_activity
@@ -294,6 +298,7 @@
           <Input
             label={(COUNTRY_DETAIL_LABELS[detail.key] ?? (() => detail.key))()}
             name={detail.key}
+            placeholder={COUNTRY_DETAIL_PLACEHOLDERS[detail.key]?.()}
             maxlength={100}
             bind:value={detail.value}
             error={fieldErrors[detail.key]}

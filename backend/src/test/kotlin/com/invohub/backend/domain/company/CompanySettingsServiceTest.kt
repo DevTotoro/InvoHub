@@ -121,6 +121,12 @@ class CompanySettingsServiceTest {
                 greekDetails().copy(countryDetails = mapOf("mainActivity" to "6")),
             )
         }
+        assertInvalid("mainActivity", "invalid") {
+            settingsService.updateBusinessDetails(
+                setup.access(),
+                greekDetails().copy(countryDetails = mapOf("mainActivity" to "ΗΛΕΚΤΡΟΛΟΓΙΚΟ ΥΛΙΚΟ")),
+            )
+        }
         assertInvalid("postalCode", "too_long") {
             settingsService.updateBusinessDetails(setup.access(), greekDetails().copy(postalCode = "1".repeat(21)))
         }

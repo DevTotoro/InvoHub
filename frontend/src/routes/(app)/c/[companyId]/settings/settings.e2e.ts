@@ -32,6 +32,15 @@ test('filling in the business details completes the setup', async ({ page, baseU
   await details.getByRole('button', { name: 'Save' }).click();
   await expect(details.getByLabel('Tax ID (ΑΦΜ)')).toHaveAccessibleDescription('Check this tax ID for typos.');
 
+  // The code, not its description
+  await expect(details.getByLabel('Main activity code (ΚΑΔ)')).toHaveAttribute('placeholder', 'e.g. 47.54.10.01');
+  await details.getByLabel('Tax ID (ΑΦΜ)').fill('094014201');
+  await details.getByLabel('Main activity code (ΚΑΔ)').fill('ΗΛΕΚΤΡΟΛΟΓΙΚΟ ΥΛΙΚΟ');
+  await details.getByRole('button', { name: 'Save' }).click();
+  await expect(details.getByLabel('Main activity code (ΚΑΔ)')).toHaveAccessibleDescription(
+    'Enter a code of 2 to 8 digits.'
+  );
+
   await details.getByLabel('Legal name').fill('Acme ΙΚΕ');
   await details.getByLabel('Street address').fill('Ερμού 1');
   await details.getByLabel('City').fill('Αθήνα');

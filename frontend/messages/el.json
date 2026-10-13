@@ -183,5 +183,6 @@
   "setup_continue": "Μετάβαση στις ρυθμίσεις",
   "error_bank_account_not_found": "Ο λογαριασμός δεν υπάρχει πλέον.",
   "error_too_many_bank_accounts": "Μπορείτε να προσθέσετε έως 10 λογαριασμούς.",
-  "settings_logo_upload_failed": "Το ανέβασμα δεν ολοκληρώθηκε. Δοκιμάστε ξανά."
+  "settings_logo_upload_failed": "Το ανέβασμα δεν ολοκληρώθηκε. Δοκιμάστε ξανά.",
+  "settings_main_activity_placeholder": "π.χ. 47.54.10.01"
 }

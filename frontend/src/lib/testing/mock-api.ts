@@ -326,8 +326,8 @@ export async function mockApi(
       if (taxId && access.company.country === 'GR' && !validAfm(taxId)) {
         return invalid(route, 'taxId', /^\d{9}$/.test(taxId) ? 'check_digit' : 'invalid');
       }
-      const mainActivity = input.countryDetails.find((d) => d.key === 'mainActivity')?.value.replace(/\D/g, '');
-      if (mainActivity && (mainActivity.length < 2 || mainActivity.length > 8)) {
+      const mainActivity = input.countryDetails.find((d) => d.key === 'mainActivity')?.value.replace(/[\s.-]/g, '');
+      if (mainActivity && !/^\d{2,8}$/.test(mainActivity)) {
         return invalid(route, 'mainActivity', 'invalid');
       }
       current.legalName = text(input.legalName);
@@ -335,7 +335,7 @@ export async function mockApi(
       current.taxId = taxId || null;
       current.countryDetails = current.countryDetails.map(({ key }) => {
         const value = input.countryDetails.find((d) => d.key === key)?.value ?? '';
-        return { key, value: (key === 'mainActivity' ? value.replace(/\D/g, '') : value.trim()) || null };
+        return { key, value: (key === 'mainActivity' ? value.replace(/[\s.-]/g, '') : value.trim()) || null };
       });
     }
     if (operation === 'AddBankAccount') {
