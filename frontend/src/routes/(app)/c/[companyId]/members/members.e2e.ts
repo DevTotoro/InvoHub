@@ -33,7 +33,7 @@ test('removing someone asks first', async ({ page, baseURL }) => {
   await expect(page.getByText('maria@example.com')).toBeVisible();
 
   page.once('dialog', (dialog) => {
-    expect(dialog.message()).toBe('Remove maria@example.com from Acme? They lose access right away.');
+    expect(dialog.message()).toBe('Remove maria@example.com from Acme?');
     return dialog.accept();
   });
   await page.getByRole('button', { name: 'Remove maria@example.com' }).click();

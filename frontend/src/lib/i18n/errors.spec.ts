@@ -11,9 +11,7 @@ describe('errorMessage', () => {
   const useLocale = testLocale();
 
   it('picks the message by the problem code', () => {
-    expect(errorMessage(problem(503, 'email_delivery_failed'))).toBe(
-      "We couldn't send the email right now. Please try again in a few minutes."
-    );
+    expect(errorMessage(problem(503, 'email_delivery_failed'))).toBe("The email couldn't be sent. Try again.");
     expect(errorMessage(problem(409, 'conflict'))).toBe('This was changed by someone else. Reload and try again.');
   });
 
@@ -22,7 +20,7 @@ describe('errorMessage', () => {
   });
 
   it('says when the API is unreachable', () => {
-    expect(errorMessage(new ApiError(0))).toBe("Can't reach InvoHub right now. Check your connection and try again.");
+    expect(errorMessage(new ApiError(0))).toBe("Can't reach InvoHub. Check your connection.");
   });
 
   it('has a message for anything that is not an API error', () => {

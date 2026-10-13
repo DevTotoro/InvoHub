@@ -131,8 +131,7 @@ class InvitationService(
         val notices = invitations.map { InvitationNotice(companyNames.getValue(it.companyId), inviter, it.role) }
         // Their own language if they have an account; otherwise English, not the inviter's, which may not be theirs
         val language = userRepository.findByEmail(email)?.language ?: Language.DEFAULT
-        val signIn = magicLinkService.invitationLink(email)
-        emailPort.sendInvitations(email, notices, signIn.link, signIn.validFor, language)
+        emailPort.sendInvitations(email, notices, magicLinkService.invitationLink(email), language)
     }
 
     /** The company's open invitations, for its owner and admins */

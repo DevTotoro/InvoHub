@@ -13,21 +13,8 @@ import org.springframework.web.util.UriComponentsBuilder
 import java.net.URI
 import java.security.MessageDigest
 import java.security.SecureRandom
-import java.time.Duration
 import java.util.Base64
 import java.util.HexFormat
-
-/** A verified sign-in link: who signed in, and where the link takes them */
-data class SignIn(
-    val user: User,
-    val destination: SignInDestination,
-)
-
-/** A sign-in link to put in an email, and how long it works */
-data class IssuedLink(
-    val link: URI,
-    val validFor: Duration,
-)
 
 /** What verifying a link found when it didn't sign anyone in */
 enum class LinkProblem {
@@ -38,6 +25,10 @@ enum class LinkProblem {
     RENEWABLE,
 }
 
+/**
+ * Sign-in links. A link opens the frontend's verify page with its token and, optionally, `redirectTo`: where the
+ * frontend goes once signed in. The token only stands for the email address; where it leads is in the link.
+ */
 @Service
 class MagicLinkService(
     private val tokenStore: MagicLinkTokenStore,
@@ -49,7 +40,16 @@ class MagicLinkService(
     companion object {
         private const val TOKEN_BYTES = 32
 
+        /** Where an invitation email's link leads, once signed in */
+        const val INVITATIONS_PAGE = "/invitations"
+
         private val secureRandom = SecureRandom()
+
+        /** A path in the app, or null: nothing pointing elsewhere is ever put in a link (the frontend checks too) */
+        fun safeRedirect(path: String?): String? =
+            path?.takeIf {
+                it.startsWith("/") && !it.startsWith("//") && '\\' !in it && it.none(Char::isISOControl)
+            }
     }
 
     /**
@@ -57,13 +57,14 @@ class MagicLinkService(
      * issued and no email is sent, so the endpoint can't be used to flood someone's inbox.
      *
      * [language] is the one the person is using right now. The email is in the user's own language if they
-     * already have an account, and in this one otherwise.
+     * already have an account, and in this one otherwise. [redirectTo] is where the link leads once signed in.
      */
     fun requestToken(
         rawEmail: String,
         language: Language,
+        redirectTo: String? = null,
     ) {
-        sendLink(normalizeEmail(rawEmail), SignInDestination.DEFAULT, language)
+        sendLink(normalizeEmail(rawEmail), language, redirectTo)
     }
 
     /**
@@ -71,39 +72,38 @@ class MagicLinkService(
      * held back by the per-email lock, as the invitation email must go out; invitations have limits of their
      * own (InvitationLimits).
      */
-    fun invitationLink(rawEmail: String): IssuedLink {
-        val rawToken = issue(MagicLinkToken(normalizeEmail(rawEmail), SignInDestination.INVITATIONS))
-        return IssuedLink(buildLink(rawToken), properties.magicLinkTtl)
-    }
+    fun invitationLink(rawEmail: String): URI = buildLink(issue(normalizeEmail(rawEmail)), INVITATIONS_PAGE)
 
     /**
-     * Emails a fresh link in place of an expired or used one: to the same address, leading to the same place.
-     * Like requesting one, nothing is sent while a link for the address is active.
+     * Emails a fresh link in place of an expired or used one, to the same address. [redirectTo] is the old
+     * link's, so the new one leads to the same place. Like requesting one, nothing is sent while a link for the
+     * address is active.
      * @throws InvalidSignInLinkException if the old link is unknown or too old to renew
      */
     fun renew(
         rawToken: String,
         language: Language,
+        redirectTo: String? = null,
     ) {
-        val old = tokenStore.findRenewable(hashToken(rawToken)) ?: throw InvalidSignInLinkException()
-        sendLink(old.email, old.destination, language)
+        val email = tokenStore.findRenewable(hashToken(rawToken)) ?: throw InvalidSignInLinkException()
+        sendLink(email, language, redirectTo)
     }
 
     /**
      * Consumes the token, so it works at most once even under concurrent requests. Signing in for the first
      * time creates the user, in [language] (the one the person is using right now).
-     * @return the user and where the link leads, or null if it doesn't sign anyone in (see [problemWith])
+     * @return the user, or null if the link doesn't sign anyone in (see [problemWith])
      * @throws AccountSuspendedException if the user is suspended
      */
     fun verifyToken(
         rawToken: String,
         language: Language,
-    ): SignIn? {
-        val token = tokenStore.consumeToken(hashToken(rawToken)) ?: return null
+    ): User? {
+        val email = tokenStore.consumeToken(hashToken(rawToken)) ?: return null
         // The active token is used up, so allow requesting a new one (e.g. to sign in on another device)
-        tokenStore.unlock(token.email)
+        tokenStore.unlock(email)
 
-        val user = userService.getOrCreateUser(token.email, language)
+        val user = userService.getOrCreateUser(email, language)
         if (user.suspended) {
             auditLog.recordStandalone(
                 AuditEvent(
@@ -119,7 +119,7 @@ class MagicLinkService(
         auditLog.recordStandalone(
             AuditEvent(AuditAction.USER_SIGNED_IN, actorUserId = user.id, target = AuditTarget.user(user.id)),
         )
-        return SignIn(user, token.destination)
+        return user
     }
 
     /** Why a link didn't sign anyone in: unknown, or expired/used and renewable */
@@ -129,8 +129,8 @@ class MagicLinkService(
     /** Emails a new link unless one for the address is still active */
     private fun sendLink(
         email: String,
-        destination: SignInDestination,
         language: Language,
+        redirectTo: String?,
     ) {
         // Atomic, so concurrent requests can't both pass and send two links
         if (!tokenStore.tryLock(email, properties.magicLinkTtl)) {
@@ -139,16 +139,11 @@ class MagicLinkService(
 
         val rawToken = generateToken()
         val tokenHash = hashToken(rawToken)
-        tokenStore.saveToken(
-            tokenHash,
-            MagicLinkToken(email, destination),
-            properties.magicLinkTtl,
-            properties.magicLinkRenewableFor,
-        )
+        tokenStore.saveToken(tokenHash, email, properties.magicLinkTtl, properties.magicLinkRenewableFor)
 
         try {
             val emailLanguage = userService.findByEmail(email)?.language ?: language
-            emailPort.sendMagicLink(email, buildLink(rawToken), properties.magicLinkTtl, emailLanguage)
+            emailPort.sendMagicLink(email, buildLink(rawToken, redirectTo), emailLanguage)
         } catch (e: EmailDeliveryException) {
             // Nothing was sent, so release the lock rather than make the user wait out the full TTL
             tokenStore.removeToken(tokenHash)
@@ -157,19 +152,24 @@ class MagicLinkService(
         }
     }
 
-    private fun issue(token: MagicLinkToken): String {
+    private fun issue(email: String): String {
         val rawToken = generateToken()
-        tokenStore.saveToken(hashToken(rawToken), token, properties.magicLinkTtl, properties.magicLinkRenewableFor)
+        tokenStore.saveToken(hashToken(rawToken), email, properties.magicLinkTtl, properties.magicLinkRenewableFor)
         return rawToken
     }
 
-    private fun buildLink(rawToken: String): URI =
-        UriComponentsBuilder
-            .fromUri(properties.frontendUrl)
-            .path("/auth/verify")
-            .queryParam("token", rawToken)
-            .build()
-            .toUri()
+    private fun buildLink(
+        rawToken: String,
+        redirectTo: String?,
+    ): URI {
+        val link =
+            UriComponentsBuilder
+                .fromUri(properties.frontendUrl)
+                .path("/auth/verify")
+                .queryParam("token", rawToken)
+        safeRedirect(redirectTo)?.let { link.queryParam("redirectTo", "{redirectTo}") }
+        return link.encode().buildAndExpand(mapOf("redirectTo" to safeRedirect(redirectTo))).toUri()
+    }
 
     private fun generateToken(): String {
         val bytes = ByteArray(TOKEN_BYTES).also(secureRandom::nextBytes)

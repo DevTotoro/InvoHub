@@ -4,7 +4,6 @@ import com.invohub.backend.domain.auth.ExpiredSignInLinkException
 import com.invohub.backend.domain.auth.InvalidSignInLinkException
 import com.invohub.backend.domain.auth.LinkProblem
 import com.invohub.backend.domain.auth.MagicLinkService
-import com.invohub.backend.domain.auth.SignInDestination
 import com.invohub.backend.domain.user.Language
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
@@ -15,10 +14,14 @@ import org.springframework.http.ResponseEntity
 import org.springframework.security.web.csrf.CsrfToken
 import org.springframework.web.bind.annotation.*
 
-/** [language] is the one the person is using; the sign-in email is in it unless they have an account already */
+/**
+ * [language] is the one the person is using; the sign-in email is in it unless they have an account already.
+ * [redirectTo] is where the link leads once signed in: a path in the app.
+ */
 data class MagicLinkRequestDto(
     @field:NotBlank @field:Email val email: String,
     val language: Language = Language.DEFAULT,
+    val redirectTo: String? = null,
 )
 
 /** [language] is the one the person is using; signing in for the first time creates the account in it */
@@ -27,15 +30,14 @@ data class VerifyMagicLinkRequestDto(
     val language: Language = Language.DEFAULT,
 )
 
-/** Where to go once signed in: `INVITATIONS` for a link from an invitation email, else `DEFAULT` */
-data class VerifyMagicLinkResponseDto(
-    val destination: SignInDestination,
-)
-
-/** [token] is the old link's; [language] the one in use, for someone who has no account yet */
+/**
+ * [token] and [redirectTo] are the old link's, so the new one leads to the same place; [language] the one in
+ * use, for someone who has no account yet
+ */
 data class RenewMagicLinkRequestDto(
     @field:NotBlank val token: String,
     val language: Language = Language.DEFAULT,
+    val redirectTo: String? = null,
 )
 
 @RestController
@@ -56,7 +58,7 @@ class AuthController(
     fun requestMagicLink(
         @Valid @RequestBody request: MagicLinkRequestDto,
     ): ResponseEntity<Map<String, String>> {
-        magicLinkService.requestToken(request.email, request.language)
+        magicLinkService.requestToken(request.email, request.language, request.redirectTo)
 
         // Same response whether or not a link was sent just now, so it reveals nothing about the address
         return ResponseEntity.ok(mapOf("message" to "Check your inbox for a sign-in link."))
@@ -74,17 +76,17 @@ class AuthController(
         @Valid @RequestBody request: VerifyMagicLinkRequestDto,
         httpRequest: HttpServletRequest,
         httpResponse: HttpServletResponse,
-    ): VerifyMagicLinkResponseDto {
-        val signIn =
+    ): ResponseEntity<Void> {
+        val user =
             magicLinkService.verifyToken(request.token, request.language)
                 ?: when (magicLinkService.problemWith(request.token)) {
                     LinkProblem.RENEWABLE -> throw ExpiredSignInLinkException()
                     LinkProblem.INVALID -> throw InvalidSignInLinkException()
                 }
 
-        sessionAuthenticator.signIn(signIn.user, httpRequest, httpResponse)
+        sessionAuthenticator.signIn(user, httpRequest, httpResponse)
 
-        return VerifyMagicLinkResponseDto(signIn.destination)
+        return ResponseEntity.noContent().build()
     }
 
     /** Emails a fresh link in place of an expired or used one, to the same address and leading to the same place */
@@ -92,7 +94,7 @@ class AuthController(
     fun renewMagicLink(
         @Valid @RequestBody request: RenewMagicLinkRequestDto,
     ): ResponseEntity<Map<String, String>> {
-        magicLinkService.renew(request.token, request.language)
+        magicLinkService.renew(request.token, request.language, request.redirectTo)
         return ResponseEntity.ok(mapOf("message" to "Check your inbox for a sign-in link."))
     }
 }

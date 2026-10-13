@@ -1,7 +1,6 @@
 <script lang="ts">
   import { requestMagicLink } from '#lib/api/auth.ts';
   import { ApiError } from '#lib/api/client.ts';
-  import { rememberRedirect } from '#lib/auth/redirect.ts';
   import Button from '#lib/components/ui/Button.svelte';
   import Input from '#lib/components/ui/Input.svelte';
   import { errorMessage } from '#lib/i18n/errors.ts';
@@ -26,9 +25,8 @@
     formError = undefined;
 
     try {
-      // The link opens in a new tab, so remember where to go once it is used
-      rememberRedirect(data.redirectTo);
-      await requestMagicLink(email, apiLanguage());
+      // The link takes them there once signed in, on whatever device they open it
+      await requestMagicLink(email, apiLanguage(), data.redirectTo);
       status = 'sent';
     } catch (e) {
       status = 'idle';

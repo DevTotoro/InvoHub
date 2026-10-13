@@ -11,7 +11,6 @@ import org.springframework.mail.javamail.JavaMailSender
 import org.springframework.mail.javamail.MimeMessageHelper
 import org.springframework.stereotype.Component
 import java.net.URI
-import java.time.Duration
 import java.util.Locale
 
 private val logger = KotlinLogging.logger {}
@@ -26,7 +25,6 @@ class SmtpEmailAdapter(
     override fun sendMagicLink(
         email: String,
         link: URI,
-        validFor: Duration,
         language: Language,
     ) {
         val locale = language.locale
@@ -35,7 +33,6 @@ class SmtpEmailAdapter(
                 paragraphs = listOf(text("magic-link.intro", locale)),
                 button = text("magic-link.button", locale),
                 link = link,
-                note = text("email.link-expiry", locale, humanize(validFor, locale)),
                 fallback = text("email.fallback", locale),
             )
         send(email, text("magic-link.subject", locale), content, "magic link")
@@ -45,7 +42,6 @@ class SmtpEmailAdapter(
         email: String,
         invitations: List<InvitationNotice>,
         link: URI,
-        validFor: Duration,
         language: Language,
     ) {
         val locale = language.locale
@@ -65,9 +61,6 @@ class SmtpEmailAdapter(
                 items = items,
                 button = text("invitations.button", locale),
                 link = link,
-                note =
-                    text("invitations.outro", locale) + " " +
-                        text("email.link-expiry", locale, humanize(validFor, locale)),
                 fallback = text("email.fallback", locale),
                 footer = text("invitations.ignore", locale),
             )
@@ -101,14 +94,4 @@ class SmtpEmailAdapter(
         locale: Locale,
         vararg args: Any,
     ): String = messages.getMessage(key, if (args.isEmpty()) null else arrayOf(*args), locale)
-
-    private fun humanize(
-        duration: Duration,
-        locale: Locale,
-    ): String =
-        if (duration.toMinutesPart() == 0 && duration.toHours() > 0) {
-            text("duration.hours", locale, duration.toHours())
-        } else {
-            text("duration.minutes", locale, duration.toMinutes())
-        }
 }

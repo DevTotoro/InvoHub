@@ -12,17 +12,17 @@ describe('auth', () => {
     const browser = fakeBrowser();
     browser.fetch.mockResolvedValue(jsonResponse({ message: 'Check your inbox for a sign-in link.' }));
 
-    await requestMagicLink('jane@example.com', 'EL');
+    await requestMagicLink('jane@example.com', 'EL', '/c/0ACME');
 
     expect(browser.fetch.mock.calls[0][0]).toBe('/api/auth/request');
-    expect(browser.sentBody()).toEqual({ email: 'jane@example.com', language: 'EL' });
+    expect(browser.sentBody()).toEqual({ email: 'jane@example.com', language: 'EL', redirectTo: '/c/0ACME' });
   });
 
-  it('verifies a magic link, in the language in use, and says where it leads', async () => {
+  it('verifies a magic link, in the language in use', async () => {
     const browser = fakeBrowser();
-    browser.fetch.mockResolvedValue(jsonResponse({ destination: 'INVITATIONS' }));
+    browser.fetch.mockResolvedValue(new Response(null, { status: 204 }));
 
-    await expect(verifyMagicLink('abc', 'EL')).resolves.toBe('INVITATIONS');
+    await verifyMagicLink('abc', 'EL');
 
     expect(browser.fetch.mock.calls[0][0]).toBe('/api/auth/verify');
     expect(browser.sentBody()).toEqual({ token: 'abc', language: 'EL' });
@@ -32,10 +32,10 @@ describe('auth', () => {
     const browser = fakeBrowser();
     browser.fetch.mockResolvedValue(jsonResponse({ message: 'Check your inbox for a sign-in link.' }));
 
-    await renewMagicLink('old', 'EN');
+    await renewMagicLink('old', 'EN', '/invitations');
 
     expect(browser.fetch.mock.calls[0][0]).toBe('/api/auth/renew');
-    expect(browser.sentBody()).toEqual({ token: 'old', language: 'EN' });
+    expect(browser.sentBody()).toEqual({ token: 'old', language: 'EN', redirectTo: '/invitations' });
   });
 
   it("saves the user's language", async () => {

@@ -2,8 +2,8 @@
   "$schema": "https://inlang.com/schema/inlang-message-format",
 
   "error_generic": "Κάτι πήγε στραβά. Δοκιμάστε ξανά.",
-  "error_unreachable": "Δεν είναι δυνατή η σύνδεση με το InvoHub αυτή τη στιγμή. Ελέγξτε τη σύνδεσή σας και δοκιμάστε ξανά.",
-  "error_email_delivery_failed": "Δεν ήταν δυνατή η αποστολή του email αυτή τη στιγμή. Δοκιμάστε ξανά σε λίγα λεπτά.",
+  "error_unreachable": "Δεν υπάρχει σύνδεση με το InvoHub. Ελέγξτε τη σύνδεσή σας.",
+  "error_email_delivery_failed": "Το email δεν στάλθηκε. Δοκιμάστε ξανά.",
   "error_conflict": "Κάποιος άλλος έκανε αλλαγές εδώ. Ανανεώστε τη σελίδα και δοκιμάστε ξανά.",
   "error_internal": "Κάτι πήγε στραβά από την πλευρά μας. Δοκιμάστε ξανά.",
   "error_forbidden": "Δεν έχετε πρόσβαση εδώ.",
@@ -28,18 +28,16 @@
   "login_submit": "Στείλτε μου σύνδεσμο σύνδεσης",
   "login_sending": "Αποστολή…",
   "login_sent_title": "Ελέγξτε τα εισερχόμενά σας",
-  "login_sent_detail": "Στείλαμε σύνδεσμο σύνδεσης στο {email}. Ανοίξτε τον για να συνεχίσετε.",
+  "login_sent_detail": "Στείλαμε σύνδεσμο σύνδεσης στο {email}.",
   "login_use_different_email": "Χρήση άλλου email",
 
-  "verify_prompt": "Πατήστε Συνέχεια για να ολοκληρώσετε τη σύνδεση στο InvoHub.",
+  "verify_prompt": "Συνεχίστε για να συνδεθείτε.",
   "verify_continue": "Συνέχεια",
   "verify_signing_in": "Σύνδεση…",
-  "verify_invalid_title": "Ο σύνδεσμος σύνδεσης δεν είναι έγκυρος ή έχει λήξει",
-  "verify_invalid_detail": "Κάθε σύνδεσμος λειτουργεί μία φορά και λήγει μετά από λίγο. Ζητήστε νέο για να συνδεθείτε.",
-  "verify_request_new": "Ζητήστε νέο σύνδεσμο",
+  "verify_invalid_title": "Ο σύνδεσμος δεν είναι έγκυρος",
+  "verify_request_new": "Σύνδεση",
   "verify_suspended_title": "Αυτός ο λογαριασμός έχει ανασταλεί",
   "verify_suspended_detail": "Επικοινωνήστε με την υποστήριξη.",
-  "verify_error_detail": "Δοκιμάστε ξανά σε λίγο.",
   "verify_try_again": "Δοκιμάστε ξανά",
 
   "company_new": "Νέα εταιρεία",
@@ -49,13 +47,13 @@
   "company_invoicing_unavailable": "Η τιμολόγηση δεν είναι ακόμη διαθέσιμη για τη χώρα {country}.",
   "company_invoices_placeholder": "Τα τιμολόγιά σας θα εμφανίζονται εδώ.",
   "company_suspended_title": "Αυτή η εταιρεία έχει ανασταλεί",
-  "company_suspended_detail": "Επικοινωνήστε με την υποστήριξη του InvoHub για περισσότερες πληροφορίες.",
+  "company_suspended_detail": "Επικοινωνήστε με την υποστήριξη.",
 
   "onboarding_title": "Δημιουργήστε την εταιρεία σας",
   "onboarding_name": "Επωνυμία εταιρείας",
   "onboarding_country": "Χώρα",
   "onboarding_currency": "Νόμισμα: {currency}",
-  "onboarding_invoicing_unavailable": "Η τιμολόγηση δεν είναι ακόμη διαθέσιμη για τη χώρα {country}. Μπορείτε να δημιουργήσετε την εταιρεία και την ομάδα σας από τώρα και να ξεκινήσετε την τιμολόγηση μόλις υποστηριχθεί.",
+  "onboarding_invoicing_unavailable": "Η τιμολόγηση δεν είναι ακόμη διαθέσιμη για τη χώρα {country}.",
   "onboarding_name_required": "Εισαγάγετε την επωνυμία της εταιρείας.",
   "onboarding_name_too_long": "Χρησιμοποιήστε έως 200 χαρακτήρες.",
   "onboarding_country_unknown": "Επιλέξτε μια χώρα από τη λίστα.",
@@ -65,7 +63,7 @@
   "onboarding_cancel": "Ακύρωση",
 
   "error_not_found": "Αυτό δεν υπάρχει πια ή δεν έχετε πρόσβαση σε αυτό.",
-  "error_company_read_only": "Η εταιρεία είναι μόνο για ανάγνωση, οπότε δεν μπορεί να αλλάξει αυτή τη στιγμή.",
+  "error_company_read_only": "Αυτή η εταιρεία είναι μόνο για ανάγνωση.",
   "error_company_suspended": "Αυτή η εταιρεία έχει ανασταλεί.",
   "error_member_not_found": "Αυτό το άτομο δεν ανήκει πια στην εταιρεία.",
   "error_not_allowed_owner": "Η πρόσβαση του ιδιοκτήτη δεν μπορεί να αλλάξει.",
@@ -87,9 +85,9 @@
   "team_role_of": "Ρόλος για {email}",
   "team_remove": "Αφαίρεση",
   "team_remove_of": "Αφαίρεση {email}",
-  "team_remove_confirm": "Να αφαιρεθεί το {email} από την εταιρεία {company}; Η πρόσβαση χάνεται αμέσως.",
+  "team_remove_confirm": "Να αφαιρεθεί το {email} από την εταιρεία {company};",
   "team_leave": "Αποχώρηση από την εταιρεία",
-  "team_leave_confirm": "Να αποχωρήσετε από την εταιρεία {company}; Για να επιστρέψετε θα χρειαστείτε νέα πρόσκληση.",
+  "team_leave_confirm": "Αποχώρηση από την εταιρεία {company};",
 
   "header_invitations": "Προσκλήσεις ({count})",
 
@@ -113,7 +111,7 @@
   "invite_invalid_email": "Εισαγάγετε μια έγκυρη διεύθυνση email.",
   "invite_already_member": "Το {email} ανήκει ήδη στην εταιρεία {company}.",
   "invite_already_invited": "Το {email} έχει ήδη ανοιχτή πρόσκληση για την εταιρεία {company}.",
-  "invite_daily_limit": "Στείλατε όσες προσκλήσεις επιτρέπονται για σήμερα. Δοκιμάστε ξανά αύριο.",
+  "invite_daily_limit": "Δεν μπορείτε να στείλετε άλλες προσκλήσεις σήμερα.",
 
   "team_invitations": "Ανοιχτές προσκλήσεις",
   "team_invitation_detail": "{role} · πρόσκληση από {email} · ισχύει έως {date}",
@@ -123,12 +121,10 @@
 
   "error_invitation_not_found": "Αυτή η πρόσκληση δεν είναι πια ανοιχτή.",
 
-  "verify_expired_title": "Ο σύνδεσμος σύνδεσης έχει λήξει",
-  "verify_expired_detail": "Κάθε σύνδεσμος ισχύει για μία ώρα και μία φορά. Μπορούμε να σας στείλουμε νέο.",
-  "verify_renew": "Στείλτε μου νέο σύνδεσμο",
-  "verify_renewing": "Αποστολή…",
+  "verify_expired_title": "Ο σύνδεσμος έχει λήξει",
+  "verify_renew": "Αποστολή νέου συνδέσμου",
   "verify_renewed_title": "Ελέγξτε τα εισερχόμενά σας",
-  "verify_renewed_detail": "Σας στείλαμε νέο σύνδεσμο σύνδεσης.",
-  "invite_recipient_daily_limit": "Το {email} έλαβε πολλές προσκλήσεις σήμερα. Δοκιμάστε ξανά αύριο.",
-  "error_email_delivery_failed_invite": "Δεν ήταν δυνατή η αποστολή του email πρόσκλησης αυτή τη στιγμή, οπότε δεν στάλθηκε τίποτα. Δοκιμάστε ξανά σε λίγα λεπτά."
+  "verify_renewed_detail": "Σας στείλαμε νέο σύνδεσμο.",
+  "invite_recipient_daily_limit": "Το {email} δεν μπορεί να προσκληθεί ξανά σήμερα.",
+  "error_email_delivery_failed_invite": "Η πρόσκληση δεν στάλθηκε. Δοκιμάστε ξανά."
 }

@@ -2,11 +2,11 @@ package com.invohub.backend.domain.auth
 
 import java.time.Duration
 
-/** Test double with the same semantics as the Redis store, minus expiry: see [expire]. */
+/** Test double with the same semantics as the Redis store, minus expiry: see [expireAll]. */
 class InMemoryMagicLinkTokenStore : MagicLinkTokenStore {
     private val locked = mutableSetOf<String>()
-    private val tokens = mutableMapOf<String, MagicLinkToken>()
-    private val renewable = mutableMapOf<String, MagicLinkToken>()
+    private val tokens = mutableMapOf<String, String>()
+    private val renewable = mutableMapOf<String, String>()
 
     override fun tryLock(
         email: String,
@@ -19,12 +19,12 @@ class InMemoryMagicLinkTokenStore : MagicLinkTokenStore {
 
     override fun saveToken(
         tokenHash: String,
-        token: MagicLinkToken,
+        email: String,
         ttl: Duration,
         renewableFor: Duration,
     ) {
-        tokens[tokenHash] = token
-        renewable[tokenHash] = token
+        tokens[tokenHash] = email
+        renewable[tokenHash] = email
     }
 
     override fun removeToken(tokenHash: String) {

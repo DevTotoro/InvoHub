@@ -14,8 +14,6 @@ data class EmailContent(
     val items: List<String> = emptyList(),
     val button: String,
     val link: URI,
-    /** Under the button, e.g. how long the link works */
-    val note: String,
     /** "Button not working? Copy this link" */
     val fallback: String,
     val footer: String? = null,
@@ -33,8 +31,7 @@ object EmailLayout {
             content.paragraphs.forEach { append(it).append("\n\n") }
             content.items.forEach { append("- ").append(it).append('\n') }
             if (content.items.isNotEmpty()) append('\n')
-            append(content.button).append(": ").append(content.link).append("\n\n")
-            append(content.note)
+            append(content.button).append(": ").append(content.link)
             content.footer?.let { append("\n\n").append(it) }
         }
 
@@ -71,7 +68,7 @@ object EmailLayout {
             """<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:520px;">""" +
             "<tr><td>" +
             """<p style="margin:0 0 24px;font-size:20px;font-weight:700;">InvoHub</p>""" +
-            paragraphs + items + button + muted(escape(content.note)) + fallback + footer +
+            paragraphs + items + button + fallback + footer +
             "</td></tr></table></body></html>"
     }
 

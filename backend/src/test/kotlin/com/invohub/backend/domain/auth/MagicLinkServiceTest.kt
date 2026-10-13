@@ -10,7 +10,9 @@ import io.mockk.mockk
 import io.mockk.verify
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.springframework.web.util.UriComponentsBuilder
 import java.net.URI
+import java.net.URLDecoder
 import java.time.Duration
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -26,13 +28,13 @@ class MagicLinkServiceTest {
     private lateinit var service: MagicLinkService
 
     private val sentLinks = mutableListOf<URI>()
-    private val sentTokens get() = sentLinks.map { it.query.removePrefix("token=") }
+    private val sentTokens get() = sentLinks.map { tokenOf(it) }
 
     @BeforeEach
     fun setUp() {
         tokenStore = InMemoryMagicLinkTokenStore()
         emailPort = mockk()
-        every { emailPort.sendMagicLink(any(), capture(sentLinks), any(), any()) } returns Unit
+        every { emailPort.sendMagicLink(any(), capture(sentLinks), any()) } returns Unit
         userService = mockk()
         every { userService.findByEmail(any()) } returns null
         every { userService.getOrCreateUser(any(), any()) } answers { User(firstArg(), secondArg()) }
@@ -46,10 +48,9 @@ class MagicLinkServiceTest {
     fun `sends a token that verifies to the requesting email`() {
         service.requestToken(email, Language.EN)
 
-        val signIn = service.verifyToken(sentTokens.single(), Language.EN)
+        val user = service.verifyToken(sentTokens.single(), Language.EN)
 
-        assertEquals(email, signIn?.user?.email)
-        assertEquals(SignInDestination.DEFAULT, signIn?.destination)
+        assertEquals(email, user?.email)
     }
 
     @Test
@@ -65,8 +66,8 @@ class MagicLinkServiceTest {
         service.requestToken("  Jane@Example.COM ", Language.EN)
         service.requestToken(email, Language.EN)
 
-        verify(exactly = 1) { emailPort.sendMagicLink(email, any(), any(), any()) }
-        assertEquals(email, service.verifyToken(sentTokens.single(), Language.EN)?.user?.email)
+        verify(exactly = 1) { emailPort.sendMagicLink(email, any(), any()) }
+        assertEquals(email, service.verifyToken(sentTokens.single(), Language.EN)?.email)
     }
 
     @Test
@@ -74,7 +75,7 @@ class MagicLinkServiceTest {
         service.requestToken(email, Language.EN)
         service.requestToken(email, Language.EN)
 
-        verify(exactly = 1) { emailPort.sendMagicLink(email, any(), any(), any()) }
+        verify(exactly = 1) { emailPort.sendMagicLink(email, any(), any()) }
     }
 
     @Test
@@ -112,7 +113,7 @@ class MagicLinkServiceTest {
     fun `a sign-in is recorded`() {
         service.requestToken(email, Language.EN)
 
-        val user = service.verifyToken(sentTokens.single(), Language.EN)!!.user
+        val user = service.verifyToken(sentTokens.single(), Language.EN)!!
 
         verify {
             auditLog.recordStandalone(
@@ -137,24 +138,24 @@ class MagicLinkServiceTest {
 
     @Test
     fun `a failed send is rolled back so the user can retry immediately`() {
-        every { emailPort.sendMagicLink(any(), capture(sentLinks), any(), any()) } throws
+        every { emailPort.sendMagicLink(any(), capture(sentLinks), any()) } throws
             EmailDeliveryException("SMTP down")
 
         assertFailsWith<EmailDeliveryException> { service.requestToken(email, Language.EN) }
         val undeliveredToken = sentTokens.single()
 
-        every { emailPort.sendMagicLink(any(), capture(sentLinks), any(), any()) } returns Unit
+        every { emailPort.sendMagicLink(any(), capture(sentLinks), any()) } returns Unit
         service.requestToken(email, Language.EN)
 
         assertNull(service.verifyToken(undeliveredToken, Language.EN))
-        assertEquals(email, service.verifyToken(sentTokens.last(), Language.EN)?.user?.email)
+        assertEquals(email, service.verifyToken(sentTokens.last(), Language.EN)?.email)
     }
 
     @Test
     fun `emails a new person in the language they are using`() {
         service.requestToken(email, Language.EL)
 
-        verify { emailPort.sendMagicLink(email, any(), any(), Language.EL) }
+        verify { emailPort.sendMagicLink(email, any(), Language.EL) }
     }
 
     @Test
@@ -163,7 +164,7 @@ class MagicLinkServiceTest {
 
         service.requestToken(email, Language.EL)
 
-        verify { emailPort.sendMagicLink(email, any(), any(), Language.EN) }
+        verify { emailPort.sendMagicLink(email, any(), Language.EN) }
     }
 
     @Test
@@ -172,27 +173,34 @@ class MagicLinkServiceTest {
 
         val signIn = service.verifyToken(sentTokens.single(), Language.EL)
 
-        assertEquals(Language.EL, signIn?.user?.language)
+        assertEquals(Language.EL, signIn?.language)
+    }
+
+    @Test
+    fun `a link can say where it leads once signed in, but only to a page of the app`() {
+        service.requestToken(email, Language.EN, redirectTo = "/c/0ACME/members?tab=1")
+        service.verifyToken(sentTokens.single(), Language.EN)
+        service.requestToken(email, Language.EN, redirectTo = "//evil.example")
+
+        assertEquals("/c/0ACME/members?tab=1", redirectOf(sentLinks[0]))
+        assertNull(redirectOf(sentLinks[1]))
     }
 
     @Test
     fun `an invitation link signs the person in on their Invitations page`() {
-        val issued = service.invitationLink("  Maria@Example.com ")
+        val link = service.invitationLink("  Maria@Example.com ")
 
-        val signIn = service.verifyToken(issued.link.query.removePrefix("token="), Language.EN)
-
-        assertEquals("maria@example.com", signIn?.user?.email)
-        assertEquals(SignInDestination.INVITATIONS, signIn?.destination)
-        assertEquals(Duration.ofHours(1), issued.validFor)
+        assertEquals("/invitations", redirectOf(link))
+        assertEquals("maria@example.com", service.verifyToken(tokenOf(link), Language.EN)?.email)
     }
 
     @Test
     fun `an invitation link goes out even while a sign-in link is active`() {
         service.requestToken(email, Language.EN)
 
-        val issued = service.invitationLink(email)
+        val link = service.invitationLink(email)
 
-        assertEquals(email, service.verifyToken(issued.link.query.removePrefix("token="), Language.EN)?.user?.email)
+        assertEquals(email, service.verifyToken(tokenOf(link), Language.EN)?.email)
     }
 
     @Test
@@ -207,18 +215,13 @@ class MagicLinkServiceTest {
 
     @Test
     fun `renewing sends a fresh link to the same address, leading to the same place`() {
-        val old =
-            service
-                .invitationLink(email)
-                .link.query
-                .removePrefix("token=")
+        val old = tokenOf(service.invitationLink(email))
         tokenStore.expireAll()
 
-        service.renew(old, Language.EN)
+        service.renew(old, Language.EN, redirectTo = "/invitations")
 
-        val fresh = service.verifyToken(sentTokens.single(), Language.EN)
-        assertEquals(email, fresh?.user?.email)
-        assertEquals(SignInDestination.INVITATIONS, fresh?.destination)
+        assertEquals("/invitations", redirectOf(sentLinks.single()))
+        assertEquals(email, service.verifyToken(sentTokens.single(), Language.EN)?.email)
     }
 
     @Test
@@ -235,4 +238,11 @@ class MagicLinkServiceTest {
     fun `an unknown link can't be renewed`() {
         assertFailsWith<InvalidSignInLinkException> { service.renew("not-a-real-token", Language.EN) }
     }
+
+    private fun params(link: URI) = UriComponentsBuilder.fromUri(link).build().queryParams
+
+    private fun tokenOf(link: URI) = params(link).getFirst("token")!!
+
+    private fun redirectOf(link: URI) =
+        params(link).getFirst("redirectTo")?.let { URLDecoder.decode(it, Charsets.UTF_8) }
 }

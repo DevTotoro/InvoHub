@@ -19,33 +19,25 @@ export interface User {
 
 /**
  * Emails a sign-in link. [language] is the one in use: the email is in it, unless the person already has an
- * account (then it's in theirs).
+ * account (then it's in theirs). [redirectTo] is where the link leads once signed in.
  */
-export async function requestMagicLink(email: string, language: Language): Promise<void> {
-  await request('/api/auth/request', { method: 'POST', json: { email, language } });
+export async function requestMagicLink(email: string, language: Language, redirectTo?: string): Promise<void> {
+  await request('/api/auth/request', { method: 'POST', json: { email, language, redirectTo } });
 }
-
-/** Where a sign-in link takes the person: their Invitations page for an invitation email, else where they were going */
-export type SignInDestination = 'DEFAULT' | 'INVITATIONS';
 
 /**
  * Exchanges the token from a magic link for a session. Signing in for the first time creates the account,
  * in [language].
- * @returns where the link leads
  * @throws ApiError 401 with code `expired_link` if the link expired or was used (see renewMagicLink), or
  * `invalid_link`; 403 with code `account_suspended` if the user is suspended
  */
-export async function verifyMagicLink(token: string, language: Language): Promise<SignInDestination> {
-  const { destination } = await request<{ destination: SignInDestination }>('/api/auth/verify', {
-    method: 'POST',
-    json: { token, language }
-  });
-  return destination;
+export async function verifyMagicLink(token: string, language: Language): Promise<void> {
+  await request('/api/auth/verify', { method: 'POST', json: { token, language } });
 }
 
-/** Emails a fresh link in place of an expired or used one, to the same address and leading to the same place */
-export async function renewMagicLink(token: string, language: Language): Promise<void> {
-  await request('/api/auth/renew', { method: 'POST', json: { token, language } });
+/** Emails a fresh link in place of an expired or used one, to the same address; [redirectTo] is the old link's */
+export async function renewMagicLink(token: string, language: Language, redirectTo?: string): Promise<void> {
+  await request('/api/auth/renew', { method: 'POST', json: { token, language, redirectTo } });
 }
 
 /** Saves the language the signed-in user sees InvoHub and gets emails in */

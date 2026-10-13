@@ -3,7 +3,6 @@ package com.invohub.backend.domain.invitation
 import com.invohub.backend.domain.audit.AuditEventRepository
 import com.invohub.backend.domain.auth.EmailDeliveryException
 import com.invohub.backend.domain.auth.MagicLinkService
-import com.invohub.backend.domain.auth.SignInDestination
 import com.invohub.backend.domain.common.InvalidInputException
 import com.invohub.backend.domain.company.Company
 import com.invohub.backend.domain.company.CompanyAccessService
@@ -25,6 +24,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.data.redis.core.StringRedisTemplate
 import org.springframework.jdbc.core.JdbcTemplate
+import org.springframework.web.util.UriComponentsBuilder
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
@@ -222,10 +222,17 @@ class InvitationServiceTest {
     fun `the email signs the person in on their Invitations page`() {
         invite(maria, acme to CompanyRole.MEMBER)
 
-        val signIn = magicLinkService.verifyToken(emailPort.invitationEmails.single().rawToken, Language.EN)
+        val sent = emailPort.invitationEmails.single()
 
-        assertEquals(maria, signIn?.user?.email)
-        assertEquals(SignInDestination.INVITATIONS, signIn?.destination)
+        assertEquals(
+            "%2Finvitations",
+            UriComponentsBuilder
+                .fromUri(sent.link)
+                .build()
+                .queryParams
+                .getFirst("redirectTo"),
+        )
+        assertEquals(maria, magicLinkService.verifyToken(sent.rawToken, Language.EN)?.email)
     }
 
     @Test

@@ -16,7 +16,6 @@ import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
-import java.time.Duration
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -43,13 +42,12 @@ class SmtpEmailAdapterTest {
     fun `sends the magic link`() {
         adapter(
             port = mailpit.getMappedPort(1025),
-        ).sendMagicLink("jane@example.com", link, Duration.ofHours(1), Language.EN)
+        ).sendMagicLink("jane@example.com", link, Language.EN)
 
         val message = latestMessage()
         assertEquals("jane@example.com", message.at("/To/0/Address").asString())
         assertEquals("no-reply@invohub.com", message.at("/From/Address").asString())
         assertContains(message.at("/Text").asString(), link.toString())
-        assertContains(message.at("/Text").asString(), "expires in 1 hour")
         // HTML, with the link as a button and written out for when the button doesn't work
         val html = message.at("/HTML").asString()
         assertContains(html, """<a href="$link" style="display:inline-block""")
@@ -61,12 +59,12 @@ class SmtpEmailAdapterTest {
     fun `sends the magic link in the user's language`() {
         adapter(
             port = mailpit.getMappedPort(1025),
-        ).sendMagicLink("jane@example.com", link, Duration.ofMinutes(30), Language.EL)
+        ).sendMagicLink("jane@example.com", link, Language.EL)
 
         val message = latestMessage()
         assertEquals("InvoHub - Σύνδεσμος σύνδεσης", message.at("/Subject").asString())
         assertContains(message.at("/Text").asString(), link.toString())
-        assertContains(message.at("/Text").asString(), "λήγει σε 30 λεπτά")
+        assertEquals("InvoHub - Σύνδεσμος σύνδεσης", message.at("/Subject").asString())
     }
 
     @Test
@@ -78,7 +76,7 @@ class SmtpEmailAdapterTest {
             )
 
         adapter(port = mailpit.getMappedPort(1025))
-            .sendInvitations("maria@example.com", notices, link, Duration.ofHours(1), Language.EL)
+            .sendInvitations("maria@example.com", notices, link, Language.EL)
 
         val message = latestMessage()
         assertEquals("InvoHub - Πρόσκληση", message.at("/Subject").asString())
@@ -95,7 +93,6 @@ class SmtpEmailAdapterTest {
             "maria@example.com",
             listOf(InvitationNotice("Acme", "jane@example.com", CompanyRole.MEMBER)),
             link,
-            Duration.ofHours(1),
             Language.EN,
         )
 
@@ -112,7 +109,6 @@ class SmtpEmailAdapterTest {
                 InvitationNotice("<a href=\"https://evil.example\">Click</a>", "jane@example.com", CompanyRole.MEMBER),
             ),
             link,
-            Duration.ofHours(1),
             Language.EN,
         )
 
@@ -126,7 +122,7 @@ class SmtpEmailAdapterTest {
         val unreachable = adapter(port = 1)
 
         assertFailsWith<EmailDeliveryException> {
-            unreachable.sendMagicLink("jane@example.com", link, Duration.ofHours(1), Language.EN)
+            unreachable.sendMagicLink("jane@example.com", link, Language.EN)
         }
     }
 
