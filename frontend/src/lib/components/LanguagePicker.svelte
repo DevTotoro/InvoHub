@@ -1,31 +1,16 @@
 <script lang="ts">
-  import { setLanguage } from '#lib/api/auth.ts';
-  import { LANGUAGES, apiLanguage, switchLanguage } from '#lib/i18n/language.ts';
+  import { LANGUAGES, switchLanguage } from '#lib/i18n/language.ts';
   import { m } from '#lib/paraglide/messages.js';
   import { getLocale, type Locale } from '#lib/paraglide/runtime.js';
 
-  interface Props {
-    /** Signed in, the choice is also saved on the account: it follows the user to other devices and their emails */
-    signedIn: boolean;
-  }
-
-  let { signedIn }: Props = $props();
-
-  const current = getLocale();
-  let value: Locale = $state(current);
+  // For signed-out pages: the choice is kept in this browser. Signed in, the user menu saves it on the account.
+  let value: Locale = $state(getLocale());
   let saving = $state(false);
   const selected = $derived(LANGUAGES.find((l) => l.locale === value)!);
 
-  async function change() {
+  function change() {
     saving = true;
-    try {
-      if (signedIn) await setLanguage(apiLanguage(value));
-      switchLanguage(value);
-    } catch {
-      // Not saved, so stay in the current language rather than switch for this browser only
-      value = current;
-      saving = false;
-    }
+    switchLanguage(value);
   }
 </script>
 

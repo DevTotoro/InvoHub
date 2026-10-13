@@ -16,7 +16,7 @@ test('someone invited, with no company yet, lands on their invitations and joins
   await expect(page.getByRole('link', { name: /Invitations/ })).toHaveCount(0);
 });
 
-test('the header points to open invitations, which can be declined', async ({ page, baseURL }) => {
+test('the user menu points to open invitations, which can be declined', async ({ page, baseURL }) => {
   await mockApi(page, baseURL!, {
     user: TEST_USER,
     companies: [ACME],
@@ -24,11 +24,12 @@ test('the header points to open invitations, which can be declined', async ({ pa
   });
   await page.goto(`/c/${ACME.company.id}`);
 
+  await page.getByRole('button', { name: 'Account, Invitations (1)' }).click();
   await page.getByRole('link', { name: 'Invitations (1)' }).click();
   await page.getByRole('button', { name: 'Decline' }).click();
 
   await expect(page.getByText('You have no invitations right now.')).toBeVisible();
-  await expect(page.getByRole('link', { name: /Invitations \(/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Account' })).toBeVisible();
 });
 
 test('an invitation that closed meanwhile is explained', async ({ page, baseURL }) => {

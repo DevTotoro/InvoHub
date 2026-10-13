@@ -6,6 +6,7 @@
   import { roleName } from '#lib/company/permissions.ts';
   import Button from '#lib/components/ui/Button.svelte';
   import Input from '#lib/components/ui/Input.svelte';
+  import NativeSelect from '#lib/components/ui/NativeSelect.svelte';
   import { errorMessage } from '#lib/i18n/errors.ts';
   import { m } from '#lib/paraglide/messages.js';
 
@@ -19,6 +20,7 @@
   let { companies, onsent }: Props = $props();
 
   const formId = $props.id();
+  const roleOptions = ASSIGNABLE_ROLES.map((role) => ({ value: role, label: roleName(role) }));
   let email = $state('');
   // Which companies to invite to, with the role for each; the current company is ticked to begin with
   let picked: Record<string, boolean> = $state({});
@@ -110,16 +112,13 @@
             <input type="checkbox" bind:checked={picked[company.id]} class="size-4 accent-taupe-600" />
             <span class="truncate">{company.name}</span>
           </label>
-          <select
+          <NativeSelect
             aria-label={m.invite_role_for({ company: company.name })}
             bind:value={roles[company.id]}
+            options={roleOptions}
             disabled={!picked[company.id]}
-            class="border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900 focus:border-taupe-500 focus:ring-2 focus:ring-taupe-500/20 focus:outline-none disabled:opacity-60"
-          >
-            {#each ASSIGNABLE_ROLES as role (role)}
-              <option value={role}>{roleName(role)}</option>
-            {/each}
-          </select>
+            class="w-40"
+          />
         </li>
       {/each}
     </ul>

@@ -28,17 +28,15 @@ test('removing someone asks first', async ({ page, baseURL }) => {
   await mockApi(page, baseURL!, { user: TEST_USER, companies: [ACME], people: { [ACME.company.id]: [john, maria] } });
   await page.goto(`/c/${ACME.company.id}/members`);
 
-  page.once('dialog', (dialog) => dialog.dismiss());
   await page.getByRole('button', { name: 'Remove maria@example.com' }).click();
-  await expect(page.getByText('maria@example.com')).toBeVisible();
+  await page.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click();
+  await expect(team(page).filter({ hasText: 'maria@example.com' })).toHaveCount(1);
 
-  page.once('dialog', (dialog) => {
-    expect(dialog.message()).toBe('Remove maria@example.com from Acme?');
-    return dialog.accept();
-  });
   await page.getByRole('button', { name: 'Remove maria@example.com' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Remove maria@example.com from Acme?' });
+  await dialog.getByRole('button', { name: 'Remove' }).click();
 
-  await expect(page.getByText('maria@example.com')).toHaveCount(0);
+  await expect(team(page).filter({ hasText: 'maria@example.com' })).toHaveCount(0);
 });
 
 test('a viewer sees the roles but changes nothing, and can leave', async ({ page, baseURL }) => {
@@ -50,8 +48,8 @@ test('a viewer sees the roles but changes nothing, and can leave', async ({ page
   await expect(page.getByRole('main').getByRole('combobox')).toHaveCount(0);
   await expect(page.getByRole('button', { name: /Remove/ })).toHaveCount(0);
 
-  page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: 'Leave company' }).click();
+  await page.getByRole('dialog', { name: 'Leave Acme?' }).getByRole('button', { name: 'Leave company' }).click();
 
   // No companies left
   await expect(page).toHaveURL('/onboarding');
@@ -68,8 +66,8 @@ test('a failed change is explained, and the list shows how things really are', a
     });
   });
 
-  page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: 'Remove john@example.com' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Remove' }).click();
 
   await expect(page.getByRole('alert')).toHaveText('This person is no longer in the company.');
 });
@@ -123,8 +121,8 @@ test('an open invitation can be revoked', async ({ page, baseURL }) => {
   });
   await page.goto(`/c/${ACME.company.id}/members`);
 
-  page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: 'Revoke the invitation for maria@example.com' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Revoke' }).click();
 
   await expect(page.getByRole('list', { name: 'Open invitations' })).toHaveCount(0);
 });

@@ -67,10 +67,12 @@ test('signed in, picking a language saves it on the account', async ({ page, bas
   await page.goto(`/c/${ACME.company.id}`);
   await expect(page.getByRole('heading', { level: 2 })).toHaveText(`Welcome, ${TEST_USER.email}`);
 
-  await page.getByRole('combobox', { name: 'Language' }).selectOption('el');
+  await page.getByRole('button', { name: 'Account' }).click();
+  await page.getByRole('button', { name: 'Ελληνικά' }).click();
 
   await expect(page.getByRole('heading', { level: 2 })).toHaveText(`Καλώς ήρθατε, ${TEST_USER.email}`);
   expect(api.language()).toBe('EL');
+  await page.getByRole('button', { name: 'Λογαριασμός' }).click();
   await expect(page.getByRole('button', { name: 'Αποσύνδεση' })).toBeVisible();
 });
 
