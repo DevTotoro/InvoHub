@@ -77,7 +77,7 @@ Reads and page views are not recorded.
 
 ## Next up
 
-Built so far: companies and roles, translations, permission checks, members, invitations, and UI polish (the user menu, our own confirmation dialog, consistent selects). Every new page and email is written in both languages, and every company-scoped operation goes through the permission checks.
+Built so far: companies and roles, translations, permission checks, members, invitations, and UI polish (the account menu, our own confirmation dialog, consistent selects). Every new page and email is written in both languages, and every company-scoped operation goes through the permission checks.
 
 1. **Company settings.** Admins edit the company's details (including the tax ID, legal name, address and country details from the checklist), bank details and logo; anyone can create more companies.
 2. **Ownership transfer and company deletion.**
@@ -86,6 +86,7 @@ Built so far: companies and roles, translations, permission checks, members, inv
 
 - **Audit archive job** (separate PR; design below) and monthly partitioning of the audit table, which also gives the job its by-time lookups (the existing indexes are by company, actor and target).
 - **AADE registry lookup:** fill in a Greek company's legal name, trade name, address, tax office and activities from its ΑΦΜ through AADE's RgWsPublic2 service (SOAP, WS-Security username/password). Needs AADE access codes: InvoHub's own, which need an ΑΦΜ of its own, or optionally the company's. Fall back to manual entry when AADE doesn't answer.
+- **User names** (first and last, optional): shown on the account button instead of the email, and on the Team page next to each email.
 - **Activity page** for owners and admins; a "your sign-in history" page for users.
 - **InvoHub staff tool:** suspend users, change company status.
 - **Billing:** billing profiles, where one payer covers several companies with one bill (`companies.billing_profile_id`); unpaid leads to a grace period, then read-only.
