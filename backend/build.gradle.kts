@@ -44,6 +44,8 @@ dependencies {
     implementation(libs.kotlin.logging)
     implementation(libs.jackson.module.kotlin)
     implementation(libs.tsid.creator)
+    implementation(platform(libs.aws.sdk.bom))
+    implementation(libs.aws.sdk.s3)
 
     // Development Profiling tools
     developmentOnly(libs.spring.boot.devtools)

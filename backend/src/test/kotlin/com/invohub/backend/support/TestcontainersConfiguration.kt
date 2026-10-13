@@ -5,6 +5,7 @@ import org.springframework.boot.testcontainers.service.connection.ServiceConnect
 import org.springframework.context.annotation.Bean
 import org.springframework.test.context.DynamicPropertyRegistrar
 import org.testcontainers.containers.GenericContainer
+import org.testcontainers.containers.wait.strategy.Wait
 import org.testcontainers.postgresql.PostgreSQLContainer
 import org.testcontainers.utility.DockerImageName
 
@@ -34,6 +35,27 @@ class TestcontainersConfiguration {
             registry.add("spring.flyway.password", postgres::getPassword)
         }
 
+    /** S3-compatible storage, as locally (compose.yaml); the app creates its bucket on startup */
+    @Bean
+    fun storageContainer(): GenericContainer<*> =
+        GenericContainer(DockerImageName.parse("pgsty/silo:RELEASE.2026-09-03T13-18-01Z"))
+            .withExposedPorts(9000)
+            .withEnv(mapOf("MINIO_ROOT_USER" to STORAGE_KEY, "MINIO_ROOT_PASSWORD" to STORAGE_SECRET))
+            .withCommand("server", "/data")
+            .waitingFor(Wait.forHttp("/minio/health/ready").forPort(9000))
+
+    @Bean
+    fun storageProperties(storageContainer: GenericContainer<*>) =
+        DynamicPropertyRegistrar { registry ->
+            val endpoint = "http://${storageContainer.host}:${storageContainer.getMappedPort(9000)}"
+            registry.add("invohub.storage.bucket") { STORAGE_BUCKET }
+            registry.add("invohub.storage.endpoint") { endpoint }
+            registry.add("invohub.storage.public-url") { "$endpoint/$STORAGE_BUCKET" }
+            registry.add("invohub.storage.access-key") { STORAGE_KEY }
+            registry.add("invohub.storage.secret-key") { STORAGE_SECRET }
+            registry.add("invohub.storage.set-up-bucket") { true }
+        }
+
     @Bean
     @ServiceConnection(name = "redis")
     fun redisContainer(): GenericContainer<*> =
@@ -47,6 +69,10 @@ class TestcontainersConfiguration {
     companion object {
         /** Username and password of the app's login, see db/create-app-login.sql */
         const val APP_LOGIN = "invohub_app"
+
+        private const val STORAGE_BUCKET = "invohub-test"
+        private const val STORAGE_KEY = "invohub"
+        private const val STORAGE_SECRET = "invohub-test-secret"
 
         /** From "Restricted Valkey and Redis OSS commands" in the ElastiCache docs */
         private val SERVERLESS_UNAVAILABLE_COMMANDS = listOf("CONFIG", "PSUBSCRIBE", "KEYS")

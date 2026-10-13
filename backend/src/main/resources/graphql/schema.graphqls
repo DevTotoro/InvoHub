@@ -16,6 +16,8 @@ type Query {
     members(companyId: ID!): [Member!]!
     "The company's open invitations, for its owner and admins"
     invitations(companyId: ID!): [Invitation!]!
+    "The company's settings, for its owner and admins (forbidden for others)"
+    companySettings(companyId: ID!): CompanySettings
 }
 
 type Mutation {
@@ -52,6 +54,37 @@ type Mutation {
     "Accepts one of the signed-in user's invitations, joining the company. Otherwise invitation_not_found."
     acceptInvitation(invitationId: ID!): UserCompany!
     declineInvitation(invitationId: ID!): Boolean!
+    """
+    Renames the company and moves it to another country, whose currency it then uses; moving clears the tax ID
+    and the country's own details. Owner or admin. invalid_input: field "name" (required, too_long) or "country"
+    (unknown).
+    """
+    updateCompanyProfile(companyId: ID!, input: CompanyProfileInput!): CompanySettings!
+    """
+    Replaces the business details; blank clears one. Owner or admin. invalid_input with the field ("legalName",
+    "street", "city", "postalCode", "taxId" or a country detail's key) and the reason (too_long, invalid,
+    check_digit).
+    """
+    updateBusinessDetails(companyId: ID!, input: BusinessDetailsInput!): CompanySettings!
+    """
+    Owner or admin. invalid_input: "bankName" (required, too_long) or "iban" (invalid, duplicate);
+    not_allowed with reason "too_many_bank_accounts".
+    """
+    addBankAccount(companyId: ID!, input: BankAccountInput!): CompanySettings!
+    "Owner or admin. Otherwise bank_account_not_found."
+    removeBankAccount(companyId: ID!, bankAccountId: ID!): CompanySettings!
+    """
+    Step 1 of changing the logo: where the browser uploads the file itself, for one file of this type and size.
+    Then changeLogo with the uploadId. Owner or admin. invalid_input "logo": empty, too_large, unsupported_type.
+    """
+    prepareLogoUpload(companyId: ID!, input: LogoUploadInput!): LogoUpload!
+    """
+    Step 2: makes the uploaded file the logo, once checked to be a PNG, JPEG or WebP image of at most 1 MB.
+    invalid_input "logo": upload_missing (never uploaded, or expired), too_large, unsupported_type.
+    """
+    changeLogo(companyId: ID!, uploadId: ID!): CompanySettings!
+    "Owner or admin"
+    removeLogo(companyId: ID!): CompanySettings!
 }
 
 type User {
@@ -86,6 +119,90 @@ type Company {
     status: CompanyStatus!
     "Whether InvoHub supports invoicing in the company's country yet"
     invoicingSupported: Boolean!
+}
+
+type CompanySettings {
+    company: Company!
+    legalName: String
+    address: Address!
+    taxId: String
+    "The country's own details, every key it has (Greece: taxOffice, mainActivity), in form order"
+    countryDetails: [CountryDetail!]!
+    bankAccounts: [BankAccount!]!
+    "Where anyone can see the logo, or null without one; a new logo gets a new URL"
+    logoUrl: String
+    "What's left before the company can issue invoices, in order"
+    invoicingSetup: [SetupStep!]!
+}
+
+type Address {
+    street: String
+    city: String
+    postalCode: String
+}
+
+type CountryDetail {
+    key: String!
+    value: String
+}
+
+type BankAccount {
+    id: ID!
+    bankName: String!
+    iban: String!
+}
+
+"One item of the invoicing setup checklist. available is false for steps that can't be done in InvoHub yet."
+type SetupStep {
+    key: String!
+    done: Boolean!
+    available: Boolean!
+}
+
+input CompanyProfileInput {
+    name: String!
+    "ISO 3166-1 alpha-2"
+    country: String!
+}
+
+input BusinessDetailsInput {
+    legalName: String
+    street: String
+    city: String
+    postalCode: String
+    taxId: String
+    countryDetails: [CountryDetailInput!]
+}
+
+input CountryDetailInput {
+    key: String!
+    value: String
+}
+
+input LogoUploadInput {
+    "image/png, image/jpeg or image/webp"
+    contentType: String!
+    "In bytes"
+    size: Int!
+}
+
+"Where to upload a file: PUT it to url with exactly these headers, before expiresAt"
+type LogoUpload {
+    uploadId: ID!
+    url: String!
+    headers: [UploadHeader!]!
+    "ISO-8601"
+    expiresAt: String!
+}
+
+type UploadHeader {
+    name: String!
+    value: String!
+}
+
+input BankAccountInput {
+    bankName: String!
+    iban: String!
 }
 
 type Invitation {

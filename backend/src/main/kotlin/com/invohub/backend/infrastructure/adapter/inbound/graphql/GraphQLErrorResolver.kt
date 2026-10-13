@@ -4,6 +4,7 @@ import com.invohub.backend.domain.auth.EmailDeliveryException
 import com.invohub.backend.domain.common.InvalidInputException
 import com.invohub.backend.domain.common.NotAllowedException
 import com.invohub.backend.domain.common.TSIDCodec
+import com.invohub.backend.domain.company.BankAccountNotFoundException
 import com.invohub.backend.domain.company.CompanyNotFoundException
 import com.invohub.backend.domain.company.CompanyPermissionDeniedException
 import com.invohub.backend.domain.company.CompanyReadOnlyException
@@ -57,6 +58,8 @@ class GraphQLErrorResolver : DataFetcherExceptionResolverAdapter() {
                     ).build()
             is EmailDeliveryException ->
                 error(env, ErrorType.INTERNAL_ERROR, "The email couldn't be sent", "email_delivery_failed")
+            is BankAccountNotFoundException ->
+                error(env, ErrorType.NOT_FOUND, "Bank account not found", "bank_account_not_found")
             is InvitationNotFoundException ->
                 error(env, ErrorType.NOT_FOUND, "Invitation not found", "invitation_not_found")
             is MemberNotFoundException -> error(env, ErrorType.NOT_FOUND, "Member not found", "member_not_found")

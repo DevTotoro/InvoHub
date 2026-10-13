@@ -43,6 +43,8 @@ CREATE TABLE companies (
     address_city VARCHAR(100),
     address_postal_code VARCHAR(20),
     country_details JSONB NOT NULL DEFAULT '{}',
+    -- Object storage key of the logo, if any (optional; not part of invoicing setup)
+    logo_key VARCHAR(255),
     --
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -56,6 +58,25 @@ CREATE TABLE companies (
 );
 
 CREATE INDEX ix_companies_owner ON companies (owner_user_id);
+
+-- A company's bank accounts, shown on its invoices. The IBAN is stored normalized (no spaces, upper case).
+CREATE TABLE company_bank_accounts (
+    id BIGINT NOT NULL,
+    version BIGINT NOT NULL DEFAULT 0,
+    --
+    company_id BIGINT NOT NULL,
+    bank_name VARCHAR(100) NOT NULL,
+    iban VARCHAR(34) NOT NULL,
+    --
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    --
+    CONSTRAINT pk_company_bank_accounts PRIMARY KEY (id),
+    CONSTRAINT fk_company_bank_accounts_company FOREIGN KEY (company_id) REFERENCES companies (id),
+    CONSTRAINT uq_company_bank_accounts_iban UNIQUE (company_id, iban),
+    CONSTRAINT ck_company_bank_accounts_bank_name CHECK (btrim(bank_name) <> ''),
+    CONSTRAINT ck_company_bank_accounts_iban CHECK (iban ~ '^[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30}$')
+);
 
 -- Everyone with access to a company except its owner, who is companies.owner_user_id. A membership is just a
 -- user in a company, so that pair is the key. The role is a VARCHAR with a CHECK rather than an enum type, so

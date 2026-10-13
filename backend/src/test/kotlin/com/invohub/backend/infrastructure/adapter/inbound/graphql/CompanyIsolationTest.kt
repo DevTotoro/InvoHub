@@ -20,6 +20,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.data.redis.core.StringRedisTemplate
 import org.springframework.graphql.execution.GraphQlSource
 import org.springframework.test.web.servlet.MockMvc
+import java.util.UUID
 import kotlin.test.assertEquals
 
 /**
@@ -70,6 +71,46 @@ class CompanyIsolationTest {
                 """
                 mutation(${'$'}id: ID!, ${'$'}inv: ID!) { revokeInvitation(companyId: ${'$'}id, invitationId: ${'$'}inv) }
                 """.trimIndent() to mapOf("id" to id, "inv" to TSID.fast().toString())
+            },
+            "Query.companySettings" to { id ->
+                "query(${'$'}id: ID!) { companySettings(companyId: ${'$'}id) { taxId } }" to mapOf("id" to id)
+            },
+            "Mutation.updateCompanyProfile" to { id ->
+                """
+                mutation(${'$'}id: ID!) { updateCompanyProfile(companyId: ${'$'}id, input: { name: "X", country: "GR" }) { taxId } }
+                """.trimIndent() to mapOf("id" to id)
+            },
+            "Mutation.updateBusinessDetails" to { id ->
+                """
+                mutation(${'$'}id: ID!) { updateBusinessDetails(companyId: ${'$'}id, input: { legalName: "X" }) { taxId } }
+                """.trimIndent() to mapOf("id" to id)
+            },
+            "Mutation.addBankAccount" to { id ->
+                """
+                mutation(${'$'}id: ID!) {
+                    addBankAccount(companyId: ${'$'}id, input: { bankName: "X", iban: "GR1601101250000000012300695" }) { taxId }
+                }
+                """.trimIndent() to mapOf("id" to id)
+            },
+            "Mutation.removeBankAccount" to { id ->
+                """
+                mutation(${'$'}id: ID!, ${'$'}b: ID!) { removeBankAccount(companyId: ${'$'}id, bankAccountId: ${'$'}b) { taxId } }
+                """.trimIndent() to mapOf("id" to id, "b" to TSID.fast().toString())
+            },
+            "Mutation.prepareLogoUpload" to { id ->
+                """
+                mutation(${'$'}id: ID!) {
+                    prepareLogoUpload(companyId: ${'$'}id, input: { contentType: "image/png", size: 10 }) { uploadId }
+                }
+                """.trimIndent() to mapOf("id" to id)
+            },
+            "Mutation.changeLogo" to { id ->
+                """
+                mutation(${'$'}id: ID!, ${'$'}u: ID!) { changeLogo(companyId: ${'$'}id, uploadId: ${'$'}u) { taxId } }
+                """.trimIndent() to mapOf("id" to id, "u" to UUID.randomUUID().toString())
+            },
+            "Mutation.removeLogo" to { id ->
+                "mutation(${'$'}id: ID!) { removeLogo(companyId: ${'$'}id) { taxId } }" to mapOf("id" to id)
             },
         )
 

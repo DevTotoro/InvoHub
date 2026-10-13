@@ -33,5 +33,20 @@ services:
       - "8025:8025"
       - "${MAILPIT_SMTP_PORT}:1025"
 
+  silo:
+    image: pgsty/silo:RELEASE.2026-09-03T13-18-01Z
+    container_name: invohub_silo
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${STORAGE_ACCESS_KEY:-invohub}
+      MINIO_ROOT_PASSWORD: ${STORAGE_SECRET_KEY:-invohub-local-secret}
+    ports:
+      - "${STORAGE_PORT:-9100}:9000"
+      - "${STORAGE_CONSOLE_PORT:-9101}:9001"
+    volumes:
+      - silo_data:/data
+
 volumes:
   postgres_data:
+  silo_data:

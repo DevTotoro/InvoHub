@@ -55,4 +55,47 @@ class GreekRulesTest {
         assertEquals(listOf("tax_id", "business_details", "mydata"), steps.map { it.key })
         assertEquals(listOf(false, false, false), steps.map { it.done })
     }
+
+    @Test
+    fun `a ΚΑΔ keeps only its digits, and must have 2 to 8`() {
+        assertEquals("62011101", rules.normalizeCountryDetail(GreekRules.MAIN_ACTIVITY, "62.01.11.01"))
+        assertNull(rules.validateCountryDetail(GreekRules.MAIN_ACTIVITY, "62"))
+        assertEquals("invalid", rules.validateCountryDetail(GreekRules.MAIN_ACTIVITY, "6"))
+        assertEquals("invalid", rules.validateCountryDetail(GreekRules.MAIN_ACTIVITY, "620111011"))
+    }
+
+    @Test
+    fun `a description typed instead of the ΚΑΔ is refused, not dropped`() {
+        val value = rules.normalizeCountryDetail(GreekRules.MAIN_ACTIVITY, "ΗΛΕΚΤΡΟΛΟΓΙΚΟ ΥΛΙΚΟ")
+
+        assertEquals("invalid", rules.validateCountryDetail(GreekRules.MAIN_ACTIVITY, value))
+        assertEquals("invalid", rules.validateCountryDetail(GreekRules.MAIN_ACTIVITY, "47.54a"))
+    }
+
+    @Test
+    fun `the tax office is free text, trimmed and not too long`() {
+        assertEquals("Α' Αθηνών", rules.normalizeCountryDetail(GreekRules.TAX_OFFICE, "  Α' Αθηνών "))
+        assertNull(rules.validateCountryDetail(GreekRules.TAX_OFFICE, "x".repeat(100)))
+        assertEquals("too_long", rules.validateCountryDetail(GreekRules.TAX_OFFICE, "x".repeat(101)))
+    }
+
+    @Test
+    fun `business details are done with the address, the tax office and the ΚΑΔ, myDATA isn't available yet`() {
+        val company =
+            Company("Acme", "GR", "EUR", ownerUserId = 1).apply {
+                updateBusinessDetails(
+                    "Acme ΙΚΕ",
+                    "Ερμού 1",
+                    "Αθήνα",
+                    "10563",
+                    "094014201",
+                    mapOf(GreekRules.TAX_OFFICE to "Α' Αθηνών", GreekRules.MAIN_ACTIVITY to "6201"),
+                )
+            }
+
+        val steps = rules.invoicingSetup(company)
+
+        assertEquals(listOf(true, true, false), steps.map { it.done })
+        assertEquals(listOf(true, true, false), steps.map { it.available })
+    }
 }

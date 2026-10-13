@@ -1,6 +1,7 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
+  import { setupPending } from '#lib/api/settings.ts';
   import Link from '#lib/components/ui/Link.svelte';
   import { m } from '#lib/paraglide/messages.js';
   import type { LayoutProps } from './$types';
@@ -10,7 +11,17 @@
   const params = $derived({ companyId: data.company.id });
   const tabs = $derived([
     { href: resolve('/(app)/c/[companyId]', params), label: m.company_nav_overview() },
-    { href: resolve('/(app)/c/[companyId]/members', params), label: m.company_nav_team() }
+    { href: resolve('/(app)/c/[companyId]/members', params), label: m.company_nav_team() },
+    ...(data.settings
+      ? [
+          {
+            href: resolve('/(app)/c/[companyId]/settings', params),
+            label: m.company_nav_settings(),
+            // A dot while invoicing setup has steps left to do
+            attention: setupPending(data.settings.invoicingSetup)
+          }
+        ]
+      : [])
   ]);
 </script>
 
@@ -38,6 +49,11 @@
             ]}
           >
             {tab.label}
+            {#if 'attention' in tab && tab.attention}
+              <span class="ml-1 inline-block size-1.5 -translate-y-0.5 rounded-full bg-amber-500" aria-hidden="true"
+              ></span>
+              <span class="sr-only">({m.settings_needed()})</span>
+            {/if}
           </Link>
         </li>
       {/each}

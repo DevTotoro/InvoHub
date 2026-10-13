@@ -40,6 +40,10 @@ describe('errorMessage', () => {
     expect(errorMessage(graphqlError('not_found'))).toBe("This no longer exists, or you don't have access to it.");
     expect(errorMessage(graphqlError('not_allowed', 'self'))).toBe("You can't change your own access.");
     expect(errorMessage(graphqlError('not_allowed', 'owner_cannot_leave'))).toBe("The owner can't leave the company.");
+    expect(errorMessage(graphqlError('not_allowed', 'too_many_bank_accounts'))).toBe(
+      'You can add up to 10 bank accounts.'
+    );
+    expect(errorMessage(graphqlError('bank_account_not_found'))).toBe('This bank account no longer exists.');
     expect(errorMessage(graphqlError('something_new'))).toBe('Something went wrong. Please try again.');
   });
 });

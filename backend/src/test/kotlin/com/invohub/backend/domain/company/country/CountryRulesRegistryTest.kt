@@ -24,6 +24,6 @@ class CountryRulesRegistryTest {
 
         assertFalse(rules.invoicingSupported)
         val steps = rules.invoicingSetup(Company("Acme GmbH", "DE", "EUR", ownerUserId = 1))
-        assertEquals(listOf(SetupStep("invoicing_not_available", false)), steps)
+        assertEquals(listOf(SetupStep("invoicing_not_available", done = false, available = false)), steps)
     }
 }

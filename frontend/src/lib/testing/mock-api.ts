@@ -3,6 +3,7 @@ import type { Language, User } from '#lib/api/auth.ts';
 import type { Company, Country, UserCompany } from '#lib/api/companies.ts';
 import type { Invitation } from '#lib/api/invitations.ts';
 import type { Member } from '#lib/api/members.ts';
+import type { BusinessDetails, CompanySettings } from '#lib/api/settings.ts';
 
 type Identity = Omit<User, 'companies' | 'invitations'>;
 
@@ -53,6 +54,8 @@ export interface MockApiOptions {
   invitations?: Invitation[];
   /** Open invitations of the user's companies, by company ID */
   companyInvitations?: Record<string, Invitation[]>;
+  /** Saved settings of the user's companies, by company ID; nothing filled in otherwise */
+  settings?: Record<string, Partial<CompanySettings>>;
 }
 
 /** An invitation to [company] for [email] */
@@ -72,6 +75,52 @@ export const person = (email: string, role: Member['role']): Member => ({
   role,
   since: '2026-01-15T10:00:00Z'
 });
+
+/** A small PNG, to upload as a logo */
+export const LOGO_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+  'base64'
+);
+
+/** Greece's ΑΦΜ check digit, as the backend checks it */
+const validAfm = (taxId: string) =>
+  /^\d{9}$/.test(taxId) &&
+  ([...taxId.slice(0, 8)].reduce((sum, digit, i) => sum + Number(digit) * 2 ** (8 - i), 0) % 11) % 10 ===
+    Number(taxId[8]);
+
+/** ISO 13616: mod 97 of the rearranged IBAN is 1 */
+const validIban = (iban: string) =>
+  /^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/.test(iban) &&
+  BigInt(
+    [...(iban.slice(4) + iban.slice(0, 4))].map((c) => (/\d/.test(c) ? c : String(c.charCodeAt(0) - 55))).join('')
+  ) %
+    97n ===
+    1n;
+
+/** Recomputed from the saved details, like the backend's country rules */
+function invoicingSetup(settings: CompanySettings): CompanySettings['invoicingSetup'] {
+  if (settings.company.country !== 'GR') return [{ key: 'invoicing_not_available', done: false, available: false }];
+  const { legalName, address, countryDetails } = settings;
+  return [
+    { key: 'tax_id', done: settings.taxId !== null, available: true },
+    {
+      key: 'business_details',
+      done:
+        [legalName, address.street, address.city, address.postalCode].every((v) => v !== null) &&
+        countryDetails.every((d) => d.value !== null),
+      available: true
+    },
+    { key: 'mydata', done: false, available: false }
+  ];
+}
+
+const countryDetailsOf = (country: string) =>
+  country === 'GR'
+    ? [
+        { key: 'taxOffice', value: null },
+        { key: 'mainActivity', value: null }
+      ]
+    : [];
 
 const problem = (status: number, detail: string, code?: string) => ({
   status,
@@ -94,7 +143,8 @@ export async function mockApi(
     accountLanguage = 'EN',
     people = {},
     invitations = [],
-    companyInvitations = {}
+    companyInvitations = {},
+    settings = {}
   }: MockApiOptions = {}
 ) {
   const myInvitations = [...invitations];
@@ -109,8 +159,31 @@ export async function mockApi(
   let currentUser = user;
   /** The body of every call to /api/auth/*, by path */
   const authCalls: Record<string, unknown[]> = {};
-  const userCompanies = [...companies];
+  // Copies, so changing a company (renaming it) never changes the shared ACME or GLOBEX
+  const userCompanies = companies.map((c) => ({ ...c }));
   let created = 0;
+  const savedSettings: Record<string, CompanySettings> = {};
+  /** Files in mock storage, by key */
+  const storedFiles: Record<string, Buffer> = {};
+  let uploads = 0;
+
+  /** The company's settings as saved, with the setup checklist worked out */
+  function settingsOf(access: UserCompany): CompanySettings {
+    const saved = (savedSettings[access.company.id] ??= {
+      legalName: null,
+      address: { street: null, city: null, postalCode: null },
+      taxId: null,
+      countryDetails: countryDetailsOf(access.company.country),
+      bankAccounts: [],
+      logoUrl: null,
+      invoicingSetup: [],
+      ...settings[access.company.id],
+      company: access.company
+    });
+    saved.company = access.company;
+    saved.invoicingSetup = invoicingSetup(saved);
+    return saved;
+  }
 
   // The client reads the CSRF token from this cookie instead of calling /api/auth/csrf
   await page.context().addCookies([{ name: 'XSRF-TOKEN', value: 'test-token', url: baseURL }]);
@@ -131,6 +204,13 @@ export async function mockApi(
     const access = userCompanies.find((c) => c.company.id === variables?.companyId);
 
     if (query.includes('CreateCompany')) return createCompany(route, variables!.input!);
+    if (
+      /UpdateCompanyProfile|UpdateBusinessDetails|AddBankAccount|RemoveBankAccount|Logo|CompanySettings/.test(query)
+    ) {
+      if (!access) return graphqlError(route, 'not_found');
+      if (access.role !== 'OWNER' && access.role !== 'ADMIN') return graphqlError(route, 'forbidden');
+      return changeSettings(route, query, access, variables as Record<string, unknown>);
+    }
     if (query.includes('SetLanguage')) {
       currentUser = { ...currentUser, language: variables!.language! };
       return route.fulfill({ json: { data: { setLanguage: { language: currentUser.language } } } });
@@ -205,6 +285,113 @@ export async function mockApi(
   function graphqlError(route: Route, code: string, reason?: string) {
     return route.fulfill({ json: { data: null, errors: [{ message: code, extensions: { code, reason } }] } });
   }
+
+  function invalid(route: Route, field: string, reason: string) {
+    return route.fulfill({
+      json: { data: null, errors: [{ message: 'invalid', extensions: { code: 'invalid_input', field, reason } }] }
+    });
+  }
+
+  function changeSettings(route: Route, query: string, access: UserCompany, variables: Record<string, unknown>) {
+    const current = settingsOf(access);
+    const operation = query.match(
+      /(UpdateCompanyProfile|UpdateBusinessDetails|AddBankAccount|RemoveBankAccount|PrepareLogoUpload|ChangeLogo|RemoveLogo)/
+    )?.[1];
+    const answer = () => {
+      const field = operation ? operation[0].toLowerCase() + operation.slice(1) : 'companySettings';
+      return route.fulfill({ json: { data: { [field]: settingsOf(access) } } });
+    };
+
+    if (operation === 'UpdateCompanyProfile') {
+      const input = variables.input as { name: string; country: string };
+      if (!input.name.trim()) return invalid(route, 'name', 'required');
+      const country = COUNTRIES.find((c) => c.code === input.country)!;
+      const moved = country.code !== access.company.country;
+      access.company = {
+        ...access.company,
+        name: input.name.trim(),
+        country: country.code,
+        currency: country.currency,
+        invoicingSupported: country.invoicingSupported
+      };
+      if (moved) {
+        current.taxId = null;
+        current.countryDetails = countryDetailsOf(country.code);
+      }
+    }
+    if (operation === 'UpdateBusinessDetails') {
+      const input = variables.input as BusinessDetails;
+      const text = (value: string) => value.trim() || null;
+      const taxId = input.taxId.replace(/\W/g, '').replace(/^(EL|GR)/i, '');
+      if (taxId && access.company.country === 'GR' && !validAfm(taxId)) {
+        return invalid(route, 'taxId', /^\d{9}$/.test(taxId) ? 'check_digit' : 'invalid');
+      }
+      const mainActivity = input.countryDetails.find((d) => d.key === 'mainActivity')?.value.replace(/[\s.-]/g, '');
+      if (mainActivity && !/^\d{2,8}$/.test(mainActivity)) {
+        return invalid(route, 'mainActivity', 'invalid');
+      }
+      current.legalName = text(input.legalName);
+      current.address = { street: text(input.street), city: text(input.city), postalCode: text(input.postalCode) };
+      current.taxId = taxId || null;
+      current.countryDetails = current.countryDetails.map(({ key }) => {
+        const value = input.countryDetails.find((d) => d.key === key)?.value ?? '';
+        return { key, value: (key === 'mainActivity' ? value.replace(/[\s.-]/g, '') : value.trim()) || null };
+      });
+    }
+    if (operation === 'AddBankAccount') {
+      const input = variables.input as { bankName: string; iban: string };
+      const iban = input.iban.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      if (!input.bankName.trim()) return invalid(route, 'bankName', 'required');
+      if (!validIban(iban)) return invalid(route, 'iban', 'invalid');
+      if (current.bankAccounts.some((a) => a.iban === iban)) return invalid(route, 'iban', 'duplicate');
+      current.bankAccounts.push({ id: `0BANK${iban.slice(-8)}`, bankName: input.bankName.trim(), iban });
+    }
+    if (operation === 'PrepareLogoUpload') {
+      const { contentType, size } = variables.input as { contentType: string; size: number };
+      if (!['image/png', 'image/jpeg', 'image/webp'].includes(contentType)) {
+        return invalid(route, 'logo', 'unsupported_type');
+      }
+      if (size > 1024 * 1024) return invalid(route, 'logo', 'too_large');
+      const uploadId = `upload-${++uploads}`;
+      const prepareLogoUpload = {
+        uploadId,
+        url: `${baseURL}/mock-storage/pending/${uploadId}`,
+        headers: [{ name: 'content-type', value: contentType }]
+      };
+      return route.fulfill({ json: { data: { prepareLogoUpload } } });
+    }
+    if (operation === 'ChangeLogo') {
+      const pending = `pending/${variables.uploadId}`;
+      const file = storedFiles[pending];
+      if (!file) return invalid(route, 'logo', 'upload_missing');
+      delete storedFiles[pending];
+      // Only PNGs are recognized here, by their first bytes like the backend
+      if (!file.subarray(0, 4).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47]))) {
+        return invalid(route, 'logo', 'unsupported_type');
+      }
+      const key = `logos/${access.company.id}/${uploads}.png`;
+      storedFiles[key] = file;
+      current.logoUrl = `${baseURL}/mock-storage/${key}`;
+    }
+    if (operation === 'RemoveLogo') current.logoUrl = null;
+    if (operation === 'RemoveBankAccount') {
+      const index = current.bankAccounts.findIndex((a) => a.id === variables.bankAccountId);
+      if (index < 0) return graphqlError(route, 'bank_account_not_found');
+      current.bankAccounts.splice(index, 1);
+    }
+    return answer();
+  }
+
+  // Storage, which the browser uploads logos to and loads them from, as it would S3 and the CDN
+  await page.route('**/mock-storage/**', async (route) => {
+    const key = new URL(route.request().url()).pathname.replace('/mock-storage/', '');
+    if (route.request().method() === 'PUT') {
+      storedFiles[key] = route.request().postDataBuffer() ?? Buffer.alloc(0);
+      return route.fulfill({ status: 200 });
+    }
+    const file = storedFiles[key];
+    return file ? route.fulfill({ status: 200, contentType: 'image/png', body: file }) : route.fulfill({ status: 404 });
+  });
 
   function createCompany(route: Route, input: { name: string; country: string }) {
     const name = input.name.trim();

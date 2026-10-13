@@ -40,8 +40,23 @@ What's planned, what's decided, and what must happen before the first deployment
 
 **Greece's invoicing setup checklist:**
 1. Tax ID (ΑΦΜ): 9 digits with a check digit. Not unique across InvoHub, so nobody can block a business by registering its tax ID first.
-2. Business details: legal name, address, tax office (ΔΟΥ), main activity (ΚΑΔ). Entered by hand for now; later filled in from AADE's registry (see Later).
-3. Connect myDATA with the company's own user ID and key. This also verifies the ΑΦΜ (to confirm against AADE's documentation when built).
+2. Business details: legal name, address, tax office (ΔΟΥ), main activity (ΚΑΔ, 2 to 8 digits). Entered by hand for now, the tax office as free text: there is no dependable official list, and offices are being merged in 2026. Later filled in from AADE's registry (see Next up).
+3. Connect myDATA with the company's own user ID and key. This also verifies the ΑΦΜ (to confirm against AADE's documentation when built). Shown as "Coming soon" until then, so it doesn't count as left to do.
+
+**Company settings** (built). A Settings tab for the owner and admins, also while the company is read-only (they can look, not change). Sections:
+- Company: name and country. Moving the country clears the tax ID and the country's own details, after asking; the currency follows the country.
+- Business details: legal name, address, tax ID and the country's own details, checked by the country's rules.
+- Bank accounts: up to 10, each a bank name and an IBAN (check digits verified, unique within the company).
+- Logo, optional: PNG, JPEG or WebP (recognized by the file's contents; SVG is refused, as it can carry scripts), up to 1 MB. Public, as it's printed on every invoice (see Files in S3).
+
+While steps of the invoicing setup checklist that can be done are left, the owner and admins see the checklist on Overview and a dot on the Settings tab; each section says whether it's done, needed or optional. Every change is recorded as `company.updated` with each changed field before and after.
+
+**Files in S3.** Logos now, and later invoice PDFs, attachments and exports. Locally and in tests, an S3-compatible server in Docker: [Silo](https://github.com/pgsty/silo), a MinIO fork. It only runs alongside the app, so its AGPL licence doesn't reach InvoHub's code. In production, a private bucket the app reaches with its IAM role.
+- Uploads go from the browser straight to the bucket, never through the app. The app signs a URL for one file under `pending/`: one key, one content type and one exact size, for 5 minutes, and S3 refuses anything else. The browser then names the upload, and the app checks what arrived (the real size, and the file's first bytes against the type) before using it; a file that fails is deleted. The key is built from the company, so nobody can name another company's upload. Unused uploads under `pending/` expire after a day.
+- Public files (logos) are served by CloudFront from `logos/`, the only part it may read. Each logo has its own key, so it is cached for good (`immutable`) and a new logo is simply a new URL: nothing is ever invalidated. A removed logo stays in CloudFront's cache until it expires, unlinked; one that must go at once is invalidated by hand. Being on another domain than the app also means an uploaded file can never run as part of InvoHub.
+- Private files (later: attachments, exports) are never public: the app checks access, then hands out a short-lived signed URL to download.
+- Invoice PDFs are made on the server, which reads the logo from S3 directly.
+- The old logo, or a checked upload, is only deleted once the change is saved, so a failed save never leaves the company pointing at a missing file.
 
 **Customers belong to a company**, not shared between companies. Invoices store the customer's details as they were when issued.
 
@@ -77,21 +92,22 @@ Reads and page views are not recorded.
 
 ## Next up
 
-Built so far: companies and roles, translations, permission checks, members, invitations, and UI polish (the account menu, our own confirmation dialog, consistent selects). Every new page and email is written in both languages, and every company-scoped operation goes through the permission checks.
+Built so far: companies and roles, translations, permission checks, members, invitations, UI polish (the account menu, our own confirmation dialog, consistent selects), and company settings. Every new page and email is written in both languages, and every company-scoped operation goes through the permission checks.
 
-1. **Company settings.** Admins edit the company's details (including the tax ID, legal name, address and country details from the checklist), bank details and logo; anyone can create more companies.
-2. **Ownership transfer and company deletion.**
+1. **Ownership transfer and company deletion.**
+2. **myDATA connection and AADE registry lookup.**
+   - myDATA: the company enters its own myDATA user ID and key, stored encrypted; InvoHub checks them against AADE, which completes the checklist's last step.
+   - Registry: fill in a Greek company's legal name, trade name, address, tax office and activities from its ΑΦΜ through AADE's RgWsPublic2 service (SOAP, WS-Security username/password). Needs AADE access codes: InvoHub's own, which need an ΑΦΜ of its own, or optionally the company's. Fall back to manual entry when AADE doesn't answer.
 
 ## Later
 
 - **Audit archive job** (separate PR; design below) and monthly partitioning of the audit table, which also gives the job its by-time lookups (the existing indexes are by company, actor and target).
-- **AADE registry lookup:** fill in a Greek company's legal name, trade name, address, tax office and activities from its ΑΦΜ through AADE's RgWsPublic2 service (SOAP, WS-Security username/password). Needs AADE access codes: InvoHub's own, which need an ΑΦΜ of its own, or optionally the company's. Fall back to manual entry when AADE doesn't answer.
 - **User names** (first and last, optional): shown on the account button instead of the email, and on the Team page next to each email.
 - **Activity page** for owners and admins; a "your sign-in history" page for users.
 - **InvoHub staff tool:** suspend users, change company status.
 - **Billing:** billing profiles, where one payer covers several companies with one bill (`companies.billing_profile_id`); unpaid leads to a grace period, then read-only.
 - **Invoices:** the invoicing setup checklist screens and the block on issuing until it is complete; numbering per company, immutable once issued, corrections through credit notes. Rules depend on the country (required fields, numbering, tamper-evidence, mandatory e-invoicing). For **Greece**, check the current rules when designing this:
-  - the issuer's tax office (ΔΟΥ) and business activity on invoices: add them to the company then
+  - the issuer's tax office (ΔΟΥ) and main activity on invoices (both already part of the company's details)
   - reporting every invoice to AADE's myDATA
   - mandatory B2B e-invoicing, being phased in: each invoice is transmitted (to myDATA or through a certified provider) and gets back its MARK and a QR code, both printed on the invoice
 - **Customers:** "copy from another company".
@@ -119,4 +135,10 @@ Built so far: companies and roles, translations, permission checks, members, inv
 - Per-IP rate limiting at the CDN.
 - Email sending (e.g. Amazon SES): handle bounces and complaints, stop sending to addresses that bounce or complain, and alert on a rising complaint rate. Invitation emails go to addresses other users type in, so they are the ones to watch.
 - The S3 bucket with Object Lock, and the audit archive job.
+- The S3 bucket for files: private (Block Public Access on), encrypted, with the app's IAM role allowed only to read, write, copy and delete objects in it. Also:
+  - a lifecycle rule expiring `pending/` after a day (locally the app sets it up itself);
+  - CORS allowing `PUT` from the frontend's origin, with the `Content-Type` header;
+  - CloudFront in front of `logos/` only, reading through Origin Access Control, on its own domain (not the app's), with a response headers policy sending `X-Content-Type-Options: nosniff`;
+  - if the frontend gets a Content-Security-Policy, allow the bucket for uploads (`connect-src`) and CloudFront for images (`img-src`);
+  - environment: `INVOHUB_STORAGE_BUCKET`, `INVOHUB_STORAGE_PUBLIC_URL` (the CloudFront domain, e.g. `https://files.invohub.app`), and `INVOHUB_STORAGE_REGION` if not `eu-central-1`. No keys: the default AWS credentials are used.
 - From then on, schema changes go into new Flyway migrations instead of editing `V1__initial_setup.sql`.

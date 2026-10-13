@@ -13,6 +13,7 @@ class DatabaseCleaner(
 ) {
     fun clean() {
         jdbcTemplate.execute("DELETE FROM invitations")
+        jdbcTemplate.execute("DELETE FROM company_bank_accounts")
         jdbcTemplate.execute("DELETE FROM company_members")
         jdbcTemplate.execute("DELETE FROM companies")
         jdbcTemplate.execute("DELETE FROM users")

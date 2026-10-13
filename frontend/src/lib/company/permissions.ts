@@ -9,6 +9,14 @@ export function canManageMembers(role: CompanyRole, company: Company): boolean {
   return (role === 'OWNER' || role === 'ADMIN') && company.status === 'ACTIVE';
 }
 
+/**
+ * Whether to show the company's settings: to the owner and admins, also while the company is read-only (they can
+ * look, not change). The backend checks every request regardless (CompanyPermission.MANAGE_SETTINGS).
+ */
+export function canSeeSettings(role: CompanyRole): boolean {
+  return role === 'OWNER' || role === 'ADMIN';
+}
+
 export function roleName(role: CompanyRole): string {
   switch (role) {
     case 'OWNER':

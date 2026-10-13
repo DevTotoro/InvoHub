@@ -83,4 +83,51 @@ class Company(
     @Column(name = "country_details", nullable = false)
     var countryDetails: Map<String, Any?> = emptyMap()
         protected set
+
+    /** Object storage key of the logo; optional */
+    @Column(name = "logo_key")
+    var logoKey: String? = null
+        protected set
+
+    fun rename(name: String) {
+        this.name = name
+    }
+
+    /**
+     * Moves the company to another country (possible until its first invoice). The tax ID and the country's own
+     * details mean nothing there, so they go.
+     */
+    fun moveTo(
+        country: String,
+        currency: String,
+    ) {
+        if (country == this.country) return
+        this.country = country
+        this.currency = currency
+        taxId = null
+        taxIdVerifiedAt = null
+        countryDetails = emptyMap()
+    }
+
+    /** Replaces the business details; null clears one. Values come validated by the country's rules. */
+    fun updateBusinessDetails(
+        legalName: String?,
+        street: String?,
+        city: String?,
+        postalCode: String?,
+        taxId: String?,
+        countryDetails: Map<String, String>,
+    ) {
+        if (taxId != this.taxId) taxIdVerifiedAt = null
+        this.legalName = legalName
+        addressStreet = street
+        addressCity = city
+        addressPostalCode = postalCode
+        this.taxId = taxId
+        this.countryDetails = countryDetails
+    }
+
+    fun changeLogo(key: String?) {
+        logoKey = key
+    }
 }
