@@ -6,17 +6,33 @@ import com.invohub.backend.domain.audit.AuditLog
 import com.invohub.backend.domain.audit.AuditTarget
 import com.invohub.backend.domain.common.InvalidInputException
 import com.invohub.backend.domain.storage.FileStorage
-import com.invohub.backend.domain.storage.StoredFile
+import com.invohub.backend.domain.storage.UploadTarget
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.hypersistence.tsid.TSID
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.transaction.support.TransactionSynchronization
+import org.springframework.transaction.support.TransactionSynchronizationManager
+import java.net.URI
+import java.time.Duration
+import java.util.UUID
 
 private val logger = KotlinLogging.logger {}
 
+/** A logo upload the browser can now send, and its ID for [LogoService.change] */
+class LogoUpload(
+    val uploadId: String,
+    val target: UploadTarget,
+)
+
 /**
- * A company's logo: optional, and not part of invoicing setup. Only PNG, JPEG or WebP, recognized by their
- * contents rather than what the browser claims. SVG is refused: it can carry scripts.
+ * A company's logo: optional, and not part of invoicing setup. Logos are public (they're printed on every
+ * invoice), served by the CDN.
+ *
+ * The browser uploads the file straight to storage, never through InvoHub: [prepareUpload] signs it a URL for
+ * one file of the stated type and size, then [change] checks what actually arrived before it becomes the logo.
+ * Only PNG, JPEG or WebP, recognized by their contents rather than what the browser claims. SVG is refused: it
+ * can carry scripts.
  */
 @Service
 class LogoService(
@@ -26,51 +42,105 @@ class LogoService(
 ) {
     companion object {
         const val MAX_BYTES = 1024 * 1024
+        private val UPLOAD_VALID_FOR = Duration.ofMinutes(5)
+
+        // Each logo has its own key, so its URL never shows anything else and can be cached for good
+        private const val CACHE_CONTROL = "public, max-age=31536000, immutable"
     }
 
     /** @throws InvalidInputException "logo" with "empty", "too_large" or "unsupported_type" */
+    fun prepareUpload(
+        access: CompanyAccess,
+        contentType: String,
+        size: Long,
+    ): LogoUpload {
+        access.require(CompanyPermission.MANAGE_SETTINGS)
+        if (size <= 0) throw InvalidInputException("logo", "empty")
+        if (size > MAX_BYTES) throw InvalidInputException("logo", "too_large")
+        val type = ImageType.entries.find { it.contentType == contentType }
+        if (type == null) throw InvalidInputException("logo", "unsupported_type")
+
+        val uploadId = UUID.randomUUID().toString()
+        val target = storage.prepareUpload(pendingKey(access, uploadId), type.contentType, size, UPLOAD_VALID_FOR)
+        return LogoUpload(uploadId, target)
+    }
+
+    /**
+     * Makes the uploaded file the logo, once it is checked. Files that fail the check are deleted.
+     * @throws InvalidInputException "logo" with "upload_missing" (never uploaded, expired, or not this company's),
+     * "too_large" or "unsupported_type"
+     */
     @Transactional
     fun change(
         access: CompanyAccess,
-        bytes: ByteArray,
-    ) {
+        uploadId: String,
+    ): Company {
         access.require(CompanyPermission.MANAGE_SETTINGS)
-        if (bytes.isEmpty()) throw InvalidInputException("logo", "empty")
-        if (bytes.size > MAX_BYTES) throw InvalidInputException("logo", "too_large")
-        val type = ImageType.of(bytes) ?: throw InvalidInputException("logo", "unsupported_type")
+        // Only this company's uploads can be named: the key is built here, from the company
+        val id = runCatching { UUID.fromString(uploadId).toString() }.getOrNull() ?: throw missingUpload()
+        val pending = pendingKey(access, id)
+        val info = storage.info(pending) ?: throw missingUpload()
+        val type = storage.readStart(pending, ImageType.BYTES_NEEDED)?.let(ImageType::of)
+        val problem =
+            when {
+                info.size > MAX_BYTES -> "too_large"
+                // The type it was uploaded as is the type it will be served as, so they must agree
+                type == null || type.contentType != info.contentType -> "unsupported_type"
+                else -> null
+            }
+        if (problem != null) {
+            deleteQuietly(pending)
+            throw InvalidInputException("logo", problem)
+        }
 
         val company = companyRepository.findById(access.companyId).orElseThrow()
         val previous = company.logoKey
-        // A new key each time, so browsers never show a stale cached logo
-        val key = "logos/${company.getPublicId()}/${TSID.fast()}.${type.extension}"
-        storage.put(key, bytes, type.contentType)
+        val key = "logos/${company.getPublicId()}/${TSID.fast()}.${type!!.extension}"
+        storage.copy(pending, key, type.contentType, CACHE_CONTROL)
         company.changeLogo(key)
-        companyRepository.saveAndFlush(company)
+        val saved = companyRepository.saveAndFlush(company)
         record(company.id, if (previous == null) "added" else "replaced")
-        previous?.let(::deleteQuietly)
+        // Only once saved: until then the old logo is still the company's, and the upload can be tried again
+        afterCommit {
+            deleteQuietly(pending)
+            previous?.let(::deleteQuietly)
+        }
+        return saved
     }
 
     @Transactional
-    fun remove(access: CompanyAccess) {
+    fun remove(access: CompanyAccess): Company {
         access.require(CompanyPermission.MANAGE_SETTINGS)
         val company = companyRepository.findById(access.companyId).orElseThrow()
-        val previous = company.logoKey ?: return
+        val previous = company.logoKey ?: return company
         company.changeLogo(null)
-        companyRepository.saveAndFlush(company)
+        val saved = companyRepository.saveAndFlush(company)
         record(company.id, "removed")
-        deleteQuietly(previous)
+        afterCommit { deleteQuietly(previous) }
+        return saved
     }
 
-    /** The logo, for anyone in the company; null without one */
-    @Transactional(readOnly = true)
-    fun logo(access: CompanyAccess): StoredFile? {
-        access.require(CompanyPermission.VIEW)
-        return access.company.logoKey?.let(storage::get)
+    /** Where anyone can see the company's logo; null without one */
+    fun logoUrl(company: Company): URI? = company.logoKey?.let(storage::publicUrl)
+
+    private fun pendingKey(
+        access: CompanyAccess,
+        uploadId: String,
+    ) = "pending/${access.company.getPublicId()}/$uploadId"
+
+    private fun missingUpload() = InvalidInputException("logo", "upload_missing")
+
+    private fun afterCommit(action: () -> Unit) {
+        TransactionSynchronizationManager.registerSynchronization(
+            object : TransactionSynchronization {
+                override fun afterCommit() = action()
+            },
+        )
     }
 
     /** A leftover file harms nobody, so failing to delete one doesn't fail the change */
     private fun deleteQuietly(key: String) {
-        runCatching { storage.delete(key) }.onFailure { logger.warn(it) { "Couldn't delete old logo $key" } }
+        runCatching { storage.delete(key) }.onFailure { logger.warn(it) { "Couldn't delete $key" } }
     }
 
     private fun record(
@@ -97,6 +167,9 @@ class LogoService(
         ;
 
         companion object {
+            /** Enough of the start of a file to tell its type */
+            const val BYTES_NEEDED = 12
+
             /** By the file's first bytes, its "magic number" */
             fun of(bytes: ByteArray): ImageType? {
                 fun startsWith(vararg prefix: Int) =

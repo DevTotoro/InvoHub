@@ -3,11 +3,6 @@ package com.invohub.backend.infrastructure.adapter.inbound.web.error
 import com.invohub.backend.domain.auth.AccountSuspendedException
 import com.invohub.backend.domain.auth.EmailDeliveryException
 import com.invohub.backend.domain.auth.InvalidSignInLinkException
-import com.invohub.backend.domain.common.InvalidInputException
-import com.invohub.backend.domain.company.CompanyNotFoundException
-import com.invohub.backend.domain.company.CompanyPermissionDeniedException
-import com.invohub.backend.domain.company.CompanyReadOnlyException
-import com.invohub.backend.domain.company.CompanySuspendedException
 import com.invohub.backend.infrastructure.adapter.inbound.web.filter.RequestIdFilter
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.slf4j.MDC
@@ -21,7 +16,6 @@ import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 import org.springframework.web.context.request.WebRequest
-import org.springframework.web.multipart.MaxUploadSizeExceededException
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler
 
 // Not `logger`: ResponseEntityExceptionHandler already has a field by that name
@@ -69,54 +63,6 @@ class ApiExceptionHandler : ResponseEntityExceptionHandler() {
             request,
             code = "invalid_link",
         )
-
-    // Company access, as GraphQL reports it (GraphQLErrorResolver), for the REST endpoints under a company
-    @ExceptionHandler(CompanyNotFoundException::class)
-    fun handleCompanyNotFound(
-        e: CompanyNotFoundException,
-        request: WebRequest,
-    ): ResponseEntity<Any>? = problem(e, HttpStatus.NOT_FOUND, "Company not found.", request, code = "not_found")
-
-    @ExceptionHandler(CompanyPermissionDeniedException::class)
-    fun handleCompanyPermissionDenied(
-        e: CompanyPermissionDeniedException,
-        request: WebRequest,
-    ): ResponseEntity<Any>? =
-        problem(e, HttpStatus.FORBIDDEN, "Your role in this company doesn't allow this.", request, code = "forbidden")
-
-    @ExceptionHandler(CompanyReadOnlyException::class)
-    fun handleCompanyReadOnly(
-        e: CompanyReadOnlyException,
-        request: WebRequest,
-    ): ResponseEntity<Any>? =
-        problem(e, HttpStatus.FORBIDDEN, "The company is read-only.", request, code = "company_read_only")
-
-    @ExceptionHandler(CompanySuspendedException::class)
-    fun handleCompanySuspended(
-        e: CompanySuspendedException,
-        request: WebRequest,
-    ): ResponseEntity<Any>? =
-        problem(e, HttpStatus.FORBIDDEN, "The company is suspended.", request, code = "company_suspended")
-
-    @ExceptionHandler(InvalidInputException::class)
-    fun handleInvalidInput(
-        e: InvalidInputException,
-        request: WebRequest,
-    ): ResponseEntity<Any>? {
-        val body = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Invalid ${e.field}: ${e.reason}")
-        body.setProperty("code", "invalid_input")
-        body.setProperty("field", e.field)
-        body.setProperty("reason", e.reason)
-        return handleExceptionInternal(e, body, HttpHeaders(), HttpStatus.BAD_REQUEST, request)
-    }
-
-    // Uploads past spring.servlet.multipart.max-file-size never reach the code that would refuse them
-    override fun handleMaxUploadSizeExceededException(
-        ex: MaxUploadSizeExceededException,
-        headers: HttpHeaders,
-        status: HttpStatusCode,
-        request: WebRequest,
-    ): ResponseEntity<Any>? = handleInvalidInput(InvalidInputException("logo", "too_large"), request)
 
     // Raised when a save is based on a stale version of the row (see BaseEntity.version)
     @ExceptionHandler(OptimisticLockingFailureException::class)

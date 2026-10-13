@@ -21,12 +21,6 @@ spring:
     http:
       path: /api/graphql
 
-  servlet:
-    multipart:
-      # A little above LogoService.MAX_BYTES, so the service decides and says why
-      max-file-size: 2MB
-      max-request-size: 2MB
-
   # Texts in the user's language (see Language), e.g. emails. English is the base file, so any other language
   # falls back to it rather than to the server's own locale.
   messages:

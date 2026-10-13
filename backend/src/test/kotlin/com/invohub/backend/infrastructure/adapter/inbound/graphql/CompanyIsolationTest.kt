@@ -20,6 +20,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.data.redis.core.StringRedisTemplate
 import org.springframework.graphql.execution.GraphQlSource
 import org.springframework.test.web.servlet.MockMvc
+import java.util.UUID
 import kotlin.test.assertEquals
 
 /**
@@ -95,6 +96,21 @@ class CompanyIsolationTest {
                 """
                 mutation(${'$'}id: ID!, ${'$'}b: ID!) { removeBankAccount(companyId: ${'$'}id, bankAccountId: ${'$'}b) { taxId } }
                 """.trimIndent() to mapOf("id" to id, "b" to TSID.fast().toString())
+            },
+            "Mutation.prepareLogoUpload" to { id ->
+                """
+                mutation(${'$'}id: ID!) {
+                    prepareLogoUpload(companyId: ${'$'}id, input: { contentType: "image/png", size: 10 }) { uploadId }
+                }
+                """.trimIndent() to mapOf("id" to id)
+            },
+            "Mutation.changeLogo" to { id ->
+                """
+                mutation(${'$'}id: ID!, ${'$'}u: ID!) { changeLogo(companyId: ${'$'}id, uploadId: ${'$'}u) { taxId } }
+                """.trimIndent() to mapOf("id" to id, "u" to UUID.randomUUID().toString())
+            },
+            "Mutation.removeLogo" to { id ->
+                "mutation(${'$'}id: ID!) { removeLogo(companyId: ${'$'}id) { taxId } }" to mapOf("id" to id)
             },
         )
 

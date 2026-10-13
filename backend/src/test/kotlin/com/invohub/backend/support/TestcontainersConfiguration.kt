@@ -47,13 +47,13 @@ class TestcontainersConfiguration {
     @Bean
     fun storageProperties(storageContainer: GenericContainer<*>) =
         DynamicPropertyRegistrar { registry ->
-            registry.add("invohub.storage.bucket") { "invohub-test" }
-            registry.add(
-                "invohub.storage.endpoint",
-            ) { "http://${storageContainer.host}:${storageContainer.getMappedPort(9000)}" }
+            val endpoint = "http://${storageContainer.host}:${storageContainer.getMappedPort(9000)}"
+            registry.add("invohub.storage.bucket") { STORAGE_BUCKET }
+            registry.add("invohub.storage.endpoint") { endpoint }
+            registry.add("invohub.storage.public-url") { "$endpoint/$STORAGE_BUCKET" }
             registry.add("invohub.storage.access-key") { STORAGE_KEY }
             registry.add("invohub.storage.secret-key") { STORAGE_SECRET }
-            registry.add("invohub.storage.create-bucket") { true }
+            registry.add("invohub.storage.set-up-bucket") { true }
         }
 
     @Bean
@@ -70,6 +70,7 @@ class TestcontainersConfiguration {
         /** Username and password of the app's login, see db/create-app-login.sql */
         const val APP_LOGIN = "invohub_app"
 
+        private const val STORAGE_BUCKET = "invohub-test"
         private const val STORAGE_KEY = "invohub"
         private const val STORAGE_SECRET = "invohub-test-secret"
 

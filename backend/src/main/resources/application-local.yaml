@@ -36,7 +36,9 @@ invohub:
     endpoint: http://${HOST:localhost}:${STORAGE_PORT:9100}
     access-key: ${STORAGE_ACCESS_KEY:invohub}
     secret-key: ${STORAGE_SECRET_KEY:invohub-local-secret}
-    create-bucket: true
+    # No CDN locally: logos are read from the bucket, which allows that for logos/ only
+    public-url: http://${HOST:localhost}:${STORAGE_PORT:9100}/invohub-local
+    set-up-bucket: true
 
 server:
   servlet:

@@ -73,6 +73,18 @@ type Mutation {
     addBankAccount(companyId: ID!, input: BankAccountInput!): CompanySettings!
     "Owner or admin. Otherwise bank_account_not_found."
     removeBankAccount(companyId: ID!, bankAccountId: ID!): CompanySettings!
+    """
+    Step 1 of changing the logo: where the browser uploads the file itself, for one file of this type and size.
+    Then changeLogo with the uploadId. Owner or admin. invalid_input "logo": empty, too_large, unsupported_type.
+    """
+    prepareLogoUpload(companyId: ID!, input: LogoUploadInput!): LogoUpload!
+    """
+    Step 2: makes the uploaded file the logo, once checked to be a PNG, JPEG or WebP image of at most 1 MB.
+    invalid_input "logo": upload_missing (never uploaded, or expired), too_large, unsupported_type.
+    """
+    changeLogo(companyId: ID!, uploadId: ID!): CompanySettings!
+    "Owner or admin"
+    removeLogo(companyId: ID!): CompanySettings!
 }
 
 type User {
@@ -117,7 +129,7 @@ type CompanySettings {
     "The country's own details, every key it has (Greece: taxOffice, mainActivity), in form order"
     countryDetails: [CountryDetail!]!
     bankAccounts: [BankAccount!]!
-    "Where the logo is served, or null without one; changes whenever the logo does"
+    "Where anyone can see the logo, or null without one; a new logo gets a new URL"
     logoUrl: String
     "What's left before the company can issue invoices, in order"
     invoicingSetup: [SetupStep!]!
@@ -165,6 +177,27 @@ input BusinessDetailsInput {
 input CountryDetailInput {
     key: String!
     value: String
+}
+
+input LogoUploadInput {
+    "image/png, image/jpeg or image/webp"
+    contentType: String!
+    "In bytes"
+    size: Int!
+}
+
+"Where to upload a file: PUT it to url with exactly these headers, before expiresAt"
+type LogoUpload {
+    uploadId: ID!
+    url: String!
+    headers: [UploadHeader!]!
+    "ISO-8601"
+    expiresAt: String!
+}
+
+type UploadHeader {
+    name: String!
+    value: String!
 }
 
 input BankAccountInput {

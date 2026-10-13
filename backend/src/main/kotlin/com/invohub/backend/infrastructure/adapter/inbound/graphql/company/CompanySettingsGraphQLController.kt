@@ -10,6 +10,7 @@ import com.invohub.backend.domain.company.CompanyAccess
 import com.invohub.backend.domain.company.CompanyPermission
 import com.invohub.backend.domain.company.CompanyPermissionDeniedException
 import com.invohub.backend.domain.company.CompanySettingsService
+import com.invohub.backend.domain.company.LogoService
 import com.invohub.backend.domain.company.country.CountryRulesRegistry
 import com.invohub.backend.domain.company.country.SetupStep
 import org.springframework.graphql.data.method.annotation.Argument
@@ -42,7 +43,6 @@ data class CompanySettingsView(
     val taxId: String?,
     val countryDetails: List<CountryDetailView>,
     val bankAccounts: List<BankAccountView>,
-    /** Versioned by the stored file, so a changed logo is never served stale from a cache */
     val logoUrl: String?,
     val invoicingSetup: List<SetupStep>,
 )
@@ -66,6 +66,23 @@ data class BusinessDetailsGraphQLInput(
     val countryDetails: List<CountryDetailInput>?,
 )
 
+data class LogoUploadInput(
+    val contentType: String,
+    val size: Int,
+)
+
+data class UploadHeaderView(
+    val name: String,
+    val value: String,
+)
+
+data class LogoUploadView(
+    val uploadId: String,
+    val url: String,
+    val headers: List<UploadHeaderView>,
+    val expiresAt: String,
+)
+
 data class BankAccountInput(
     val bankName: String,
     val iban: String,
@@ -75,6 +92,7 @@ data class BankAccountInput(
 @Controller
 class CompanySettingsGraphQLController(
     private val settingsService: CompanySettingsService,
+    private val logoService: LogoService,
     private val companyScope: CompanyScope,
     private val countryRules: CountryRulesRegistry,
 ) {
@@ -144,6 +162,41 @@ class CompanySettingsGraphQLController(
         return view(access, access.company)
     }
 
+    @MutationMapping
+    fun prepareLogoUpload(
+        @Argument companyId: String,
+        @Argument input: LogoUploadInput,
+        @AuthenticationPrincipal principal: AuthenticatedUser,
+    ): LogoUploadView {
+        val upload =
+            logoService.prepareUpload(companyScope.enter(principal, companyId), input.contentType, input.size.toLong())
+        return LogoUploadView(
+            uploadId = upload.uploadId,
+            url = upload.target.url.toString(),
+            headers = upload.target.headers.map { (name, value) -> UploadHeaderView(name, value) },
+            expiresAt = upload.target.expiresAt.toString(),
+        )
+    }
+
+    @MutationMapping
+    fun changeLogo(
+        @Argument companyId: String,
+        @Argument uploadId: String,
+        @AuthenticationPrincipal principal: AuthenticatedUser,
+    ): CompanySettingsView {
+        val access = companyScope.enter(principal, companyId)
+        return view(access, logoService.change(access, uploadId))
+    }
+
+    @MutationMapping
+    fun removeLogo(
+        @Argument companyId: String,
+        @AuthenticationPrincipal principal: AuthenticatedUser,
+    ): CompanySettingsView {
+        val access = companyScope.enter(principal, companyId)
+        return view(access, logoService.remove(access))
+    }
+
     private fun view(
         access: CompanyAccess,
         company: Company,
@@ -162,10 +215,7 @@ class CompanySettingsGraphQLController(
                     )
                 },
             bankAccounts = settingsService.bankAccounts(access).map(::view),
-            logoUrl =
-                company.logoKey?.let {
-                    "/api/companies/${company.getPublicId()}/logo?v=${it.substringAfterLast('/').substringBefore('.')}"
-                },
+            logoUrl = logoService.logoUrl(company)?.toString(),
             invoicingSetup = rules.invoicingSetup(company),
         )
     }

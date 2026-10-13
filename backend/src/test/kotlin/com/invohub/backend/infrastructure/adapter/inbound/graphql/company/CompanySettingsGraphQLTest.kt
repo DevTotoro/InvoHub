@@ -14,12 +14,14 @@ import com.invohub.backend.support.signIn
 import com.jayway.jsonpath.JsonPath
 import jakarta.servlet.http.Cookie
 import org.hamcrest.Matchers.contains
+import org.hamcrest.Matchers.containsString
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.data.redis.core.StringRedisTemplate
 import org.springframework.test.web.servlet.MockMvc
+import java.util.UUID
 
 @IntegrationTest
 @AutoConfigureMockMvc
@@ -163,6 +165,43 @@ class CompanySettingsGraphQLTest {
                 "mutation(${'$'}c: ID!, ${'$'}b: ID!) { removeBankAccount(companyId: ${'$'}c, bankAccountId: ${'$'}b) { bankAccounts { id } } }",
                 mapOf("c" to acme.getPublicId(), "b" to id),
             ).andExpect { jsonPath("$.data.removeBankAccount.bankAccounts") { isEmpty() } }
+    }
+
+    @Test
+    fun `a logo upload gets a signed URL, and only an upload that happened can become the logo`() {
+        mockMvc
+            .graphql(
+                owner,
+                """
+                mutation(${'$'}c: ID!) {
+                    prepareLogoUpload(companyId: ${'$'}c, input: { contentType: "image/png", size: 2048 }) {
+                        uploadId url headers { name value } expiresAt
+                    }
+                }
+                """.trimIndent(),
+                mapOf("c" to acme.getPublicId()),
+            ).andExpect {
+                jsonPath("$.data.prepareLogoUpload.url") { value(containsString("/pending/${acme.getPublicId()}/")) }
+                jsonPath("$.data.prepareLogoUpload.headers[?(@.name == 'content-type')].value") {
+                    value(contains("image/png"))
+                }
+                jsonPath("$.data.prepareLogoUpload.expiresAt") { isNotEmpty() }
+            }
+        mockMvc
+            .graphql(
+                owner,
+                "mutation(${'$'}c: ID!) { prepareLogoUpload(companyId: ${'$'}c, input: { contentType: \"image/svg+xml\", size: 10 }) { uploadId } }",
+                mapOf("c" to acme.getPublicId()),
+            ).andExpect {
+                jsonPath("$.errors[0].extensions.field") { value("logo") }
+                jsonPath("$.errors[0].extensions.reason") { value("unsupported_type") }
+            }
+        mockMvc
+            .graphql(
+                owner,
+                "mutation(${'$'}c: ID!, ${'$'}u: ID!) { changeLogo(companyId: ${'$'}c, uploadId: ${'$'}u) { logoUrl } }",
+                mapOf("c" to acme.getPublicId(), "u" to UUID.randomUUID().toString()),
+            ).andExpect { jsonPath("$.errors[0].extensions.reason") { value("upload_missing") } }
     }
 
     @Test
