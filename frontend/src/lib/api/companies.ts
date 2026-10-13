@@ -17,6 +17,8 @@ export interface Company {
   status: CompanyStatus;
   /** Whether InvoHub supports invoicing in the company's country yet */
   invoicingSupported: boolean;
+  /** When the owner closed it (ISO-8601): it stays, read-only, until reopened. Null while open. */
+  closedAt: string | null;
 }
 
 /** A company the user can access, with their role in it */
@@ -32,7 +34,7 @@ export interface Country {
 }
 
 /** The fields every query asks for, so a Company always has the same shape */
-export const COMPANY_FIELDS = 'id name country currency status invoicingSupported';
+export const COMPANY_FIELDS = 'id name country currency status invoicingSupported closedAt';
 
 export async function getCountries(fetch?: Fetch): Promise<Country[]> {
   const { countries } = await graphql<{ countries: Country[] }>(

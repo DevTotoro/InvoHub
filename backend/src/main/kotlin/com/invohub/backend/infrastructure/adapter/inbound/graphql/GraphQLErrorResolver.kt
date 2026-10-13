@@ -5,11 +5,13 @@ import com.invohub.backend.domain.common.InvalidInputException
 import com.invohub.backend.domain.common.NotAllowedException
 import com.invohub.backend.domain.common.TSIDCodec
 import com.invohub.backend.domain.company.BankAccountNotFoundException
+import com.invohub.backend.domain.company.CompanyClosedException
 import com.invohub.backend.domain.company.CompanyNotFoundException
 import com.invohub.backend.domain.company.CompanyPermissionDeniedException
 import com.invohub.backend.domain.company.CompanyReadOnlyException
 import com.invohub.backend.domain.company.CompanySuspendedException
 import com.invohub.backend.domain.company.MemberNotFoundException
+import com.invohub.backend.domain.company.OwnershipTransferNotFoundException
 import com.invohub.backend.domain.invitation.InvitationNotFoundException
 import com.invohub.backend.domain.invitation.InvitationRefusedException
 import graphql.GraphQLError
@@ -68,6 +70,9 @@ class GraphQLErrorResolver : DataFetcherExceptionResolverAdapter() {
                 error(env, ErrorType.FORBIDDEN, "Your role in this company doesn't allow this", "forbidden")
             is CompanyReadOnlyException ->
                 error(env, ErrorType.FORBIDDEN, "The company is read-only", "company_read_only")
+            is CompanyClosedException -> error(env, ErrorType.FORBIDDEN, "The company is closed", "company_closed")
+            is OwnershipTransferNotFoundException ->
+                error(env, ErrorType.NOT_FOUND, "Ownership transfer not found", "ownership_transfer_not_found")
             is CompanySuspendedException ->
                 error(env, ErrorType.FORBIDDEN, "The company is suspended", "company_suspended")
             else -> null

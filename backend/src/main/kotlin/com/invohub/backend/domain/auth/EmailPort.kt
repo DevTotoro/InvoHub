@@ -30,6 +30,19 @@ interface EmailPort {
         link: URI,
         language: Language,
     )
+
+    /**
+     * Tells [email] they've been offered ownership of [companyName]. [link] signs them in on their Invitations
+     * page, where they accept or decline.
+     * @throws EmailDeliveryException if the email could not be handed off for delivery
+     */
+    fun sendOwnershipOffer(
+        email: String,
+        companyName: String,
+        offeredByEmail: String,
+        link: URI,
+        language: Language,
+    )
 }
 
 class EmailDeliveryException(

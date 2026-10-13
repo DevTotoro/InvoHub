@@ -184,5 +184,22 @@
   "error_bank_account_not_found": "Ο λογαριασμός δεν υπάρχει πλέον.",
   "error_too_many_bank_accounts": "Μπορείτε να προσθέσετε έως 10 λογαριασμούς.",
   "settings_logo_upload_failed": "Το ανέβασμα δεν ολοκληρώθηκε. Δοκιμάστε ξανά.",
-  "settings_main_activity_placeholder": "π.χ. 47.54.10.01"
+  "settings_main_activity_placeholder": "π.χ. 47.54.10.01",
+
+  "company_closed_banner": "Αυτή η εταιρεία έχει κλείσει.",
+  "company_reopen": "Επαναφορά",
+  "company_closed_group": "Κλειστές",
+  "settings_close_title": "Κλείσιμο εταιρείας",
+  "settings_close_hint": "Γίνεται μόνο για προβολή για όλους. Μπορείτε να την επαναφέρετε οποιαδήποτε στιγμή.",
+  "settings_close_confirm": "Να κλείσει η εταιρεία {company};",
+  "team_make_owner": "Ορισμός ιδιοκτήτη",
+  "team_make_owner_of": "Ορισμός του {email} ως ιδιοκτήτη",
+  "team_make_owner_confirm": "Να προταθεί η ιδιοκτησία της εταιρείας {company} στο {email}; Θα γίνετε διαχειριστής μόλις αποδεχτεί.",
+  "team_offer_ownership": "Πρόταση ιδιοκτησίας",
+  "team_ownership_pending": "Προτάθηκε η ιδιοκτησία στο {email} · ισχύει έως {date}",
+  "team_ownership_cancel": "Ακύρωση πρότασης",
+  "invitations_ownership": "Πρόταση ιδιοκτησίας από {email}",
+  "error_company_closed": "Αυτή η εταιρεία έχει κλείσει.",
+  "error_ownership_transfer_not_found": "Αυτή η πρόταση δεν ισχύει πλέον.",
+  "error_transfer_pending": "Υπάρχει ήδη ανοιχτή πρόταση ιδιοκτησίας."
 }

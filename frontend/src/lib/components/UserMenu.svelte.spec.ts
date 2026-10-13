@@ -12,13 +12,22 @@ const user = (invitations = 0): User => ({
   email: 'jane@example.com',
   language: 'EN',
   companies: [],
+  ownershipOffers: [],
   invitations: Array.from({ length: invitations }, (_, i) => ({
     id: `0INV${i}`,
     email: 'jane@example.com',
     role: 'MEMBER',
     invitedBy: 'owner@example.com',
     expiresAt: '2026-10-20T10:00:00Z',
-    company: { id: `0C${i}`, name: `C${i}`, country: 'GR', currency: 'EUR', status: 'ACTIVE', invoicingSupported: true }
+    company: {
+      id: `0C${i}`,
+      name: `C${i}`,
+      country: 'GR',
+      currency: 'EUR',
+      status: 'ACTIVE',
+      invoicingSupported: true,
+      closedAt: null
+    }
   }))
 });
 

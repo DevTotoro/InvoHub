@@ -11,7 +11,10 @@ export function rememberCompany(id: string): void {
   }
 }
 
-/** The company to open: the last one used, if the user still has access to it, otherwise the first. */
+/**
+ * The company to open: the last one used, if the user still has access to it, otherwise the first. Closed
+ * companies only when there is nothing else: they're kept to look back at, not to work in.
+ */
 export function pickCompany(companies: UserCompany[]): UserCompany | undefined {
   let lastId: string | null = null;
   try {
@@ -19,5 +22,7 @@ export function pickCompany(companies: UserCompany[]): UserCompany | undefined {
   } catch {
     // Storage unavailable: use the first company
   }
-  return companies.find((c) => c.company.id === lastId) ?? companies[0];
+  const open = companies.filter((c) => !c.company.closedAt);
+  const candidates = open.length > 0 ? open : companies;
+  return candidates.find((c) => c.company.id === lastId) ?? candidates[0];
 }

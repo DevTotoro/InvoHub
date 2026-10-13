@@ -9,7 +9,8 @@ type Query {
     suspended company.
 
     Company-scoped fields fail with these codes: "not_found"; "forbidden" when the user's role doesn't allow
-    it; "company_read_only" when it would change a read-only company; "company_suspended".
+    it; "company_read_only" when it would change a read-only company; "company_closed" when it would change a
+    company its owner has closed; "company_suspended".
     """
     company(id: ID!): UserCompany
     "The company's people: its owner first, then its members by email. Anyone in the company can see them."
@@ -18,6 +19,8 @@ type Query {
     invitations(companyId: ID!): [Invitation!]!
     "The company's settings, for its owner and admins (forbidden for others)"
     companySettings(companyId: ID!): CompanySettings
+    "The company's open ownership offer, if any. Owner only."
+    ownershipTransfer(companyId: ID!): OwnershipTransfer
 }
 
 type Mutation {
@@ -85,6 +88,23 @@ type Mutation {
     changeLogo(companyId: ID!, uploadId: ID!): CompanySettings!
     "Owner or admin"
     removeLogo(companyId: ID!): CompanySettings!
+    """
+    Offers ownership to a member, who gets an email and accepts or declines on their Invitations page. Owner only.
+    not_allowed with reason "self" or "transfer_pending" (cancel the open offer first); member_not_found.
+    """
+    offerOwnership(companyId: ID!, userId: ID!): OwnershipTransfer!
+    "Owner only. Otherwise ownership_transfer_not_found."
+    cancelOwnershipTransfer(companyId: ID!): Boolean!
+    "Makes the signed-in user the owner; the old owner becomes an admin. Otherwise ownership_transfer_not_found."
+    acceptOwnership(transferId: ID!): UserCompany!
+    declineOwnership(transferId: ID!): Boolean!
+    """
+    Closes the company: nothing is deleted, but it becomes read-only (company_closed) and its open invitations
+    are revoked. Owner only.
+    """
+    closeCompany(companyId: ID!): Company!
+    "Owner only"
+    reopenCompany(companyId: ID!): Company!
 }
 
 type User {
@@ -96,6 +116,20 @@ type User {
     companies: [UserCompany!]!
     "Open invitations for the user's email address, oldest first"
     invitations: [Invitation!]!
+    "Ownership offered to the user, still open, oldest first"
+    ownershipOffers: [OwnershipTransfer!]!
+}
+
+"The owner offering ownership of a company to one of its members"
+type OwnershipTransfer {
+    id: ID!
+    company: Company!
+    "The owner's email"
+    from: String!
+    "The recipient's email"
+    to: String!
+    "ISO-8601"
+    expiresAt: String!
 }
 
 enum Language {
@@ -119,6 +153,8 @@ type Company {
     status: CompanyStatus!
     "Whether InvoHub supports invoicing in the company's country yet"
     invoicingSupported: Boolean!
+    "When the owner closed it (ISO-8601), or null while open"
+    closedAt: String
 }
 
 type CompanySettings {

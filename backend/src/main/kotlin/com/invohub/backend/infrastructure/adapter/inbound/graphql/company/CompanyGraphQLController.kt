@@ -23,6 +23,8 @@ data class CompanyView(
     val currency: String,
     val status: CompanyStatus,
     val invoicingSupported: Boolean,
+    /** ISO-8601 */
+    val closedAt: String?,
 ) {
     companion object {
         fun of(
@@ -35,6 +37,7 @@ data class CompanyView(
             currency = company.currency,
             status = company.status,
             invoicingSupported = countryRules.forCountry(company.country).invoicingSupported,
+            closedAt = company.closedAt?.toString(),
         )
     }
 }

@@ -1,7 +1,11 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
+  import { invalidateAll } from '$app/navigation';
+  import { reopenCompany } from '#lib/api/ownership.ts';
   import { setupPending } from '#lib/api/settings.ts';
+  import Button from '#lib/components/ui/Button.svelte';
+  import { errorMessage } from '#lib/i18n/errors.ts';
   import Link from '#lib/components/ui/Link.svelte';
   import { m } from '#lib/paraglide/messages.js';
   import type { LayoutProps } from './$types';
@@ -18,11 +22,27 @@
             href: resolve('/(app)/c/[companyId]/settings', params),
             label: m.company_nav_settings(),
             // A dot while invoicing setup has steps left to do
-            attention: setupPending(data.settings.invoicingSetup)
+            attention: !data.company.closedAt && setupPending(data.settings.invoicingSetup)
           }
         ]
       : [])
   ]);
+
+  let reopening = $state(false);
+  let reopenError: string | undefined = $state();
+
+  async function reopen() {
+    reopening = true;
+    reopenError = undefined;
+    try {
+      await reopenCompany(data.company.id);
+      await invalidateAll();
+    } catch (e) {
+      reopenError = errorMessage(e);
+    } finally {
+      reopening = false;
+    }
+  }
 </script>
 
 <!-- A suspended company can't be used: the API refuses everything in it, so no page of it is shown -->
@@ -59,5 +79,18 @@
       {/each}
     </ul>
   </nav>
+  {#if data.company.closedAt}
+    <div class="border-b border-gray-200 bg-gray-50">
+      <div class="container mx-auto flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2" role="status">
+        <p class="text-sm text-gray-700">{m.company_closed_banner()}</p>
+        {#if data.role === 'OWNER'}
+          <Button variant="secondary" loading={reopening} onclick={reopen}>{m.company_reopen()}</Button>
+        {/if}
+        {#if reopenError}
+          <p class="text-sm text-red-600" role="alert">{reopenError}</p>
+        {/if}
+      </div>
+    </div>
+  {/if}
   {@render children()}
 {/if}

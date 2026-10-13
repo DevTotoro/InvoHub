@@ -12,17 +12,19 @@ class CompanyAccess internal constructor(
 ) {
     val companyId: Long get() = company.id
 
-    fun can(permission: CompanyPermission) = permission.grantedTo(role) && permission.allowedIn(company.status)
+    fun can(permission: CompanyPermission) = permission.grantedTo(role) && permission.allowedIn(company)
 
     /**
      * @throws CompanySuspendedException if the company is suspended
+     * @throws CompanyClosedException if the owner has closed the company and [permission] would change it
      * @throws CompanyReadOnlyException if the company is read-only and [permission] would change it
      * @throws CompanyPermissionDeniedException if the user's role doesn't have [permission]
      */
     fun require(permission: CompanyPermission): CompanyAccess {
         when {
             company.status == CompanyStatus.SUSPENDED -> throw CompanySuspendedException()
-            !permission.allowedIn(company.status) -> throw CompanyReadOnlyException()
+            !permission.allowedIn(company) && company.closed -> throw CompanyClosedException()
+            !permission.allowedIn(company) -> throw CompanyReadOnlyException()
             !permission.grantedTo(role) -> throw CompanyPermissionDeniedException(permission)
         }
         return this
@@ -40,5 +42,8 @@ class CompanyPermissionDeniedException(
 ) : RuntimeException("Missing permission $permission")
 
 class CompanyReadOnlyException : RuntimeException("The company is read-only")
+
+/** Closed by its owner: it can be looked at and exported, and reopened by the owner */
+class CompanyClosedException : RuntimeException("The company is closed")
 
 class CompanySuspendedException : RuntimeException("The company is suspended")

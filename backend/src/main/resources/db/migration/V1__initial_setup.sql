@@ -45,6 +45,8 @@ CREATE TABLE companies (
     country_details JSONB NOT NULL DEFAULT '{}',
     -- Object storage key of the logo, if any (optional; not part of invoicing setup)
     logo_key VARCHAR(255),
+    -- Set when the owner closes the company: it stays, read-only, until they reopen it
+    closed_at TIMESTAMP WITH TIME ZONE,
     --
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -132,6 +134,37 @@ CREATE UNIQUE INDEX uq_invitations_pending ON invitations (company_id, email) WH
 CREATE INDEX ix_invitations_email_pending ON invitations (email) WHERE status = 'PENDING';
 -- A company's open invitations
 CREATE INDEX ix_invitations_company ON invitations (company_id);
+
+-- The owner offering ownership of a company to one of its members, who accepts or declines
+CREATE TABLE ownership_transfers (
+    id BIGINT NOT NULL,
+    version BIGINT NOT NULL DEFAULT 0,
+    --
+    company_id BIGINT NOT NULL,
+    from_user_id BIGINT NOT NULL,
+    to_user_id BIGINT NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    closed_at TIMESTAMP WITH TIME ZONE,
+    --
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    --
+    CONSTRAINT pk_ownership_transfers PRIMARY KEY (id),
+    CONSTRAINT fk_ownership_transfers_company FOREIGN KEY (company_id) REFERENCES companies (id),
+    CONSTRAINT fk_ownership_transfers_from FOREIGN KEY (from_user_id) REFERENCES users (id),
+    CONSTRAINT fk_ownership_transfers_to FOREIGN KEY (to_user_id) REFERENCES users (id),
+    CONSTRAINT ck_ownership_transfers_people CHECK (from_user_id <> to_user_id),
+    CONSTRAINT ck_ownership_transfers_status
+        CHECK (status IN ('PENDING', 'ACCEPTED', 'DECLINED', 'CANCELLED', 'EXPIRED')),
+    -- Closed exactly when no longer pending
+    CONSTRAINT ck_ownership_transfers_closed CHECK ((status = 'PENDING') = (closed_at IS NULL))
+);
+
+-- At most one pending transfer per company. An expired one is closed (EXPIRED) before offering again.
+CREATE UNIQUE INDEX uq_ownership_transfers_pending ON ownership_transfers (company_id) WHERE status = 'PENDING';
+-- Transfers offered to a user
+CREATE INDEX ix_ownership_transfers_to_pending ON ownership_transfers (to_user_id) WHERE status = 'PENDING';
 
 -- Audit log: what happened, who did it, when. Append-only: the app's login may only add and read events, and
 -- a trigger refuses changes from every login, migrations included. No foreign keys: events must outlive the

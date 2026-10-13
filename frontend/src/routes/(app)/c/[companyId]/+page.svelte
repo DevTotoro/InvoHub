@@ -18,7 +18,7 @@
   };
   /** Shown to the owner and admins until every step they can do is done */
   const setup = $derived(
-    data.settings && setupPending(data.settings.invoicingSetup)
+    data.settings && !data.company.closedAt && setupPending(data.settings.invoicingSetup)
       ? data.settings.invoicingSetup.filter((step) => step.key in STEP_LABELS)
       : []
   );

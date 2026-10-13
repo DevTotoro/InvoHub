@@ -12,6 +12,10 @@
 
   let { current, companies }: Props = $props();
 
+  // Closed companies stay reachable, below the ones in use
+  const open_ = $derived(companies.filter((c) => !c.company.closedAt));
+  const closed = $derived(companies.filter((c) => c.company.closedAt));
+
   let open = $state(false);
   let container: HTMLElement | undefined = $state();
   const menuId = $props.id();
@@ -49,24 +53,33 @@
 
   {#if open}
     <div id={menuId} class="absolute left-0 z-10 mt-1 w-64 border border-gray-200 bg-white py-1 shadow-lg">
-      <ul aria-label={m.company_your_companies()}>
-        {#each companies as { company } (company.id)}
-          <li>
-            <Link
-              href={resolve('/(app)/c/[companyId]', { companyId: company.id })}
-              variant="plain"
-              aria-current={company.id === current.id ? 'page' : undefined}
-              onclick={close}
-              class={[
-                'block truncate px-3 py-2 text-sm hover:bg-gray-100',
-                company.id === current.id ? 'font-semibold text-gray-900' : 'text-gray-700'
-              ]}
-            >
-              {company.name}
-            </Link>
-          </li>
-        {/each}
-      </ul>
+      {#snippet list(items: UserCompany[], label: string)}
+        <ul aria-label={label}>
+          {#each items as { company } (company.id)}
+            <li>
+              <Link
+                href={resolve('/(app)/c/[companyId]', { companyId: company.id })}
+                variant="plain"
+                aria-current={company.id === current.id ? 'page' : undefined}
+                onclick={close}
+                class={[
+                  'block truncate px-3 py-2 text-sm hover:bg-gray-100',
+                  company.id === current.id ? 'font-semibold text-gray-900' : 'text-gray-700'
+                ]}
+              >
+                {company.name}
+              </Link>
+            </li>
+          {/each}
+        </ul>
+      {/snippet}
+      {@render list(open_, m.company_your_companies())}
+      {#if closed.length > 0}
+        <div class="mt-1 border-t border-gray-200 pt-1">
+          <p class="px-3 py-1 text-xs font-medium text-gray-500" aria-hidden="true">{m.company_closed_group()}</p>
+          {@render list(closed, m.company_closed_group())}
+        </div>
+      {/if}
       <div class="mt-1 border-t border-gray-200 pt-1">
         <Link
           href={resolve('/(app)/onboarding')}

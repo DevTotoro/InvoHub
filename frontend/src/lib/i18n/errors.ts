@@ -41,6 +41,10 @@ function graphqlMessage(code: string, reason?: string): string {
       return m.error_company_read_only();
     case 'company_suspended':
       return m.error_company_suspended();
+    case 'company_closed':
+      return m.error_company_closed();
+    case 'ownership_transfer_not_found':
+      return m.error_ownership_transfer_not_found();
     case 'member_not_found':
       return m.error_member_not_found();
     case 'invitation_not_found':
@@ -54,6 +58,7 @@ function graphqlMessage(code: string, reason?: string): string {
       if (reason === 'self') return m.error_not_allowed_self();
       if (reason === 'owner_cannot_leave') return m.error_owner_cannot_leave();
       if (reason === 'too_many_bank_accounts') return m.error_too_many_bank_accounts();
+      if (reason === 'transfer_pending') return m.error_transfer_pending();
       return m.error_forbidden();
     default:
       return m.error_generic();

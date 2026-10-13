@@ -1,6 +1,7 @@
 <script lang="ts">
   import { invalidate, invalidateAll } from '$app/navigation';
   import { invalidInput } from '#lib/api/companies.ts';
+  import { closeCompany } from '#lib/api/ownership.ts';
   import {
     addBankAccount,
     removeBankAccount,
@@ -10,6 +11,7 @@
     uploadLogo,
     type BankAccount
   } from '#lib/api/settings.ts';
+  import { canChange } from '#lib/company/permissions.ts';
   import { confirmAction } from '#lib/components/confirm.svelte.ts';
   import Button from '#lib/components/ui/Button.svelte';
   import Input from '#lib/components/ui/Input.svelte';
@@ -51,8 +53,8 @@
 
   const settings = $derived(data.settings);
   const company = $derived(settings.company);
-  // Read-only and suspended companies can be looked at, not changed
-  const editable = $derived(company.status === 'ACTIVE');
+  // Read-only, closed and suspended companies can be looked at, not changed
+  const editable = $derived(canChange(company));
   const steps = $derived(new Map(settings.invoicingSetup.map((s) => [s.key, s])));
   /** Whether the country asks for business details; set for countries with invoicing */
   const businessStep = $derived(
@@ -174,6 +176,15 @@
     });
   }
 
+  async function close() {
+    if (!(await confirmAction(m.settings_close_confirm({ company: company.name }), m.settings_close_title()))) return;
+    return run('close', async () => {
+      await closeCompany(company.id);
+      // Closed shows across the app: the switcher, the banner, every page's controls
+      await invalidateAll();
+    });
+  }
+
   /** In groups of four, as printed on cards and statements */
   function formatIban(value: string) {
     return value.replace(/(.{4})/g, '$1 ').trim();
@@ -215,7 +226,8 @@
 <main class="container mx-auto px-4 py-8">
   <h2 class="text-xl font-semibold">{m.settings_title()}</h2>
 
-  {#if !editable}
+  <!-- A closed company says so above every page of it -->
+  {#if company.status === 'READ_ONLY' && !company.closedAt}
     <p class="mt-4 text-sm text-gray-600" role="status">{m.error_company_read_only()}</p>
   {/if}
 
@@ -411,4 +423,16 @@
       </section>
     {/if}
   </fieldset>
+
+  <!-- Outside the fieldset: an unpaid company can still be closed -->
+  {#if data.role === 'OWNER' && !company.closedAt && company.status !== 'SUSPENDED'}
+    <section aria-labelledby="settings-close" class="mt-10 max-w-xl">
+      {@render heading('settings-close', m.settings_close_title())}
+      <p class="mt-4 text-sm text-gray-600">{m.settings_close_hint()}</p>
+      {@render status('close')}
+      <Button variant="secondary" class="mt-4" loading={busy === 'close'} onclick={close}>
+        {m.settings_close_title()}
+      </Button>
+    </section>
+  {/if}
 </main>
