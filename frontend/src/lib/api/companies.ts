@@ -1,4 +1,4 @@
-import type { Fetch } from './client.ts';
+import { ApiError, type Fetch } from './client.ts';
 import { GraphQLError, graphql } from './graphql.ts';
 
 export type CompanyRole = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
@@ -55,8 +55,15 @@ export async function createCompany(input: { name: string; country: string }): P
   return createCompany;
 }
 
-/** The field and reason of the backend refusing an input, e.g. `{ field: 'name', reason: 'required' }` */
+/**
+ * The field and reason of the backend refusing an input, e.g. `{ field: 'name', reason: 'required' }`, from
+ * GraphQL or from a plain HTTP call such as a logo upload
+ */
 export function invalidInput(error: unknown): { field: string; reason: string } | undefined {
+  if (error instanceof ApiError) {
+    const { code, field, reason } = error.problem ?? {};
+    return code === 'invalid_input' && field && reason ? { field, reason } : undefined;
+  }
   if (!(error instanceof GraphQLError)) return undefined;
   const extensions = error.errors.find((e) => e.extensions?.code === 'invalid_input')?.extensions;
   return extensions && { field: String(extensions.field), reason: String(extensions.reason) };
