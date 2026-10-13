@@ -31,6 +31,12 @@ spring:
 invohub:
   auth:
     frontend-url: http://localhost:5173
+  storage:
+    bucket: invohub-local
+    endpoint: http://${HOST:localhost}:${STORAGE_PORT:9000}
+    access-key: ${STORAGE_ACCESS_KEY:invohub}
+    secret-key: ${STORAGE_SECRET_KEY:invohub-local-secret}
+    create-bucket: true
 
 server:
   servlet:
