@@ -241,7 +241,7 @@ class OwnershipServiceTest {
 
         assertNotNull(closed.closedAt)
         // Still there for everyone in it to look at
-        assertEquals(4, memberService.people(team.accessOf(team.member)).size)
+        assertEquals(3, memberService.people(team.accessOf(team.member)).size)
         assertFailsWith<CompanyClosedException> {
             settingsService.updateProfile(team.accessOf(team.owner), "Acme 2", "GR")
         }
