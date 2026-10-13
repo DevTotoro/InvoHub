@@ -40,7 +40,7 @@ class MagicLinkServiceTest {
         every { userService.getOrCreateUser(any(), any()) } answers { User(firstArg(), secondArg()) }
         auditLog = mockk(relaxed = true)
         val properties =
-            AuthProperties(URI("https://app.example.com"), Duration.ofHours(1), Duration.ofDays(7), Duration.ofDays(7))
+            AuthProperties(URI("https://app.example.com"), Duration.ofHours(1), Duration.ofDays(7))
         service = MagicLinkService(tokenStore, emailPort, userService, properties, auditLog)
     }
 
@@ -201,42 +201,6 @@ class MagicLinkServiceTest {
         val link = service.invitationLink(email)
 
         assertEquals(email, service.verifyToken(tokenOf(link), Language.EN)?.email)
-    }
-
-    @Test
-    fun `an expired or used link is renewable, an unknown one isn't`() {
-        service.requestToken(email, Language.EN)
-        val token = sentTokens.single()
-        service.verifyToken(token, Language.EN)
-
-        assertEquals(LinkProblem.RENEWABLE, service.problemWith(token))
-        assertEquals(LinkProblem.INVALID, service.problemWith("not-a-real-token"))
-    }
-
-    @Test
-    fun `renewing sends a fresh link to the same address, leading to the same place`() {
-        val old = tokenOf(service.invitationLink(email))
-        tokenStore.expireAll()
-
-        service.renew(old, Language.EN, redirectTo = "/invitations")
-
-        assertEquals("/invitations", redirectOf(sentLinks.single()))
-        assertEquals(email, service.verifyToken(sentTokens.single(), Language.EN)?.email)
-    }
-
-    @Test
-    fun `renewing sends nothing while a link for the address is active`() {
-        service.requestToken(email, Language.EN)
-        val first = sentTokens.single()
-
-        service.renew(first, Language.EN)
-
-        assertEquals(1, sentLinks.size)
-    }
-
-    @Test
-    fun `an unknown link can't be renewed`() {
-        assertFailsWith<InvalidSignInLinkException> { service.renew("not-a-real-token", Language.EN) }
     }
 
     private fun params(link: URI) = UriComponentsBuilder.fromUri(link).build().queryParams

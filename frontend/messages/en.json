@@ -34,8 +34,8 @@
   "verify_prompt": "Continue to sign in.",
   "verify_continue": "Continue",
   "verify_signing_in": "Signing in…",
-  "verify_invalid_title": "This link is invalid",
-  "verify_request_new": "Sign in",
+  "verify_invalid_title": "This link has expired",
+  "verify_sign_in": "Sign in",
   "verify_suspended_title": "This account is suspended",
   "verify_suspended_detail": "Please contact support.",
   "verify_try_again": "Try again",
@@ -121,10 +121,6 @@
 
   "error_invitation_not_found": "This invitation is no longer open.",
 
-  "verify_expired_title": "This link has expired",
-  "verify_renew": "Send a new link",
-  "verify_renewed_title": "Check your inbox",
-  "verify_renewed_detail": "We've sent you a new link.",
   "invite_recipient_daily_limit": "{email} can't be invited again today.",
   "error_email_delivery_failed_invite": "The invitation couldn't be sent. Try again."
 }

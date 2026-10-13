@@ -22,8 +22,8 @@ test('an invalid or expired link says so', async ({ page, baseURL }) => {
   await page.goto('/auth/verify?token=abc');
   await page.getByRole('button', { name: 'Continue' }).click();
 
-  await expect(page.getByRole('heading', { level: 2 })).toHaveText('This link is invalid');
-  await expect(page.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/login');
+  await expect(page.getByRole('heading', { level: 2 })).toHaveText('This link has expired');
+  await expect(page.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/login?redirectTo=%2F');
 });
 
 test('a suspended account says so', async ({ page, baseURL }) => {
@@ -53,7 +53,7 @@ test('a link without a token is invalid', async ({ page, baseURL }) => {
 
   await page.goto('/auth/verify');
 
-  await expect(page.getByRole('heading', { level: 2 })).toHaveText('This link is invalid');
+  await expect(page.getByRole('heading', { level: 2 })).toHaveText('This link has expired');
 });
 
 test('the token is removed from the address bar', async ({ page, baseURL }) => {
@@ -74,19 +74,14 @@ test('a link goes where it says once signed in, e.g. the invitations', async ({ 
   await expect(page.getByRole('heading', { level: 2 })).toHaveText('Invitations');
 });
 
-test('an expired link offers a new one, sent to the same address', async ({ page, baseURL }) => {
-  const api = await mockApi(page, baseURL!, { verify: 'expired' });
+test('a link that no longer works offers to sign in, still going where it led', async ({ page, baseURL }) => {
+  await mockApi(page, baseURL!, { verify: 'invalid' });
 
   await page.goto('/auth/verify?token=old-token&redirectTo=%2Finvitations');
   await page.getByRole('button', { name: 'Continue' }).click();
-  await expect(page.getByRole('heading', { level: 2 })).toHaveText('This link has expired');
-  await page.getByRole('button', { name: 'Send a new link' }).click();
 
-  await expect(page.getByRole('heading', { level: 2 })).toHaveText('Check your inbox');
-  // The new link leads to the same place
-  expect(api.authCalls('/api/auth/renew')).toEqual([
-    { token: 'old-token', language: 'EN', redirectTo: '/invitations' }
-  ]);
+  await expect(page.getByRole('heading', { level: 2 })).toHaveText('This link has expired');
+  await expect(page.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/login?redirectTo=%2Finvitations');
 });
 
 test('signed in already, the link is used right away', async ({ page, baseURL }) => {

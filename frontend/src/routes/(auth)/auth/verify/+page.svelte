@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { goto, replaceState } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import { renewMagicLink, verifyMagicLink } from '#lib/api/auth.ts';
+  import { verifyMagicLink } from '#lib/api/auth.ts';
   import { ApiError } from '#lib/api/client.ts';
   import Button from '#lib/components/ui/Button.svelte';
   import Link from '#lib/components/ui/Link.svelte';
@@ -13,7 +13,7 @@
 
   let { data }: PageProps = $props();
 
-  type Status = 'ready' | 'verifying' | 'invalid' | 'expired' | 'renewing' | 'renewed' | 'suspended' | 'error';
+  type Status = 'ready' | 'verifying' | 'invalid' | 'suspended' | 'error';
 
   // Read once: the address bar is cleared right away, but the token stays here until the user continues
   // svelte-ignore state_referenced_locally
@@ -36,9 +36,7 @@
     try {
       await verifyMagicLink(token, apiLanguage());
     } catch (e) {
-      if (e instanceof ApiError && e.code === 'expired_link') {
-        status = 'expired';
-      } else if (e instanceof ApiError && e.code === 'invalid_link') {
+      if (e instanceof ApiError && e.code === 'invalid_link') {
         status = 'invalid';
       } else if (e instanceof ApiError && e.code === 'account_suspended') {
         status = 'suspended';
@@ -54,18 +52,6 @@
     // eslint-disable-next-line svelte/no-navigation-without-resolve
     await goto(redirectTo, { replaceState: true, invalidateAll: true });
   }
-
-  /** A fresh link in place of the expired one, to the same address and leading to the same place */
-  async function renew() {
-    if (!token) return;
-    status = 'renewing';
-    try {
-      await renewMagicLink(token, apiLanguage(), redirectTo);
-      status = 'renewed';
-    } catch (e) {
-      status = e instanceof ApiError && e.code === 'invalid_link' ? 'invalid' : 'error';
-    }
-  }
 </script>
 
 <svelte:head>
@@ -78,15 +64,16 @@
   <Button fullWidth class="mt-4" loading={status === 'verifying'} onclick={signIn}>
     {status === 'verifying' ? m.verify_signing_in() : m.verify_continue()}
   </Button>
-{:else if status === 'expired' || status === 'renewing'}
-  <h2 class="text-xl font-semibold">{m.verify_expired_title()}</h2>
-  <Button fullWidth class="mt-4" loading={status === 'renewing'} onclick={renew}>{m.verify_renew()}</Button>
-{:else if status === 'renewed'}
-  <h2 class="text-xl font-semibold">{m.verify_renewed_title()}</h2>
-  <p class="mt-2 text-sm text-gray-600">{m.verify_renewed_detail()}</p>
 {:else if status === 'invalid'}
   <h2 class="text-xl font-semibold">{m.verify_invalid_title()}</h2>
-  <Link href={resolve('/(auth)/login')} class="mt-6">{m.verify_request_new()}</Link>
+  <!-- Signing in from here still ends up where the link was going -->
+  <Link
+    href="{resolve('/(auth)/login')}?redirectTo={encodeURIComponent(redirectTo)}"
+    variant="primary"
+    class="mt-4 w-full"
+  >
+    {m.verify_sign_in()}
+  </Link>
 {:else if status === 'suspended'}
   <h2 class="text-xl font-semibold">{m.verify_suspended_title()}</h2>
   <p class="mt-2 text-sm text-gray-600">{m.verify_suspended_detail()}</p>

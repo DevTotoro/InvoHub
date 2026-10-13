@@ -16,15 +16,6 @@ import java.security.SecureRandom
 import java.util.Base64
 import java.util.HexFormat
 
-/** What verifying a link found when it didn't sign anyone in */
-enum class LinkProblem {
-    /** Unknown: nothing can be done with it */
-    INVALID,
-
-    /** Expired or already used, but recent enough to be renewed */
-    RENEWABLE,
-}
-
 /**
  * Sign-in links. A link opens the frontend's verify page with its token and, optionally, `redirectTo`: where the
  * frontend goes once signed in. The token only stands for the email address; where it leads is in the link.
@@ -75,24 +66,9 @@ class MagicLinkService(
     fun invitationLink(rawEmail: String): URI = buildLink(issue(normalizeEmail(rawEmail)), INVITATIONS_PAGE)
 
     /**
-     * Emails a fresh link in place of an expired or used one, to the same address. [redirectTo] is the old
-     * link's, so the new one leads to the same place. Like requesting one, nothing is sent while a link for the
-     * address is active.
-     * @throws InvalidSignInLinkException if the old link is unknown or too old to renew
-     */
-    fun renew(
-        rawToken: String,
-        language: Language,
-        redirectTo: String? = null,
-    ) {
-        val email = tokenStore.findRenewable(hashToken(rawToken)) ?: throw InvalidSignInLinkException()
-        sendLink(email, language, redirectTo)
-    }
-
-    /**
      * Consumes the token, so it works at most once even under concurrent requests. Signing in for the first
      * time creates the user, in [language] (the one the person is using right now).
-     * @return the user, or null if the link doesn't sign anyone in (see [problemWith])
+     * @return the user, or null if the link is unknown, expired or already used
      * @throws AccountSuspendedException if the user is suspended
      */
     fun verifyToken(
@@ -122,10 +98,6 @@ class MagicLinkService(
         return user
     }
 
-    /** Why a link didn't sign anyone in: unknown, or expired/used and renewable */
-    fun problemWith(rawToken: String): LinkProblem =
-        if (tokenStore.findRenewable(hashToken(rawToken)) != null) LinkProblem.RENEWABLE else LinkProblem.INVALID
-
     /** Emails a new link unless one for the address is still active */
     private fun sendLink(
         email: String,
@@ -139,7 +111,7 @@ class MagicLinkService(
 
         val rawToken = generateToken()
         val tokenHash = hashToken(rawToken)
-        tokenStore.saveToken(tokenHash, email, properties.magicLinkTtl, properties.magicLinkRenewableFor)
+        tokenStore.saveToken(tokenHash, email, properties.magicLinkTtl)
 
         try {
             val emailLanguage = userService.findByEmail(email)?.language ?: language
@@ -154,7 +126,7 @@ class MagicLinkService(
 
     private fun issue(email: String): String {
         val rawToken = generateToken()
-        tokenStore.saveToken(hashToken(rawToken), email, properties.magicLinkTtl, properties.magicLinkRenewableFor)
+        tokenStore.saveToken(hashToken(rawToken), email, properties.magicLinkTtl)
         return rawToken
     }
 
@@ -182,8 +154,5 @@ class MagicLinkService(
     }
 }
 
-/** The sign-in link's token is unknown, or too old to renew */
-class InvalidSignInLinkException : RuntimeException("Invalid sign-in link")
-
-/** The sign-in link has expired or was used, and can be renewed */
-class ExpiredSignInLinkException : RuntimeException("Expired sign-in link")
+/** The sign-in link's token is unknown, expired or already used */
+class InvalidSignInLinkException : RuntimeException("Invalid or expired sign-in link")

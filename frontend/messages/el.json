@@ -34,8 +34,8 @@
   "verify_prompt": "Συνεχίστε για να συνδεθείτε.",
   "verify_continue": "Συνέχεια",
   "verify_signing_in": "Σύνδεση…",
-  "verify_invalid_title": "Ο σύνδεσμος δεν είναι έγκυρος",
-  "verify_request_new": "Σύνδεση",
+  "verify_invalid_title": "Ο σύνδεσμος έχει λήξει",
+  "verify_sign_in": "Σύνδεση",
   "verify_suspended_title": "Αυτός ο λογαριασμός έχει ανασταλεί",
   "verify_suspended_detail": "Επικοινωνήστε με την υποστήριξη.",
   "verify_try_again": "Δοκιμάστε ξανά",
@@ -121,10 +121,6 @@
 
   "error_invitation_not_found": "Αυτή η πρόσκληση δεν είναι πια ανοιχτή.",
 
-  "verify_expired_title": "Ο σύνδεσμος έχει λήξει",
-  "verify_renew": "Αποστολή νέου συνδέσμου",
-  "verify_renewed_title": "Ελέγξτε τα εισερχόμενά σας",
-  "verify_renewed_detail": "Σας στείλαμε νέο σύνδεσμο.",
   "invite_recipient_daily_limit": "Το {email} δεν μπορεί να προσκληθεί ξανά σήμερα.",
   "error_email_delivery_failed_invite": "Η πρόσκληση δεν στάλθηκε. Δοκιμάστε ξανά."
 }

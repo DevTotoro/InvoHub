@@ -28,16 +28,11 @@ export async function requestMagicLink(email: string, language: Language, redire
 /**
  * Exchanges the token from a magic link for a session. Signing in for the first time creates the account,
  * in [language].
- * @throws ApiError 401 with code `expired_link` if the link expired or was used (see renewMagicLink), or
- * `invalid_link`; 403 with code `account_suspended` if the user is suspended
+ * @throws ApiError 401 with code `invalid_link` if the link is unknown, expired or used; 403 with code
+ * `account_suspended` if the user is suspended
  */
 export async function verifyMagicLink(token: string, language: Language): Promise<void> {
   await request('/api/auth/verify', { method: 'POST', json: { token, language } });
-}
-
-/** Emails a fresh link in place of an expired or used one, to the same address; [redirectTo] is the old link's */
-export async function renewMagicLink(token: string, language: Language, redirectTo?: string): Promise<void> {
-  await request('/api/auth/renew', { method: 'POST', json: { token, language, redirectTo } });
 }
 
 /** Saves the language the signed-in user sees InvoHub and gets emails in */

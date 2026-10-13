@@ -43,7 +43,7 @@ class SecurityConfig {
         http
             .authorizeHttpRequests {
                 it
-                    .requestMatchers("/api/auth/request", "/api/auth/verify", "/api/auth/renew", "/api/auth/csrf")
+                    .requestMatchers("/api/auth/request", "/api/auth/verify", "/api/auth/csrf")
                     .permitAll()
                     // Only served when GraphiQL is enabled (local profile); its queries still need a session
                     .requestMatchers("/graphiql/**")

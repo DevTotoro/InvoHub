@@ -56,24 +56,12 @@ class AuthControllerTest {
     }
 
     @Test
-    fun `a used link says it can be renewed, and renewing sends a fresh one`() {
+    fun `a used link is refused like any invalid one`() {
         requestLink("jane@example.com")
         val token = emailPort.sent.single().rawToken
         verify(token)
 
         verify(token).andExpect {
-            status { isUnauthorized() }
-            jsonPath("$.code") { value("expired_link") }
-        }
-        renew(token).andExpect { status { isOk() } }
-
-        assertEquals(2, emailPort.sent.size)
-        verify(emailPort.sent.last().rawToken).andExpect { status { isNoContent() } }
-    }
-
-    @Test
-    fun `an unknown link can't be renewed`() {
-        renew("not-a-real-token").andExpect {
             status { isUnauthorized() }
             jsonPath("$.code") { value("invalid_link") }
         }
@@ -212,13 +200,6 @@ class AuthControllerTest {
         contentType = MediaType.APPLICATION_JSON
         content = json("token" to token, "language" to language)
     }
-
-    private fun renew(token: String) =
-        mockMvc.post("/api/auth/renew") {
-            with(csrf())
-            contentType = MediaType.APPLICATION_JSON
-            content = json("token" to token)
-        }
 
     private fun json(vararg fields: Pair<String, String?>) =
         fields.filter { it.second != null }.joinToString(", ", "{", "}") { (k, v) -> "\"$k\": \"$v\"" }

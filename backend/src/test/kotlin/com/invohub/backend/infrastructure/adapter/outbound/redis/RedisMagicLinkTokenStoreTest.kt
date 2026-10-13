@@ -23,7 +23,6 @@ class RedisMagicLinkTokenStoreTest {
 
     private val email = "jane@example.com"
     private val ttl = Duration.ofMinutes(5)
-    private val renewableFor = Duration.ofDays(7)
 
     @BeforeEach
     fun flushRedis() {
@@ -49,7 +48,7 @@ class RedisMagicLinkTokenStoreTest {
 
     @Test
     fun `only one concurrent request can consume a token`() {
-        store.saveToken("hash", email, ttl, renewableFor)
+        store.saveToken("hash", email, ttl)
 
         val results = concurrently(16) { store.consumeToken("hash") }
 
@@ -58,7 +57,7 @@ class RedisMagicLinkTokenStoreTest {
 
     @Test
     fun `removing a token invalidates it`() {
-        store.saveToken("hash", email, ttl, renewableFor)
+        store.saveToken("hash", email, ttl)
 
         store.removeToken("hash")
 
@@ -68,39 +67,11 @@ class RedisMagicLinkTokenStoreTest {
     @Test
     fun `keys expire`() {
         store.tryLock(email, ttl)
-        store.saveToken("hash", email, ttl, renewableFor)
+        store.saveToken("hash", email, ttl)
 
-        listOf("magic_link:active:$email", "magic_link:token:hash", "magic_link:renewable:hash").forEach { key ->
+        listOf("magic_link:active:$email", "magic_link:token:hash").forEach { key ->
             assertTrue(redisTemplate.getExpire(key) > 0, "$key has no TTL")
         }
-    }
-
-    @Test
-    fun `a used token can still be renewed`() {
-        store.saveToken("hash", email, ttl, renewableFor)
-
-        store.consumeToken("hash")
-
-        assertEquals(email, store.findRenewable("hash"))
-    }
-
-    @Test
-    fun `an expired token can still be renewed, for longer than it worked`() {
-        store.saveToken("hash", email, ttl, renewableFor)
-        redisTemplate.delete("magic_link:token:hash")
-
-        assertNull(store.consumeToken("hash"))
-        assertEquals(email, store.findRenewable("hash"))
-        assertTrue(redisTemplate.getExpire("magic_link:renewable:hash") > ttl.seconds)
-    }
-
-    @Test
-    fun `removing a token also stops it being renewed`() {
-        store.saveToken("hash", email, ttl, renewableFor)
-
-        store.removeToken("hash")
-
-        assertNull(store.findRenewable("hash"))
     }
 
     private fun <T> concurrently(
