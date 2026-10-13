@@ -102,6 +102,35 @@ class SmtpEmailAdapterTest {
     }
 
     @Test
+    fun `sends an ownership offer, in the person's language`() {
+        adapter(port = mailpit.getMappedPort(1025))
+            .sendOwnershipOffer("maria@example.com", "Acme", "jane@example.com", link, Language.EL)
+
+        val message = latestMessage()
+        assertEquals("InvoHub - Ιδιοκτησία της εταιρείας Acme", message.at("/Subject").asString())
+        val text = message.at("/Text").asString()
+        assertContains(text, "Ο χρήστης jane@example.com σας προτείνει την ιδιοκτησία της εταιρείας Acme.")
+        assertContains(text, link.toString())
+        assertContains(message.at("/HTML").asString(), ">Προβολή πρότασης</a>")
+    }
+
+    @Test
+    fun `the ownership offer shows the company's name as written, never as markup`() {
+        adapter(port = mailpit.getMappedPort(1025))
+            .sendOwnershipOffer("maria@example.com", "Jane's <b>Bakery</b>", "jane@example.com", link, Language.EN)
+
+        val message = latestMessage()
+        assertEquals("InvoHub - Ownership of Jane's <b>Bakery</b>", message.at("/Subject").asString())
+        assertContains(
+            message.at("/Text").asString(),
+            "jane@example.com wants to make you the owner of Jane's <b>Bakery</b>.",
+        )
+        val html = message.at("/HTML").asString()
+        assertContains(html, "Jane&#39;s &lt;b&gt;Bakery&lt;/b&gt;")
+        assertFalse(html.contains("<b>Bakery</b>"))
+    }
+
+    @Test
     fun `other people's words can't add markup`() {
         adapter(port = mailpit.getMappedPort(1025)).sendInvitations(
             "maria@example.com",

@@ -95,3 +95,26 @@ test('/ opens a company in use rather than a closed one', async ({ page, baseURL
 
   await expect(page).toHaveURL(`/c/${GLOBEX.company.id}`);
 });
+
+test('in Greek', async ({ page, baseURL }) => {
+  await mockApi(page, baseURL!, {
+    user: { ...TEST_USER, language: 'EL' },
+    companies: [ACME],
+    people: { [ACME.company.id]: [maria] }
+  });
+  await page.goto(`/c/${ACME.company.id}/members`);
+
+  await page.getByRole('button', { name: 'Ορισμός του maria@example.com ως ιδιοκτήτη' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Πρόταση ιδιοκτησίας' }).click();
+  await expect(page.getByRole('status')).toHaveText(/Προτάθηκε η ιδιοκτησία στο maria@example.com/);
+
+  await page.goto(`/c/${ACME.company.id}/settings`);
+  await page.getByRole('button', { name: 'Κλείσιμο εταιρείας' }).click();
+  await page
+    .getByRole('dialog', { name: 'Να κλείσει η εταιρεία Acme;' })
+    .getByRole('button', { name: 'Κλείσιμο εταιρείας' })
+    .click();
+
+  await expect(page.getByText('Αυτή η εταιρεία έχει κλείσει.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Επαναφορά' })).toBeVisible();
+});

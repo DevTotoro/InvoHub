@@ -168,3 +168,17 @@ test("a country without invoicing has no checklist, and a read-only company can'
   await expect(section(page, 'Company').getByLabel('Company name')).toBeDisabled();
   await expect(section(page, 'Business details')).not.toContainText('Needed');
 });
+
+test('in Greek', async ({ page, baseURL }) => {
+  await mockApi(page, baseURL!, { user: { ...TEST_USER, language: 'EL' }, companies: [ACME] });
+  await page.goto(`/c/${ACME.company.id}/settings`);
+
+  await expect(page.getByRole('heading', { level: 2 })).toHaveText('Ρυθμίσεις');
+  const details = section(page, 'Στοιχεία επιχείρησης');
+  await expect(details).toContainText('Εκκρεμεί');
+
+  await details.getByLabel('ΑΦΜ').fill('094014202');
+  await details.getByRole('button', { name: 'Αποθήκευση' }).click();
+
+  await expect(details.getByLabel('ΑΦΜ')).toHaveAccessibleDescription('Ελέγξτε τον ΑΦΜ για λάθη.');
+});
