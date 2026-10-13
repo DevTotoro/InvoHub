@@ -1,11 +1,9 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import { logout, setLanguage, type User } from '#lib/api/auth.ts';
+  import { logout, type User } from '#lib/api/auth.ts';
   import Link from '#lib/components/ui/Link.svelte';
-  import { LANGUAGES, apiLanguage, switchLanguage } from '#lib/i18n/language.ts';
   import { m } from '#lib/paraglide/messages.js';
-  import { getLocale, type Locale } from '#lib/paraglide/runtime.js';
 
   interface Props {
     user: User;
@@ -14,13 +12,10 @@
   let { user }: Props = $props();
 
   const menuId = $props.id();
-  const current = getLocale();
-  const initial = $derived(user.email.charAt(0).toUpperCase());
   const invitations = $derived(user.invitations.length);
 
   let open = $state(false);
   let container: HTMLElement | undefined = $state();
-  let switching = $state(false);
   let signingOut = $state(false);
   let signOutFailed = $state(false);
 
@@ -30,19 +25,6 @@
 
   function closeOnOutsideClick(event: MouseEvent) {
     if (open && container && !container.contains(event.target as Node)) close();
-  }
-
-  /** Saved on the account, so it follows the user to other devices and their emails, then shown at once */
-  async function pickLanguage(locale: Locale) {
-    if (locale === current) return close();
-    switching = true;
-    try {
-      await setLanguage(apiLanguage(locale));
-      switchLanguage(locale);
-    } catch {
-      // Not saved: stay in the current language rather than switch for this browser only
-      switching = false;
-    }
   }
 
   async function signOut() {
@@ -62,28 +44,42 @@
 
 <svelte:window onclick={closeOnOutsideClick} onkeydown={(e) => e.key === 'Escape' && close()} />
 
-<div class="relative" bind:this={container}>
+<div class="relative min-w-0" bind:this={container}>
+  <!-- The email, cut short if long (whole in the tooltip and the menu); on phones an icon. Later the user's name. -->
   <button
     type="button"
+    title={user.email}
     aria-label={invitations > 0 ? `${m.user_menu()}, ${m.header_invitations({ count: invitations })}` : m.user_menu()}
     aria-expanded={open}
     aria-controls={menuId}
     onclick={() => (open = !open)}
     class={[
-      'relative flex size-9 items-center justify-center rounded-full bg-taupe-600 text-sm font-medium text-white',
-      'transition-colors hover:cursor-pointer hover:bg-taupe-500',
+      'flex min-w-0 items-center gap-1.5 px-2 py-2 text-sm text-gray-700 transition-colors',
+      'hover:cursor-pointer hover:bg-gray-100 hover:text-gray-900',
       'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-taupe-600'
     ]}
   >
-    <span aria-hidden="true">{initial}</span>
+    <span aria-hidden="true" class="hidden max-w-56 truncate sm:inline">{user.email}</span>
+    <svg class="size-5 shrink-0 sm:hidden" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+      <path
+        d="M10 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM3.465 14.493a1.23 1.23 0 0 0 .41 1.412A9.957 9.957 0 0 0 10 18c2.31 0 4.438-.784 6.131-2.1.43-.333.604-.903.408-1.41a7.002 7.002 0 0 0-13.074.003Z"
+      />
+    </svg>
     {#if invitations > 0}
       <span
         aria-hidden="true"
-        class="absolute -top-1 -right-1 flex size-5 items-center justify-center rounded-full bg-red-600 text-[11px] font-semibold text-white ring-2 ring-white"
+        class="shrink-0 rounded-full bg-red-600 px-1.5 text-xs leading-5 font-semibold text-white"
       >
         {invitations}
       </span>
     {/if}
+    <svg class="size-4 shrink-0 text-gray-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+      <path
+        fill-rule="evenodd"
+        d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z"
+        clip-rule="evenodd"
+      />
+    </svg>
   </button>
 
   {#if open}
@@ -99,31 +95,6 @@
         >
           {invitations > 0 ? m.header_invitations({ count: invitations }) : m.header_invitations_none()}
         </Link>
-      </div>
-
-      <div class="border-t border-gray-200 py-1" role="group" aria-labelledby="{menuId}-language">
-        <p id="{menuId}-language" class="px-3 pt-2 pb-1 text-xs font-medium text-gray-500">{m.header_language()}</p>
-        {#each LANGUAGES as language (language.locale)}
-          <button
-            type="button"
-            lang={language.locale}
-            aria-pressed={language.locale === current}
-            disabled={switching}
-            onclick={() => pickLanguage(language.locale)}
-            class="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-gray-700 hover:cursor-pointer hover:bg-gray-100 disabled:opacity-60"
-          >
-            {language.name}
-            {#if language.locale === current}
-              <svg class="size-4 text-taupe-600" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                <path
-                  fill-rule="evenodd"
-                  d="M16.7 5.3a1 1 0 0 1 0 1.4l-8 8a1 1 0 0 1-1.4 0l-4-4a1 1 0 1 1 1.4-1.4L8 12.58l7.3-7.3a1 1 0 0 1 1.4 0Z"
-                  clip-rule="evenodd"
-                />
-              </svg>
-            {/if}
-          </button>
-        {/each}
       </div>
 
       <div class="border-t border-gray-200 py-1">

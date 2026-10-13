@@ -23,12 +23,10 @@
     </div>
 
     <div class="flex shrink-0 items-center gap-2 sm:gap-4">
-      <!-- Signed in, the language is in the user menu; signed out, it stands on its own -->
       {#if user}
         <UserMenu {user} />
-      {:else}
-        <LanguagePicker />
       {/if}
+      <LanguagePicker signedIn={!!user} />
 
       <!-- Left out on phones, where the header needs the room -->
       <div class="hidden sm:flex">

@@ -1,7 +1,7 @@
 import type { Language } from '#lib/api/auth.ts';
 import { getLocale, setLocale, type Locale } from '#lib/paraglide/runtime.js';
 
-/** The languages InvoHub is available in, each named in itself, with a short form for small screens */
+/** The languages InvoHub is available in, each named in itself, with the short code the language picker shows */
 export const LANGUAGES: { locale: Locale; name: string; short: string }[] = [
   { locale: 'en', name: 'English', short: 'EN' },
   { locale: 'el', name: 'Ελληνικά', short: 'ΕΛ' }

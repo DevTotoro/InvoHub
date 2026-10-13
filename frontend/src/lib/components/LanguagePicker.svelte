@@ -1,22 +1,37 @@
 <script lang="ts">
-  import { LANGUAGES, switchLanguage } from '#lib/i18n/language.ts';
+  import { setLanguage } from '#lib/api/auth.ts';
+  import { LANGUAGES, apiLanguage, switchLanguage } from '#lib/i18n/language.ts';
   import { m } from '#lib/paraglide/messages.js';
   import { getLocale, type Locale } from '#lib/paraglide/runtime.js';
 
-  // For signed-out pages: the choice is kept in this browser. Signed in, the user menu saves it on the account.
-  let value: Locale = $state(getLocale());
+  interface Props {
+    /** Signed in, the choice is also saved on the account: it follows the user to other devices and their emails */
+    signedIn: boolean;
+  }
+
+  let { signedIn }: Props = $props();
+
+  const current = getLocale();
+  let value: Locale = $state(current);
   let saving = $state(false);
   const selected = $derived(LANGUAGES.find((l) => l.locale === value)!);
 
-  function change() {
+  async function change() {
     saving = true;
-    switchLanguage(value);
+    try {
+      if (signedIn) await setLanguage(apiLanguage(value));
+      switchLanguage(value);
+    } catch {
+      // Not saved, so stay in the current language rather than switch for this browser only
+      value = current;
+      saving = false;
+    }
   }
 </script>
 
 <!--
   The select is see-through and laid over its own label, so it opens the browser's native list (and works with
-  screen readers and the keyboard), while the label can be shorter than an option on small screens.
+  screen readers and the keyboard), while the label shows just the short code (EN, ΕΛ) and the list the full names.
 -->
 <div
   class={[
@@ -27,8 +42,7 @@
   ]}
 >
   <span aria-hidden="true">
-    <span class="sm:hidden">{selected.short}</span>
-    <span class="hidden sm:inline">{selected.name}</span>
+    {selected.short}
   </span>
   <svg class="size-4 shrink-0 text-gray-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
     <path
