@@ -2,19 +2,22 @@
   import { onMount } from 'svelte';
   import { goto, replaceState } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import { page } from '$app/state';
   import { verifyMagicLink } from '#lib/api/auth.ts';
   import { ApiError } from '#lib/api/client.ts';
-  import { consumeRedirect } from '#lib/auth/redirect.ts';
   import Button from '#lib/components/ui/Button.svelte';
   import Link from '#lib/components/ui/Link.svelte';
   import { apiLanguage } from '#lib/i18n/language.ts';
   import { m } from '#lib/paraglide/messages.js';
 
+  import type { PageProps } from './$types';
+
+  let { data }: PageProps = $props();
+
   type Status = 'ready' | 'verifying' | 'invalid' | 'suspended' | 'error';
 
   // Read once: the address bar is cleared right away, but the token stays here until the user continues
-  const token = page.url.searchParams.get('token');
+  // svelte-ignore state_referenced_locally
+  const { token, redirectTo } = data;
 
   let status: Status = $state(token ? 'ready' : 'invalid');
 
@@ -40,10 +43,11 @@
       return;
     }
 
+    // Where the link leads, e.g. the invitations for a link from an invitation email.
     // invalidateAll: the session is new, so everything loaded so far was loaded signed out.
-    // resolve() only takes route IDs; this is a stored path that consumeRedirect() already validated.
+    // resolve() only takes route IDs; redirectTo is a path that safeRedirect() already validated.
     // eslint-disable-next-line svelte/no-navigation-without-resolve
-    await goto(consumeRedirect(), { replaceState: true, invalidateAll: true });
+    await goto(redirectTo, { replaceState: true, invalidateAll: true });
   }
 </script>
 
@@ -59,13 +63,18 @@
   </Button>
 {:else if status === 'invalid'}
   <h2 class="text-xl font-semibold">{m.verify_invalid_title()}</h2>
-  <p class="mt-2 text-sm text-gray-600">{m.verify_invalid_detail()}</p>
-  <Link href={resolve('/(auth)/login')} class="mt-6">{m.verify_request_new()}</Link>
+  <!-- Signing in from here still ends up where the link was going -->
+  <Link
+    href="{resolve('/(auth)/login')}?redirectTo={encodeURIComponent(redirectTo)}"
+    variant="primary"
+    class="mt-4 w-full"
+  >
+    {m.verify_sign_in()}
+  </Link>
 {:else if status === 'suspended'}
   <h2 class="text-xl font-semibold">{m.verify_suspended_title()}</h2>
   <p class="mt-2 text-sm text-gray-600">{m.verify_suspended_detail()}</p>
 {:else}
   <h2 class="text-xl font-semibold">{m.error_page_something_went_wrong()}</h2>
-  <p class="mt-2 text-sm text-gray-600">{m.verify_error_detail()}</p>
   <Button variant="link" class="mt-6" onclick={signIn}>{m.verify_try_again()}</Button>
 {/if}

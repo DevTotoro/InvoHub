@@ -22,11 +22,11 @@ test('a country without invoicing support says so, before and after', async ({ p
   await page.goto('/onboarding');
 
   await page.getByLabel('Country').selectOption('DE');
-  await expect(page.getByRole('status')).toContainText("Invoicing in Germany isn't available yet");
+  await expect(page.getByRole('status')).toHaveText("Invoicing isn't available in Germany yet.");
   await page.getByLabel('Company name').fill('Acme GmbH');
   await page.getByRole('button', { name: 'Create company' }).click();
 
-  await expect(page.getByText("Invoicing in Germany isn't available yet.")).toBeVisible();
+  await expect(page.getByText("Invoicing isn't available in Germany yet.")).toBeVisible();
 });
 
 test('the backend refusing the name shows on the field', async ({ page, baseURL }) => {

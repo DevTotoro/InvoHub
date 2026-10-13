@@ -56,6 +56,18 @@ class AuthControllerTest {
     }
 
     @Test
+    fun `a used link is refused like any invalid one`() {
+        requestLink("jane@example.com")
+        val token = emailPort.sent.single().rawToken
+        verify(token)
+
+        verify(token).andExpect {
+            status { isUnauthorized() }
+            jsonPath("$.code") { value("invalid_link") }
+        }
+    }
+
+    @Test
     fun `a suspended user is refused without revealing the reason`() {
         userRepository.save(User("suspended@example.com").apply { suspend("internal fraud note") })
         requestLink("suspended@example.com")

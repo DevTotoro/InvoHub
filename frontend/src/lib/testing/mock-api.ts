@@ -1,9 +1,10 @@
 import type { Page, Route } from '@playwright/test';
 import type { Language, User } from '#lib/api/auth.ts';
 import type { Company, Country, UserCompany } from '#lib/api/companies.ts';
+import type { Invitation } from '#lib/api/invitations.ts';
 import type { Member } from '#lib/api/members.ts';
 
-type Identity = Omit<User, 'companies'>;
+type Identity = Omit<User, 'companies' | 'invitations'>;
 
 export const TEST_USER: Identity = { id: '0RWNQHYRRA7BF', email: 'jane@example.com', language: 'EN' };
 
@@ -48,7 +49,21 @@ export interface MockApiOptions {
   accountLanguage?: Language;
   /** Other people in the user's companies, by company ID; the user is always listed with their own role */
   people?: Record<string, Member[]>;
+  /** Open invitations for the user's email address */
+  invitations?: Invitation[];
+  /** Open invitations of the user's companies, by company ID */
+  companyInvitations?: Record<string, Invitation[]>;
 }
+
+/** An invitation to [company] for [email] */
+export const invitation = (company: Company, email: string, role: Invitation['role'] = 'MEMBER'): Invitation => ({
+  id: `0INV${company.id.slice(1, 5)}${email.slice(0, 4).toUpperCase()}`.padEnd(13, 'X').slice(0, 13),
+  email,
+  role,
+  company,
+  invitedBy: 'owner@example.com',
+  expiresAt: '2026-10-20T10:00:00Z'
+});
 
 /** Someone else in a company, for the people option */
 export const person = (email: string, role: Member['role']): Member => ({
@@ -72,8 +87,22 @@ const problem = (status: number, detail: string, code?: string) => ({
 export async function mockApi(
   page: Page,
   baseURL: string,
-  { user = null, companies = [], verify = 'ok', accountLanguage = 'EN', people = {} }: MockApiOptions = {}
+  {
+    user = null,
+    companies = [],
+    verify = 'ok',
+    accountLanguage = 'EN',
+    people = {},
+    invitations = [],
+    companyInvitations = {}
+  }: MockApiOptions = {}
 ) {
+  const myInvitations = [...invitations];
+  const openInvitations: Record<string, Invitation[]> = Object.fromEntries(
+    Object.entries(companyInvitations).map(([id, list]) => [id, [...list]])
+  );
+  /** The input of every InviteMembers call */
+  const invites: unknown[] = [];
   const others: Record<string, Member[]> = Object.fromEntries(
     Object.entries(people).map(([id, members]) => [id, [...members]])
   );
@@ -96,6 +125,7 @@ export async function mockApi(
         companyId?: string;
         userId?: string;
         role?: Member['role'];
+        invitationId?: string;
       };
     };
     const access = userCompanies.find((c) => c.company.id === variables?.companyId);
@@ -104,6 +134,40 @@ export async function mockApi(
     if (query.includes('SetLanguage')) {
       currentUser = { ...currentUser, language: variables!.language! };
       return route.fulfill({ json: { data: { setLanguage: { language: currentUser.language } } } });
+    }
+    if (query.includes('InviteMembers')) {
+      const input = (
+        variables as unknown as { input: { email: string; companies: { companyId: string; role: Member['role'] }[] } }
+      ).input;
+      invites.push(input);
+      const created = input.companies.map(({ companyId, role }) => {
+        const company = userCompanies.find((c) => c.company.id === companyId)!.company;
+        const sent = invitation(company, input.email, role);
+        (openInvitations[companyId] ??= []).push(sent);
+        return sent;
+      });
+      return route.fulfill({ json: { data: { inviteMembers: created } } });
+    }
+    if (query.includes('CompanyInvitations')) {
+      if (!access) return graphqlError(route, 'not_found');
+      return route.fulfill({ json: { data: { invitations: openInvitations[access.company.id] ?? [] } } });
+    }
+    if (query.includes('RevokeInvitation')) {
+      const list = openInvitations[variables!.companyId!] ?? [];
+      list.splice(
+        list.findIndex((i) => i.id === variables!.invitationId),
+        1
+      );
+      return route.fulfill({ json: { data: { revokeInvitation: true } } });
+    }
+    if (query.includes('AcceptInvitation') || query.includes('DeclineInvitation')) {
+      const index = myInvitations.findIndex((i) => i.id === variables!.invitationId);
+      if (index < 0) return graphqlError(route, 'invitation_not_found');
+      const [taken] = myInvitations.splice(index, 1);
+      if (query.includes('DeclineInvitation')) return route.fulfill({ json: { data: { declineInvitation: true } } });
+      const joined = { role: taken.role, company: taken.company };
+      userCompanies.push(joined);
+      return route.fulfill({ json: { data: { acceptInvitation: joined } } });
     }
     if (query.includes('Members')) {
       if (!access) return graphqlError(route, 'not_found');
@@ -133,7 +197,9 @@ export async function mockApi(
       return route.fulfill({ json: { data: { leaveCompany: true } } });
     }
     if (query.includes('Countries')) return route.fulfill({ json: { data: { countries: COUNTRIES } } });
-    return route.fulfill({ json: { data: { me: { ...currentUser, companies: userCompanies } } } });
+    return route.fulfill({
+      json: { data: { me: { ...currentUser, companies: userCompanies, invitations: myInvitations } } }
+    });
   });
 
   function graphqlError(route: Route, code: string, reason?: string) {
@@ -191,6 +257,8 @@ export async function mockApi(
   });
 
   return {
+    /** The input of every InviteMembers call */
+    invites: () => invites,
     /** The bodies sent to an /api/auth endpoint, e.g. `authCalls('/api/auth/request')` */
     authCalls: (path: string) => authCalls[path] ?? [],
     /** The signed-in user's language, as saved on their account */

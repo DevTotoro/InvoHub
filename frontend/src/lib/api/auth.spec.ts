@@ -12,10 +12,10 @@ describe('auth', () => {
     const browser = fakeBrowser();
     browser.fetch.mockResolvedValue(jsonResponse({ message: 'Check your inbox for a sign-in link.' }));
 
-    await requestMagicLink('jane@example.com', 'EL');
+    await requestMagicLink('jane@example.com', 'EL', '/c/0ACME');
 
     expect(browser.fetch.mock.calls[0][0]).toBe('/api/auth/request');
-    expect(browser.sentBody()).toEqual({ email: 'jane@example.com', language: 'EL' });
+    expect(browser.sentBody()).toEqual({ email: 'jane@example.com', language: 'EL', redirectTo: '/c/0ACME' });
   });
 
   it('verifies a magic link, in the language in use', async () => {

@@ -1,5 +1,6 @@
 package com.invohub.backend.infrastructure.adapter.inbound.web.auth
 
+import com.invohub.backend.domain.auth.InvalidSignInLinkException
 import com.invohub.backend.domain.auth.MagicLinkService
 import com.invohub.backend.domain.user.Language
 import jakarta.servlet.http.HttpServletRequest
@@ -11,10 +12,14 @@ import org.springframework.http.ResponseEntity
 import org.springframework.security.web.csrf.CsrfToken
 import org.springframework.web.bind.annotation.*
 
-/** [language] is the one the person is using; the sign-in email is in it unless they have an account already */
+/**
+ * [language] is the one the person is using; the sign-in email is in it unless they have an account already.
+ * [redirectTo] is where the link leads once signed in: a path in the app.
+ */
 data class MagicLinkRequestDto(
     @field:NotBlank @field:Email val email: String,
     val language: Language = Language.DEFAULT,
+    val redirectTo: String? = null,
 )
 
 /** [language] is the one the person is using; signing in for the first time creates the account in it */
@@ -22,9 +27,6 @@ data class VerifyMagicLinkRequestDto(
     @field:NotBlank val token: String,
     val language: Language = Language.DEFAULT,
 )
-
-/** The sign-in link's token is unknown, expired or already used. */
-class InvalidSignInLinkException : RuntimeException("Invalid or expired sign-in link")
 
 @RestController
 @RequestMapping("/auth")
@@ -44,7 +46,7 @@ class AuthController(
     fun requestMagicLink(
         @Valid @RequestBody request: MagicLinkRequestDto,
     ): ResponseEntity<Map<String, String>> {
-        magicLinkService.requestToken(request.email, request.language)
+        magicLinkService.requestToken(request.email, request.language, request.redirectTo)
 
         // Same response whether or not a link was sent just now, so it reveals nothing about the address
         return ResponseEntity.ok(mapOf("message" to "Check your inbox for a sign-in link."))
@@ -53,6 +55,8 @@ class AuthController(
     /**
      * POST, not GET: email security scanners prefetch links in emails, and a GET would let them consume the
      * single-use token before the user clicks. The link opens a frontend page that posts the token here.
+     *
+     * A link that doesn't sign in (unknown, expired or used) fails with `invalid_link`.
      */
     @PostMapping("/verify")
     fun verifyMagicLink(

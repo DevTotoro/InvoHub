@@ -8,7 +8,11 @@ data class AuditEvent(
     val companyId: Long? = null,
     /** What it happened to */
     val target: AuditTarget? = null,
-    /** Small facts about the event, e.g. before and after values. Serialized to JSON. */
+    /**
+     * Small facts about the event, e.g. before and after values. Serialized to JSON. Never IDs: the columns
+     * above hold those, internal in Postgres and turned into public IDs on export, which can't reach inside
+     * the JSON. Events of one request share its request ID, which links them.
+     */
     val details: Map<String, Any?> = emptyMap(),
 )
 
@@ -20,6 +24,8 @@ data class AuditTarget(
         fun user(id: Long) = AuditTarget("user", id)
 
         fun company(id: Long) = AuditTarget("company", id)
+
+        fun invitation(id: Long) = AuditTarget("invitation", id)
     }
 }
 
@@ -34,7 +40,12 @@ enum class AuditAction(
     USER_SUSPENDED("user.suspended"),
     USER_UNSUSPENDED("user.unsuspended"),
     COMPANY_CREATED("company.created"),
+    MEMBER_ADDED("member.added"),
     MEMBER_ROLE_CHANGED("member.role_changed"),
     MEMBER_REMOVED("member.removed"),
     MEMBER_LEFT("member.left"),
+    INVITATION_SENT("invitation.sent"),
+    INVITATION_REVOKED("invitation.revoked"),
+    INVITATION_ACCEPTED("invitation.accepted"),
+    INVITATION_DECLINED("invitation.declined"),
 }

@@ -2,7 +2,7 @@ package com.invohub.backend.infrastructure.adapter.inbound.web.error
 
 import com.invohub.backend.domain.auth.AccountSuspendedException
 import com.invohub.backend.domain.auth.EmailDeliveryException
-import com.invohub.backend.infrastructure.adapter.inbound.web.auth.InvalidSignInLinkException
+import com.invohub.backend.domain.auth.InvalidSignInLinkException
 import com.invohub.backend.infrastructure.adapter.inbound.web.filter.RequestIdFilter
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.slf4j.MDC

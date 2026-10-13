@@ -2,19 +2,20 @@ package com.invohub.backend.infrastructure.adapter.outbound.email
 
 import com.invohub.backend.domain.auth.EmailDeliveryException
 import com.invohub.backend.domain.auth.EmailPort
+import com.invohub.backend.domain.auth.InvitationNotice
 import com.invohub.backend.domain.user.Language
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.context.MessageSource
 import org.springframework.mail.MailException
-import org.springframework.mail.SimpleMailMessage
 import org.springframework.mail.javamail.JavaMailSender
+import org.springframework.mail.javamail.MimeMessageHelper
 import org.springframework.stereotype.Component
 import java.net.URI
-import java.time.Duration
 import java.util.Locale
 
 private val logger = KotlinLogging.logger {}
 
+/** Sends every email as HTML with a button, plus the same in plain text (see EmailLayout) */
 @Component
 class SmtpEmailAdapter(
     private val mailSender: JavaMailSender,
@@ -24,34 +25,73 @@ class SmtpEmailAdapter(
     override fun sendMagicLink(
         email: String,
         link: URI,
-        validFor: Duration,
         language: Language,
     ) {
         val locale = language.locale
-        val message =
-            SimpleMailMessage().apply {
-                setTo(email)
-                subject = messages.getMessage("magic-link.subject", null, locale)
-                text =
-                    messages.getMessage("magic-link.body", arrayOf(link.toString(), humanize(validFor, locale)), locale)
-                from = properties.from
-            }
+        val content =
+            EmailContent(
+                paragraphs = listOf(text("magic-link.intro", locale)),
+                button = text("magic-link.button", locale),
+                link = link,
+                fallback = text("email.fallback", locale),
+            )
+        send(email, text("magic-link.subject", locale), content, "magic link")
+    }
 
+    override fun sendInvitations(
+        email: String,
+        invitations: List<InvitationNotice>,
+        link: URI,
+        language: Language,
+    ) {
+        val locale = language.locale
+        val items =
+            invitations.map {
+                text(
+                    "invitations.line",
+                    locale,
+                    it.companyName,
+                    text("role.${it.role.name}", locale),
+                    it.invitedByEmail,
+                )
+            }
+        val content =
+            EmailContent(
+                paragraphs = listOf(text("invitations.intro", locale)),
+                items = items,
+                button = text("invitations.button", locale),
+                link = link,
+                fallback = text("email.fallback", locale),
+                footer = text("invitations.ignore", locale),
+            )
+        send(email, text("invitations.subject", locale), content, "invitations")
+    }
+
+    private fun send(
+        to: String,
+        subject: String,
+        content: EmailContent,
+        what: String,
+    ) {
         try {
+            val message = mailSender.createMimeMessage()
+            MimeMessageHelper(message, true, "UTF-8").apply {
+                setTo(to)
+                setFrom(properties.from)
+                setSubject(subject)
+                setText(EmailLayout.text(content), EmailLayout.html(content))
+            }
             mailSender.send(message)
         } catch (e: MailException) {
-            logger.error(e) { "Failed to send magic link" }
-            throw EmailDeliveryException("Failed to send magic link email", e)
+            logger.error(e) { "Failed to send $what" }
+            throw EmailDeliveryException("Failed to send $what email", e)
         }
     }
 
-    private fun humanize(
-        duration: Duration,
+    /** Texts with arguments go through MessageFormat (where ' is written ''); texts without don't */
+    private fun text(
+        key: String,
         locale: Locale,
-    ): String =
-        if (duration.toMinutesPart() == 0 && duration.toHours() > 0) {
-            messages.getMessage("duration.hours", arrayOf(duration.toHours()), locale)
-        } else {
-            messages.getMessage("duration.minutes", arrayOf(duration.toMinutes()), locale)
-        }
+        vararg args: Any,
+    ): String = messages.getMessage(key, if (args.isEmpty()) null else arrayOf(*args), locale)
 }

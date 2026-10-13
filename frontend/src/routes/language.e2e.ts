@@ -15,7 +15,7 @@ test.describe('in a Greek browser', () => {
     await page.getByRole('button', { name: 'Στείλτε μου σύνδεσμο σύνδεσης' }).click();
 
     await expect(page.getByRole('heading', { level: 2 })).toHaveText('Ελέγξτε τα εισερχόμενά σας');
-    expect(api.authCalls('/api/auth/request')).toEqual([{ email: TEST_USER.email, language: 'EL' }]);
+    expect(api.authCalls('/api/auth/request')).toEqual([{ email: TEST_USER.email, language: 'EL', redirectTo: '/' }]);
   });
 
   test('a first sign-in creates the account in Greek', async ({ page, baseURL }) => {

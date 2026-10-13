@@ -4,6 +4,8 @@
   import type { CompanyRole } from '#lib/api/companies.ts';
   import { ASSIGNABLE_ROLES, changeMemberRole, leaveCompany, removeMember, type Member } from '#lib/api/members.ts';
   import { canManageMembers, roleName } from '#lib/company/permissions.ts';
+  import { revokeInvitation, type Invitation } from '#lib/api/invitations.ts';
+  import InviteForm from '#lib/components/InviteForm.svelte';
   import Button from '#lib/components/ui/Button.svelte';
   import { formatDate } from '#lib/format/intl.ts';
   import { errorMessage } from '#lib/i18n/errors.ts';
@@ -13,6 +15,12 @@
   let { data }: PageProps = $props();
 
   const canManage = $derived(canManageMembers(data.role, data.company));
+  /** Where the user can invite to: the companies they manage, this one first */
+  const invitable = $derived(
+    data.user.companies
+      .filter((c) => canManageMembers(c.role, c.company))
+      .sort((a, b) => Number(b.company.id === data.company.id) - Number(a.company.id === data.company.id))
+  );
   /** The owner's access and your own aren't managed here: the owner transfers ownership, you leave */
   const manageable = (member: Member) => canManage && member.role !== 'OWNER' && member.userId !== data.user.id;
 
@@ -45,6 +53,14 @@
     if (!confirm(m.team_remove_confirm({ email: member.email, company: data.company.name }))) return;
     return run(member.userId, async () => {
       await removeMember(data.company.id, member.userId);
+      await invalidate('app:members');
+    });
+  }
+
+  function revoke(invitation: Invitation) {
+    if (!confirm(m.team_revoke_confirm({ email: invitation.email }))) return;
+    return run(invitation.id, async () => {
+      await revokeInvitation(data.company.id, invitation.id);
       await invalidate('app:members');
     });
   }
@@ -109,6 +125,40 @@
       </li>
     {/each}
   </ul>
+
+  {#if canManage}
+    {#if data.invitations.length > 0}
+      <h3 id="invitations-title" class="mt-8 font-semibold">{m.team_invitations()}</h3>
+      <ul aria-labelledby="invitations-title" class="mt-2 divide-y divide-gray-200 border-y border-gray-200">
+        {#each data.invitations as invitation (invitation.id)}
+          <li class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-3">
+            <div class="min-w-0">
+              <p class="truncate text-sm font-medium text-gray-900">{invitation.email}</p>
+              <p class="text-sm text-gray-500">
+                {m.team_invitation_detail({
+                  role: roleName(invitation.role),
+                  email: invitation.invitedBy,
+                  date: formatDate(invitation.expiresAt)
+                })}
+              </p>
+            </div>
+            <Button
+              variant="ghost"
+              aria-label={m.team_revoke_of({ email: invitation.email })}
+              disabled={busy === invitation.id}
+              onclick={() => revoke(invitation)}
+            >
+              {m.team_revoke()}
+            </Button>
+          </li>
+        {/each}
+      </ul>
+    {/if}
+
+    <div class="mt-8 max-w-md">
+      <InviteForm companies={invitable} onsent={() => invalidate('app:members')} />
+    </div>
+  {/if}
 
   {#if data.role !== 'OWNER'}
     <Button variant="secondary" class="mt-6" loading={busy === 'leave'} onclick={leave}>{m.team_leave()}</Button>

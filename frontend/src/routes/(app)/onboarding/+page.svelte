@@ -75,6 +75,13 @@
   <div class="w-full max-w-sm">
     <h2 class="text-xl font-semibold">{title}</h2>
 
+    {#if data.user.invitations.length > 0}
+      <p class="mt-2 text-sm text-gray-600">
+        {m.invitations_onboarding_note()}
+        <Link href={resolve('/(app)/invitations')}>{m.invitations_onboarding_link()}</Link>
+      </p>
+    {/if}
+
     <form class="mt-4 space-y-4" onsubmit={submit}>
       <Input
         label={m.onboarding_name()}

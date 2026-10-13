@@ -18,14 +18,19 @@ export class GraphQLError extends Error {
   }
 }
 
-/** The `code` (and `reason`, if any) the backend gave a failed operation, e.g. `{ code: 'not_allowed', reason: 'self' }` */
-export function graphqlProblem(error: unknown): { code: string; reason?: string } | undefined {
+/**
+ * The `code`, and `reason` and `companyId` if any, the backend gave a failed operation, e.g.
+ * `{ code: 'not_allowed', reason: 'self' }`
+ */
+export function graphqlProblem(error: unknown): { code: string; reason?: string; companyId?: string } | undefined {
   if (!(error instanceof GraphQLError)) return undefined;
   const extensions = error.errors.find((e) => typeof e.extensions?.code === 'string')?.extensions;
   if (!extensions) return undefined;
+  const optional = (value: unknown) => (value === undefined ? undefined : String(value));
   return {
     code: String(extensions.code),
-    reason: extensions.reason === undefined ? undefined : String(extensions.reason)
+    reason: optional(extensions.reason),
+    companyId: optional(extensions.companyId)
   };
 }
 

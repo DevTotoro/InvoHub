@@ -78,6 +78,40 @@ CREATE TABLE company_members (
 
 CREATE INDEX ix_company_members_user ON company_members (user_id);
 
+-- Invitations to join a company, one row per company and email. They belong to the email address: whoever signs
+-- in with it accepts or declines them on the Invitations page. The email sent when inviting signs them in there.
+CREATE TABLE invitations (
+    id BIGINT NOT NULL,
+    version BIGINT NOT NULL DEFAULT 0,
+    --
+    company_id BIGINT NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    role VARCHAR(20) NOT NULL,
+    invited_by_user_id BIGINT NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    closed_at TIMESTAMP WITH TIME ZONE,
+    --
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    --
+    CONSTRAINT pk_invitations PRIMARY KEY (id),
+    CONSTRAINT fk_invitations_company FOREIGN KEY (company_id) REFERENCES companies (id),
+    CONSTRAINT fk_invitations_invited_by FOREIGN KEY (invited_by_user_id) REFERENCES users (id),
+    CONSTRAINT ck_invitations_email_normalized CHECK (email = lower(btrim(email))),
+    CONSTRAINT ck_invitations_role CHECK (role IN ('ADMIN', 'MEMBER', 'VIEWER')),
+    CONSTRAINT ck_invitations_status CHECK (status IN ('PENDING', 'ACCEPTED', 'DECLINED', 'REVOKED', 'EXPIRED')),
+    -- Closed exactly when no longer pending
+    CONSTRAINT ck_invitations_closed CHECK ((status = 'PENDING') = (closed_at IS NULL))
+);
+
+-- At most one pending invitation per company and email. An expired one is closed (EXPIRED) before inviting again.
+CREATE UNIQUE INDEX uq_invitations_pending ON invitations (company_id, email) WHERE status = 'PENDING';
+-- A user's pending invitations
+CREATE INDEX ix_invitations_email_pending ON invitations (email) WHERE status = 'PENDING';
+-- A company's open invitations
+CREATE INDEX ix_invitations_company ON invitations (company_id);
+
 -- Audit log: what happened, who did it, when. Append-only: the app's login may only add and read events, and
 -- a trigger refuses changes from every login, migrations included. No foreign keys: events must outlive the
 -- users and companies they mention. The database sets the time.
