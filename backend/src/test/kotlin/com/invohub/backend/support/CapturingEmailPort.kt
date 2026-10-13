@@ -69,9 +69,31 @@ class CapturingEmailPort : EmailPort {
         invitationEmails += SentInvitations(email, invitations, link, language)
     }
 
+    data class SentOwnershipOffer(
+        val email: String,
+        val companyName: String,
+        val offeredByEmail: String,
+        val link: URI,
+        val language: Language,
+    )
+
+    val ownershipOffers = CopyOnWriteArrayList<SentOwnershipOffer>()
+
+    override fun sendOwnershipOffer(
+        email: String,
+        companyName: String,
+        offeredByEmail: String,
+        link: URI,
+        language: Language,
+    ) {
+        failure?.let { throw it }
+        ownershipOffers += SentOwnershipOffer(email, companyName, offeredByEmail, link, language)
+    }
+
     fun clear() {
         sent.clear()
         invitationEmails.clear()
+        ownershipOffers.clear()
         failure = null
     }
 }

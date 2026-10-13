@@ -46,6 +46,30 @@ class Company(
     var ownerUserId: Long = ownerUserId
         protected set
 
+    /**
+     * Set when the owner closes the company. Nothing in it is deleted: it stays read-only, for its people to
+     * look at and export, until the owner reopens it.
+     */
+    @Column(name = "closed_at")
+    var closedAt: Instant? = null
+        protected set
+
+    val closed: Boolean get() = closedAt != null
+
+    /** Only through an accepted ownership transfer */
+    fun transferOwnership(toUserId: Long) {
+        ownerUserId = toUserId
+    }
+
+    fun close(at: Instant) {
+        check(!closed) { "Company $id is already closed" }
+        closedAt = at
+    }
+
+    fun reopen() {
+        closedAt = null
+    }
+
     /** An InvoHub decision (billing, staff), never the company's own */
     fun changeStatus(status: CompanyStatus) {
         this.status = status

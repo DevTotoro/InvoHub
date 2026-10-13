@@ -28,6 +28,7 @@ data class CompanyPerson(
 class MemberService(
     private val memberRepository: CompanyMemberRepository,
     private val userRepository: UserRepository,
+    private val ownershipService: OwnershipService,
     private val auditLog: AuditLog,
 ) {
     /** The owner first, then the members by email. Anyone in the company may see who else is in it. */
@@ -101,6 +102,7 @@ class MemberService(
         val member = otherMember(access, memberUserId)
 
         memberRepository.delete(member)
+        ownershipService.cancelOfferTo(access.companyId, memberUserId)
         auditLog.record(
             AuditEvent(
                 AuditAction.MEMBER_REMOVED,
@@ -119,6 +121,7 @@ class MemberService(
         val member = memberRepository.findById(CompanyMemberId(access.companyId, access.userId)).orElseThrow()
 
         memberRepository.delete(member)
+        ownershipService.cancelOfferTo(access.companyId, access.userId)
         auditLog.record(
             AuditEvent(
                 AuditAction.MEMBER_LEFT,

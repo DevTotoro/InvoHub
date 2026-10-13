@@ -11,6 +11,7 @@ import com.invohub.backend.domain.company.CompanyRole.MEMBER
 import com.invohub.backend.domain.company.CompanyRole.OWNER
 import com.invohub.backend.domain.company.CompanyRole.VIEWER
 import org.junit.jupiter.api.Test
+import java.time.Instant
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertSame
@@ -37,8 +38,24 @@ class CompanyPermissionTest {
     fun `a read-only company can still be viewed, and its billing managed by the owner`() {
         val owner = access(OWNER, CompanyStatus.READ_ONLY)
 
-        assertEquals(setOf(VIEW, MANAGE_BILLING), CompanyPermission.entries.filter(owner::can).toSet())
+        assertEquals(
+            setOf(VIEW, MANAGE_BILLING, MANAGE_OWNERSHIP),
+            CompanyPermission.entries.filter(owner::can).toSet(),
+        )
         assertEquals(setOf(VIEW), CompanyPermission.entries.filter(access(ADMIN, CompanyStatus.READ_ONLY)::can).toSet())
+    }
+
+    @Test
+    fun `a closed company can still be viewed, and reopened or handed over by the owner`() {
+        val owner = access(OWNER, closed = true)
+
+        assertEquals(setOf(VIEW, MANAGE_OWNERSHIP), CompanyPermission.entries.filter(owner::can).toSet())
+        assertEquals(setOf(VIEW), CompanyPermission.entries.filter(access(ADMIN, closed = true)::can).toSet())
+        assertFailsWith<CompanyClosedException> { owner.require(MANAGE_SETTINGS) }
+        // Suspension still comes first
+        assertFailsWith<CompanySuspendedException> {
+            access(OWNER, CompanyStatus.SUSPENDED, closed = true).require(VIEW)
+        }
     }
 
     @Test
@@ -64,8 +81,12 @@ class CompanyPermissionTest {
     private fun access(
         role: CompanyRole,
         status: CompanyStatus = CompanyStatus.ACTIVE,
+        closed: Boolean = false,
     ) = CompanyAccess(
-        Company("Acme", "GR", "EUR", ownerUserId = 1).apply { changeStatus(status) },
+        Company("Acme", "GR", "EUR", ownerUserId = 1).apply {
+            changeStatus(status)
+            if (closed) close(Instant.now())
+        },
         userId = 1,
         role = role,
     )

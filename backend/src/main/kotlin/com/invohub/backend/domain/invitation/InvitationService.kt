@@ -11,6 +11,7 @@ import com.invohub.backend.domain.auth.MagicLinkService
 import com.invohub.backend.domain.common.InvalidInputException
 import com.invohub.backend.domain.company.Company
 import com.invohub.backend.domain.company.CompanyAccess
+import com.invohub.backend.domain.company.CompanyClosedException
 import com.invohub.backend.domain.company.CompanyMember
 import com.invohub.backend.domain.company.CompanyMemberId
 import com.invohub.backend.domain.company.CompanyMemberRepository
@@ -189,7 +190,8 @@ class InvitationService(
     /**
      * Makes the user a member with the invited role.
      * @throws InvitationNotFoundException unless it is an open invitation for the user's email address
-     * @throws CompanySuspendedException, CompanyReadOnlyException: only an active company takes new people
+     * @throws CompanySuspendedException, CompanyReadOnlyException, CompanyClosedException: only an active, open
+     * company takes new people
      */
     @Transactional
     fun accept(
@@ -204,6 +206,7 @@ class InvitationService(
             CompanyStatus.READ_ONLY -> throw CompanyReadOnlyException()
             CompanyStatus.ACTIVE -> {}
         }
+        if (company.closed) throw CompanyClosedException()
 
         invitation.close(InvitationStatus.ACCEPTED, Instant.now())
         invitationRepository.saveAndFlush(invitation)

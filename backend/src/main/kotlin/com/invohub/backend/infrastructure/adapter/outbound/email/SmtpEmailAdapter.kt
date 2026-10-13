@@ -67,6 +67,24 @@ class SmtpEmailAdapter(
         send(email, text("invitations.subject", locale), content, "invitations")
     }
 
+    override fun sendOwnershipOffer(
+        email: String,
+        companyName: String,
+        offeredByEmail: String,
+        link: URI,
+        language: Language,
+    ) {
+        val locale = language.locale
+        val content =
+            EmailContent(
+                paragraphs = listOf(text("ownership.intro", locale, offeredByEmail, companyName)),
+                button = text("ownership.button", locale),
+                link = link,
+                fallback = text("email.fallback", locale),
+            )
+        send(email, text("ownership.subject", locale, companyName), content, "ownership offer")
+    }
+
     private fun send(
         to: String,
         subject: String,

@@ -12,6 +12,7 @@ class DatabaseCleaner(
     private val jdbcTemplate: JdbcTemplate,
 ) {
     fun clean() {
+        jdbcTemplate.execute("DELETE FROM ownership_transfers")
         jdbcTemplate.execute("DELETE FROM invitations")
         jdbcTemplate.execute("DELETE FROM company_bank_accounts")
         jdbcTemplate.execute("DELETE FROM company_members")

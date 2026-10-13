@@ -112,6 +112,23 @@ class CompanyIsolationTest {
             "Mutation.removeLogo" to { id ->
                 "mutation(${'$'}id: ID!) { removeLogo(companyId: ${'$'}id) { taxId } }" to mapOf("id" to id)
             },
+            "Query.ownershipTransfer" to { id ->
+                "query(${'$'}id: ID!) { ownershipTransfer(companyId: ${'$'}id) { id } }" to mapOf("id" to id)
+            },
+            "Mutation.offerOwnership" to { id ->
+                """
+                mutation(${'$'}id: ID!, ${'$'}u: ID!) { offerOwnership(companyId: ${'$'}id, userId: ${'$'}u) { id } }
+                """.trimIndent() to mapOf("id" to id, "u" to TSID.fast().toString())
+            },
+            "Mutation.cancelOwnershipTransfer" to { id ->
+                "mutation(${'$'}id: ID!) { cancelOwnershipTransfer(companyId: ${'$'}id) }" to mapOf("id" to id)
+            },
+            "Mutation.closeCompany" to { id ->
+                "mutation(${'$'}id: ID!) { closeCompany(companyId: ${'$'}id) { id } }" to mapOf("id" to id)
+            },
+            "Mutation.reopenCompany" to { id ->
+                "mutation(${'$'}id: ID!) { reopenCompany(companyId: ${'$'}id) { id } }" to mapOf("id" to id)
+            },
         )
 
     @Autowired
