@@ -6,7 +6,12 @@ import { m } from '#lib/paraglide/messages.js';
  * checks every request regardless (CompanyPermission.MANAGE_MEMBERS).
  */
 export function canManageMembers(role: CompanyRole, company: Company): boolean {
-  return (role === 'OWNER' || role === 'ADMIN') && company.status === 'ACTIVE';
+  return (role === 'OWNER' || role === 'ADMIN') && canChange(company);
+}
+
+/** Whether the company can be changed at all: active (paid, not suspended) and not closed by its owner */
+export function canChange(company: Company): boolean {
+  return company.status === 'ACTIVE' && company.closedAt === null;
 }
 
 /**

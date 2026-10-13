@@ -2,6 +2,7 @@
   import { goto, invalidateAll } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { acceptInvitation, declineInvitation, type Invitation } from '#lib/api/invitations.ts';
+  import { acceptOwnership, declineOwnership, type OwnershipTransfer } from '#lib/api/ownership.ts';
   import { rememberCompany } from '#lib/company/last-company.ts';
   import { roleName } from '#lib/company/permissions.ts';
   import Button from '#lib/components/ui/Button.svelte';
@@ -12,15 +13,25 @@
 
   let { data }: PageProps = $props();
 
-  /** The invitation being accepted or declined */
+  /** The invitation or offer being accepted or declined */
   let busy: string | undefined = $state();
   let error: string | undefined = $state();
 
-  async function accept(invitation: Invitation) {
-    busy = invitation.id;
+  const nothing = $derived(data.user.invitations.length === 0 && data.user.ownershipOffers.length === 0);
+
+  function accept(invitation: Invitation) {
+    return answer(invitation.id, () => acceptInvitation(invitation.id));
+  }
+
+  function acceptOffer(offer: OwnershipTransfer) {
+    return answer(offer.id, () => acceptOwnership(offer.id));
+  }
+
+  async function answer(id: string, accepting: () => Promise<{ company: { id: string } }>) {
+    busy = id;
     error = undefined;
     try {
-      const joined = await acceptInvitation(invitation.id);
+      const joined = await accepting();
       rememberCompany(joined.company.id);
       // invalidateAll: the user's companies and invitations have changed
       await goto(resolve('/(app)/c/[companyId]', { companyId: joined.company.id }), { invalidateAll: true });
@@ -32,11 +43,19 @@
     }
   }
 
-  async function decline(invitation: Invitation) {
-    busy = invitation.id;
+  function decline(invitation: Invitation) {
+    return refuse(invitation.id, () => declineInvitation(invitation.id));
+  }
+
+  function declineOffer(offer: OwnershipTransfer) {
+    return refuse(offer.id, () => declineOwnership(offer.id));
+  }
+
+  async function refuse(id: string, declining: () => Promise<void>) {
+    busy = id;
     error = undefined;
     try {
-      await declineInvitation(invitation.id);
+      await declining();
     } catch (e) {
       error = errorMessage(e);
     } finally {
@@ -58,10 +77,27 @@
       <p class="mt-4 text-sm text-red-600" role="alert">{error}</p>
     {/if}
 
-    {#if data.user.invitations.length === 0}
+    {#if nothing}
       <p class="mt-4 text-sm text-gray-600">{m.invitations_none()}</p>
     {:else}
       <ul aria-labelledby="invitations-title" class="mt-4 divide-y divide-gray-200 border-y border-gray-200">
+        {#each data.user.ownershipOffers as offer (offer.id)}
+          <li class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-3">
+            <div class="min-w-0">
+              <p class="truncate font-medium text-gray-900">{offer.company.name}</p>
+              <p class="text-sm text-gray-600">{m.invitations_ownership({ email: offer.from })}</p>
+              <p class="text-sm text-gray-500">{m.invitations_expires({ date: formatDate(offer.expiresAt) })}</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <Button loading={busy === offer.id} disabled={!!busy} onclick={() => acceptOffer(offer)}>
+                {m.invitations_accept()}
+              </Button>
+              <Button variant="ghost" disabled={!!busy} onclick={() => declineOffer(offer)}>
+                {m.invitations_decline()}
+              </Button>
+            </div>
+          </li>
+        {/each}
         {#each data.user.invitations as invitation (invitation.id)}
           <li class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-3">
             <div class="min-w-0">

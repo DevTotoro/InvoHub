@@ -5,6 +5,7 @@
   import { ASSIGNABLE_ROLES, changeMemberRole, leaveCompany, removeMember, type Member } from '#lib/api/members.ts';
   import { canManageMembers, roleName } from '#lib/company/permissions.ts';
   import { revokeInvitation, type Invitation } from '#lib/api/invitations.ts';
+  import { cancelOwnershipTransfer, offerOwnership } from '#lib/api/ownership.ts';
   import InviteForm from '#lib/components/InviteForm.svelte';
   import { confirmAction } from '#lib/components/confirm.svelte.ts';
   import Button from '#lib/components/ui/Button.svelte';
@@ -26,6 +27,9 @@
   );
   /** The owner's access and your own aren't managed here: the owner transfers ownership, you leave */
   const manageable = (member: Member) => canManage && member.role !== 'OWNER' && member.userId !== data.user.id;
+  /** The owner can offer ownership to any member, one offer at a time; also once closed, not once suspended */
+  const canOffer = (member: Member) =>
+    data.role === 'OWNER' && data.company.status !== 'SUSPENDED' && !data.ownershipTransfer && member.role !== 'OWNER';
 
   /** The member being changed or removed, or 'leave' while leaving */
   let busy: string | undefined = $state();
@@ -74,6 +78,28 @@
     });
   }
 
+  async function offer(member: Member) {
+    if (
+      !(await confirmAction(
+        m.team_make_owner_confirm({ company: data.company.name, email: member.email }),
+        m.team_offer_ownership(),
+        { destructive: false }
+      ))
+    )
+      return;
+    return run(member.userId, async () => {
+      await offerOwnership(data.company.id, member.userId);
+      await invalidate('app:members');
+    });
+  }
+
+  function cancelOffer() {
+    return run('ownership', async () => {
+      await cancelOwnershipTransfer(data.company.id);
+      await invalidate('app:members');
+    });
+  }
+
   async function leave() {
     if (!(await confirmAction(m.team_leave_confirm({ company: data.company.name }), m.team_leave()))) return;
     return run('leave', async () => {
@@ -107,6 +133,16 @@
         </div>
 
         <div class="flex items-center gap-2">
+          {#if canOffer(member)}
+            <Button
+              variant="ghost"
+              aria-label={m.team_make_owner_of({ email: member.email })}
+              disabled={busy === member.userId}
+              onclick={() => offer(member)}
+            >
+              {m.team_make_owner()}
+            </Button>
+          {/if}
           {#if manageable(member)}
             <NativeSelect
               aria-label={m.team_role_of({ email: member.email })}
@@ -131,6 +167,18 @@
       </li>
     {/each}
   </ul>
+
+  {#if data.ownershipTransfer}
+    <div class="mt-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border border-gray-200 px-3 py-2">
+      <p class="text-sm text-gray-700" role="status">
+        {m.team_ownership_pending({
+          email: data.ownershipTransfer.to,
+          date: formatDate(data.ownershipTransfer.expiresAt)
+        })}
+      </p>
+      <Button variant="ghost" loading={busy === 'ownership'} onclick={cancelOffer}>{m.team_ownership_cancel()}</Button>
+    </div>
+  {/if}
 
   {#if canManage}
     {#if data.invitations.length > 0}

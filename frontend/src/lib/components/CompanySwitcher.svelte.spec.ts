@@ -6,7 +6,15 @@ import CompanySwitcher from './CompanySwitcher.svelte';
 
 const acme: UserCompany = {
   role: 'OWNER',
-  company: { id: '0ACME', name: 'Acme', country: 'GR', currency: 'EUR', status: 'ACTIVE', invoicingSupported: true }
+  company: {
+    id: '0ACME',
+    name: 'Acme',
+    country: 'GR',
+    currency: 'EUR',
+    status: 'ACTIVE',
+    invoicingSupported: true,
+    closedAt: null
+  }
 };
 const globex: UserCompany = {
   role: 'VIEWER',
@@ -16,7 +24,8 @@ const globex: UserCompany = {
     country: 'DE',
     currency: 'EUR',
     status: 'ACTIVE',
-    invoicingSupported: false
+    invoicingSupported: false,
+    closedAt: null
   }
 };
 

@@ -3,9 +3,10 @@ import type { Language, User } from '#lib/api/auth.ts';
 import type { Company, Country, UserCompany } from '#lib/api/companies.ts';
 import type { Invitation } from '#lib/api/invitations.ts';
 import type { Member } from '#lib/api/members.ts';
+import type { OwnershipTransfer } from '#lib/api/ownership.ts';
 import type { BusinessDetails, CompanySettings } from '#lib/api/settings.ts';
 
-type Identity = Omit<User, 'companies' | 'invitations'>;
+type Identity = Omit<User, 'companies' | 'invitations' | 'ownershipOffers'>;
 
 export const TEST_USER: Identity = { id: '0RWNQHYRRA7BF', email: 'jane@example.com', language: 'EN' };
 
@@ -17,7 +18,8 @@ export const ACME: UserCompany = {
     country: 'GR',
     currency: 'EUR',
     status: 'ACTIVE',
-    invoicingSupported: true
+    invoicingSupported: true,
+    closedAt: null
   }
 };
 
@@ -29,7 +31,8 @@ export const GLOBEX: UserCompany = {
     country: 'DE',
     currency: 'EUR',
     status: 'ACTIVE',
-    invoicingSupported: false
+    invoicingSupported: false,
+    closedAt: null
   }
 };
 
@@ -54,6 +57,8 @@ export interface MockApiOptions {
   invitations?: Invitation[];
   /** Open invitations of the user's companies, by company ID */
   companyInvitations?: Record<string, Invitation[]>;
+  /** Ownership of companies offered to the user, who must be a member of each */
+  ownershipOffers?: OwnershipTransfer[];
   /** Saved settings of the user's companies, by company ID; nothing filled in otherwise */
   settings?: Record<string, Partial<CompanySettings>>;
 }
@@ -144,10 +149,14 @@ export async function mockApi(
     people = {},
     invitations = [],
     companyInvitations = {},
+    ownershipOffers = [],
     settings = {}
   }: MockApiOptions = {}
 ) {
   const myInvitations = [...invitations];
+  const myOffers = [...ownershipOffers];
+  /** The open ownership offer of each of the user's companies (as its owner), by company ID */
+  const offersMade: Record<string, OwnershipTransfer> = {};
   const openInvitations: Record<string, Invitation[]> = Object.fromEntries(
     Object.entries(companyInvitations).map(([id, list]) => [id, [...list]])
   );
@@ -270,6 +279,9 @@ export async function mockApi(
       target.role = variables!.role!;
       return route.fulfill({ json: { data: { changeMemberRole: target } } });
     }
+    if (/OwnershipTransfer|OfferOwnership|AcceptOwnership|DeclineOwnership|CloseCompany|ReopenCompany/.test(query)) {
+      return ownership(route, query, access, variables as Record<string, string>);
+    }
     if (query.includes('LeaveCompany')) {
       if (!access) return graphqlError(route, 'not_found');
       if (access.role === 'OWNER') return graphqlError(route, 'not_allowed', 'owner_cannot_leave');
@@ -278,12 +290,58 @@ export async function mockApi(
     }
     if (query.includes('Countries')) return route.fulfill({ json: { data: { countries: COUNTRIES } } });
     return route.fulfill({
-      json: { data: { me: { ...currentUser, companies: userCompanies, invitations: myInvitations } } }
+      json: {
+        data: {
+          me: { ...currentUser, companies: userCompanies, invitations: myInvitations, ownershipOffers: myOffers }
+        }
+      }
     });
   });
 
   function graphqlError(route: Route, code: string, reason?: string) {
     return route.fulfill({ json: { data: null, errors: [{ message: code, extensions: { code, reason } }] } });
+  }
+
+  function ownership(route: Route, query: string, access: UserCompany | undefined, variables: Record<string, string>) {
+    // Answered by the recipient, about a company they're a member of
+    if (/AcceptOwnership|DeclineOwnership/.test(query)) {
+      const index = myOffers.findIndex((o) => o.id === variables.transferId);
+      if (index < 0) return graphqlError(route, 'ownership_transfer_not_found');
+      const [offer] = myOffers.splice(index, 1);
+      if (query.includes('DeclineOwnership')) return route.fulfill({ json: { data: { declineOwnership: true } } });
+      const owned = userCompanies.find((c) => c.company.id === offer.company.id)!;
+      owned.role = 'OWNER';
+      return route.fulfill({ json: { data: { acceptOwnership: owned } } });
+    }
+
+    if (!access) return graphqlError(route, 'not_found');
+    if (access.role !== 'OWNER') return graphqlError(route, 'forbidden');
+    const companyId = access.company.id;
+    if (query.includes('CancelOwnershipTransfer')) {
+      if (!offersMade[companyId]) return graphqlError(route, 'ownership_transfer_not_found');
+      delete offersMade[companyId];
+      return route.fulfill({ json: { data: { cancelOwnershipTransfer: true } } });
+    }
+    if (query.includes('OfferOwnership')) {
+      if (offersMade[companyId]) return graphqlError(route, 'not_allowed', 'transfer_pending');
+      const to = others[companyId]?.find((p) => p.userId === variables.userId);
+      if (!to) return graphqlError(route, 'member_not_found');
+      offersMade[companyId] = {
+        id: `0OFFER${companyId.slice(1, 8)}`,
+        company: access.company,
+        from: currentUser!.email,
+        to: to.email,
+        expiresAt: '2026-10-20T10:00:00Z'
+      };
+      return route.fulfill({ json: { data: { offerOwnership: offersMade[companyId] } } });
+    }
+    if (query.includes('OwnershipTransfer')) {
+      return route.fulfill({ json: { data: { ownershipTransfer: offersMade[companyId] ?? null } } });
+    }
+    // Replaced, not changed: the company object may be the shared ACME or GLOBEX
+    const closing = query.includes('CloseCompany');
+    access.company = { ...access.company, closedAt: closing ? '2026-10-13T10:00:00Z' : null };
+    return route.fulfill({ json: { data: { [closing ? 'closeCompany' : 'reopenCompany']: access.company } } });
   }
 
   function invalid(route: Route, field: string, reason: string) {
@@ -415,7 +473,8 @@ export async function mockApi(
       country: country.code,
       currency: country.currency,
       status: 'ACTIVE',
-      invoicingSupported: country.invoicingSupported
+      invoicingSupported: country.invoicingSupported,
+      closedAt: null
     };
     userCompanies.push({ role: 'OWNER', company });
     return route.fulfill({ json: { data: { createCompany: company } } });

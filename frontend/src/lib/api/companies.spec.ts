@@ -16,7 +16,8 @@ describe('companies', () => {
       country: 'GR',
       currency: 'EUR',
       status: 'ACTIVE',
-      invoicingSupported: true
+      invoicingSupported: true,
+      closedAt: null
     };
     browser.fetch.mockResolvedValue(jsonResponse({ data: { createCompany: company } }));
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Company } from '#lib/api/companies.ts';
-import { canManageMembers, canSeeSettings, roleName } from './permissions.ts';
+import { canChange, canManageMembers, canSeeSettings, roleName } from './permissions.ts';
 
 const company = (status: Company['status']): Company => ({
   id: '0ACME',
@@ -8,7 +8,8 @@ const company = (status: Company['status']): Company => ({
   country: 'GR',
   currency: 'EUR',
   status,
-  invoicingSupported: true
+  invoicingSupported: true,
+  closedAt: null
 });
 
 describe('permissions', () => {
@@ -21,6 +22,12 @@ describe('permissions', () => {
 
   it('not while the company is read-only', () => {
     expect(canManageMembers('OWNER', company('READ_ONLY'))).toBe(false);
+  });
+
+  it('nor once the owner has closed it', () => {
+    expect(canManageMembers('OWNER', { ...company('ACTIVE'), closedAt: '2026-10-13T10:00:00Z' })).toBe(false);
+    expect(canChange({ ...company('ACTIVE'), closedAt: '2026-10-13T10:00:00Z' })).toBe(false);
+    expect(canChange(company('ACTIVE'))).toBe(true);
   });
 
   it('shows settings to owners and admins', () => {

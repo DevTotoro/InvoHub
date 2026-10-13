@@ -4,7 +4,7 @@ import { pickCompany, rememberCompany } from './last-company.ts';
 
 const company = (id: string): UserCompany => ({
   role: 'OWNER',
-  company: { id, name: id, country: 'GR', currency: 'EUR', status: 'ACTIVE', invoicingSupported: true }
+  company: { id, name: id, country: 'GR', currency: 'EUR', status: 'ACTIVE', invoicingSupported: true, closedAt: null }
 });
 
 describe('last company', () => {
@@ -30,6 +30,17 @@ describe('last company', () => {
     rememberCompany('gone');
 
     expect(pickCompany([company('a'), company('b')])?.company.id).toBe('a');
+  });
+
+  it('opens an open company rather than a closed one, and a closed one when there is nothing else', () => {
+    const closed = (id: string) => ({
+      ...company(id),
+      company: { ...company(id).company, closedAt: '2026-10-13T10:00:00Z' }
+    });
+    rememberCompany('old');
+
+    expect(pickCompany([closed('old'), company('b')])?.company.id).toBe('b');
+    expect(pickCompany([closed('a'), closed('old')])?.company.id).toBe('old');
   });
 
   it('has nothing to open without companies', () => {

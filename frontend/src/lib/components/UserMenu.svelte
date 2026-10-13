@@ -12,7 +12,8 @@
   let { user }: Props = $props();
 
   const menuId = $props.id();
-  const invitations = $derived(user.invitations.length);
+  // Ownership offers are answered on the Invitations page too
+  const invitations = $derived(user.invitations.length + user.ownershipOffers.length);
 
   let open = $state(false);
   let container: HTMLElement | undefined = $state();
