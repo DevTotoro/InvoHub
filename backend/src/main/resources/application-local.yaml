@@ -33,7 +33,7 @@ invohub:
     frontend-url: http://localhost:5173
   storage:
     bucket: invohub-local
-    endpoint: http://${HOST:localhost}:${STORAGE_PORT:9000}
+    endpoint: http://${HOST:localhost}:${STORAGE_PORT:9100}
     access-key: ${STORAGE_ACCESS_KEY:invohub}
     secret-key: ${STORAGE_SECRET_KEY:invohub-local-secret}
     create-bucket: true
