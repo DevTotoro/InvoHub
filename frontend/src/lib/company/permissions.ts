@@ -9,6 +9,11 @@ export function canManageMembers(role: CompanyRole, company: Company): boolean {
   return (role === 'OWNER' || role === 'ADMIN') && canChange(company);
 }
 
+/** Whether to offer creating and editing the company's work (contacts, later invoices): not for viewers */
+export function canEdit(role: CompanyRole, company: Company): boolean {
+  return role !== 'VIEWER' && canChange(company);
+}
+
 /** Whether the company can be changed at all: active (paid, not suspended) and not closed by its owner */
 export function canChange(company: Company): boolean {
   return company.status === 'ACTIVE' && company.closedAt === null;

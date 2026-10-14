@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Company } from '#lib/api/companies.ts';
-import { canChange, canManageMembers, canSeeSettings, roleName } from './permissions.ts';
+import { canChange, canEdit, canManageMembers, canSeeSettings, roleName } from './permissions.ts';
 
 const company = (status: Company['status']): Company => ({
   id: '0ACME',
@@ -35,6 +35,12 @@ describe('permissions', () => {
     expect(canSeeSettings('ADMIN')).toBe(true);
     expect(canSeeSettings('MEMBER')).toBe(false);
     expect(canSeeSettings('VIEWER')).toBe(false);
+  });
+
+  it("lets everyone but viewers edit the company's work, while it can be changed", () => {
+    expect(canEdit('MEMBER', company('ACTIVE'))).toBe(true);
+    expect(canEdit('VIEWER', company('ACTIVE'))).toBe(false);
+    expect(canEdit('OWNER', company('READ_ONLY'))).toBe(false);
   });
 
   it('names every role', () => {

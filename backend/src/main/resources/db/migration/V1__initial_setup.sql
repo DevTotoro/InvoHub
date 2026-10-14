@@ -166,6 +166,40 @@ CREATE UNIQUE INDEX uq_ownership_transfers_pending ON ownership_transfers (compa
 -- Transfers offered to a user
 CREATE INDEX ix_ownership_transfers_to_pending ON ownership_transfers (to_user_id) WHERE status = 'PENDING';
 
+-- A company's customers and suppliers, in one list: what a contact is follows from the documents it's on.
+-- Archived rather than deleted, so invoices can always point to the contact they were made out to.
+CREATE TABLE contacts (
+    id BIGINT NOT NULL,
+    version BIGINT NOT NULL DEFAULT 0,
+    --
+    company_id BIGINT NOT NULL,
+    -- BUSINESS or PERSON
+    kind VARCHAR(20) NOT NULL,
+    name VARCHAR(200) NOT NULL,
+    country VARCHAR(2) NOT NULL,
+    -- Normalized by the contact's country's rules
+    tax_id VARCHAR(50),
+    email VARCHAR(255),
+    phone VARCHAR(50),
+    address_street VARCHAR(255),
+    address_city VARCHAR(100),
+    address_postal_code VARCHAR(20),
+    notes VARCHAR(2000),
+    archived_at TIMESTAMP WITH TIME ZONE,
+    --
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    --
+    CONSTRAINT pk_contacts PRIMARY KEY (id),
+    CONSTRAINT fk_contacts_company FOREIGN KEY (company_id) REFERENCES companies (id),
+    CONSTRAINT ck_contacts_kind CHECK (kind IN ('BUSINESS', 'PERSON')),
+    CONSTRAINT ck_contacts_name CHECK (btrim(name) <> ''),
+    CONSTRAINT ck_contacts_country CHECK (country ~ '^[A-Z]{2}$')
+);
+
+-- A company's contacts by name, the order they're listed in
+CREATE INDEX ix_contacts_company_name ON contacts (company_id, lower(name));
+
 -- Audit log: what happened, who did it, when. Append-only: the app's login may only add and read events, and
 -- a trigger refuses changes from every login, migrations included. No foreign keys: events must outlive the
 -- users and companies they mention. The database sets the time.

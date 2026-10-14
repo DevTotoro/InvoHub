@@ -1,5 +1,6 @@
 package com.invohub.backend.domain.company.country
 
+import com.invohub.backend.domain.common.InvalidInputException
 import com.invohub.backend.domain.company.Company
 
 /**
@@ -40,6 +41,19 @@ interface CountryRules {
 
     companion object {
         const val MAX_COUNTRY_DETAIL_LENGTH = 100
+    }
+}
+
+/**
+ * A tax ID as typed, cleaned up and checked by these rules; null when blank.
+ * @throws InvalidInputException "taxId" with "check_digit" (most likely a typo) or "invalid"
+ */
+fun CountryRules.checkedTaxId(raw: String?): String? {
+    val taxId = raw?.let(::normalizeTaxId)?.ifEmpty { null } ?: return null
+    return when (validateTaxId(taxId)) {
+        null -> taxId
+        TaxIdProblem.WRONG_CHECK_DIGIT -> throw InvalidInputException("taxId", "check_digit")
+        else -> throw InvalidInputException("taxId", "invalid")
     }
 }
 

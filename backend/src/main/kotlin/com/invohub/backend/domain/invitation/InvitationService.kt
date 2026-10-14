@@ -25,6 +25,7 @@ import com.invohub.backend.domain.company.UserCompany
 import com.invohub.backend.domain.user.Language
 import com.invohub.backend.domain.user.User
 import com.invohub.backend.domain.user.UserRepository
+import com.invohub.backend.domain.user.isEmailAddress
 import com.invohub.backend.domain.user.normalizeEmail
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -60,10 +61,6 @@ class InvitationService(
     private val emailPort: EmailPort,
     private val auditLog: AuditLog,
 ) {
-    companion object {
-        private val EMAIL = Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")
-    }
-
     /**
      * @throws InvalidInputException for a malformed email ("email", "invalid"), no companies ("companies",
      * "required") or the owner role ("role", "owner")
@@ -78,7 +75,7 @@ class InvitationService(
         targets: List<InvitationTarget>,
     ): List<Invitation> {
         val email = normalizeEmail(rawEmail)
-        if (!EMAIL.matches(email)) throw InvalidInputException("email", "invalid")
+        if (!isEmailAddress(email)) throw InvalidInputException("email", "invalid")
         val distinct = targets.distinctBy { it.access.companyId }
         if (distinct.isEmpty()) throw InvalidInputException("companies", "required")
 

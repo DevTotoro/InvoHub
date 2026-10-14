@@ -15,6 +15,7 @@
   const params = $derived({ companyId: data.company.id });
   const tabs = $derived([
     { href: resolve('/(app)/c/[companyId]', params), label: m.company_nav_overview() },
+    { href: resolve('/(app)/c/[companyId]/contacts', params), label: m.company_nav_contacts() },
     { href: resolve('/(app)/c/[companyId]/members', params), label: m.company_nav_team() },
     ...(data.settings
       ? [
@@ -55,7 +56,9 @@
   <nav aria-label={m.company_nav()} class="container mx-auto border-b border-gray-200 px-4">
     <ul class="flex gap-4">
       {#each tabs as tab (tab.href)}
-        {@const current = page.url.pathname === tab.href}
+        <!-- A tab stays current on the pages under it (a contact under Contacts); Overview only on itself -->
+        {@const current =
+          page.url.pathname === tab.href || (tab !== tabs[0] && page.url.pathname.startsWith(`${tab.href}/`))}
         <li>
           <Link
             href={tab.href}

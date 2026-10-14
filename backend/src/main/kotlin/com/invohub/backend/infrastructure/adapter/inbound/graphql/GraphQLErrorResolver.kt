@@ -12,6 +12,7 @@ import com.invohub.backend.domain.company.CompanyReadOnlyException
 import com.invohub.backend.domain.company.CompanySuspendedException
 import com.invohub.backend.domain.company.MemberNotFoundException
 import com.invohub.backend.domain.company.OwnershipTransferNotFoundException
+import com.invohub.backend.domain.contact.ContactNotFoundException
 import com.invohub.backend.domain.invitation.InvitationNotFoundException
 import com.invohub.backend.domain.invitation.InvitationRefusedException
 import graphql.GraphQLError
@@ -62,6 +63,7 @@ class GraphQLErrorResolver : DataFetcherExceptionResolverAdapter() {
                 error(env, ErrorType.INTERNAL_ERROR, "The email couldn't be sent", "email_delivery_failed")
             is BankAccountNotFoundException ->
                 error(env, ErrorType.NOT_FOUND, "Bank account not found", "bank_account_not_found")
+            is ContactNotFoundException -> error(env, ErrorType.NOT_FOUND, "Contact not found", "contact_not_found")
             is InvitationNotFoundException ->
                 error(env, ErrorType.NOT_FOUND, "Invitation not found", "invitation_not_found")
             is MemberNotFoundException -> error(env, ErrorType.NOT_FOUND, "Member not found", "member_not_found")

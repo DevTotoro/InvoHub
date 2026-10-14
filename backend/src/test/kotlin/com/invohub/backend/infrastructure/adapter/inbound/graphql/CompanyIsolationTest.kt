@@ -129,6 +129,35 @@ class CompanyIsolationTest {
             "Mutation.reopenCompany" to { id ->
                 "mutation(${'$'}id: ID!) { reopenCompany(companyId: ${'$'}id) { id } }" to mapOf("id" to id)
             },
+            "Query.contacts" to { id ->
+                "query(${'$'}id: ID!) { contacts(companyId: ${'$'}id) { total } }" to mapOf("id" to id)
+            },
+            "Query.contact" to { id ->
+                "query(${'$'}id: ID!, ${'$'}c: ID!) { contact(companyId: ${'$'}id, contactId: ${'$'}c) { id } }" to
+                    mapOf("id" to id, "c" to TSID.fast().toString())
+            },
+            "Mutation.createContact" to { id ->
+                """
+                mutation(${'$'}id: ID!) { createContact(companyId: ${'$'}id, input: { kind: PERSON, name: "X" }) { id } }
+                """.trimIndent() to mapOf("id" to id)
+            },
+            "Mutation.updateContact" to { id ->
+                """
+                mutation(${'$'}id: ID!, ${'$'}c: ID!) {
+                    updateContact(companyId: ${'$'}id, contactId: ${'$'}c, input: { kind: PERSON, name: "X" }) { id }
+                }
+                """.trimIndent() to mapOf("id" to id, "c" to TSID.fast().toString())
+            },
+            "Mutation.archiveContact" to { id ->
+                """
+                mutation(${'$'}id: ID!, ${'$'}c: ID!) { archiveContact(companyId: ${'$'}id, contactId: ${'$'}c) { id } }
+                """.trimIndent() to mapOf("id" to id, "c" to TSID.fast().toString())
+            },
+            "Mutation.restoreContact" to { id ->
+                """
+                mutation(${'$'}id: ID!, ${'$'}c: ID!) { restoreContact(companyId: ${'$'}id, contactId: ${'$'}c) { id } }
+                """.trimIndent() to mapOf("id" to id, "c" to TSID.fast().toString())
+            },
         )
 
     @Autowired

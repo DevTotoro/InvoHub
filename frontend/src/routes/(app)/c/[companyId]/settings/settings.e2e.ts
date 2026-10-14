@@ -146,7 +146,7 @@ test('members see no settings', async ({ page, baseURL }) => {
   await mockApi(page, baseURL!, { user: TEST_USER, companies: [asMember] });
   await page.goto(`/c/${ACME.company.id}`);
 
-  await expect(tabs(page).getByRole('link')).toHaveText(['Overview', 'Team']);
+  await expect(tabs(page).getByRole('link')).toHaveText(['Overview', 'Contacts', 'Team']);
   await expect(page.getByRole('region', { name: 'Invoicing setup' })).toHaveCount(0);
 
   await page.goto(`/c/${ACME.company.id}/settings`);
