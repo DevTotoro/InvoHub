@@ -6,9 +6,11 @@ import com.invohub.backend.domain.audit.AuditLog
 import com.invohub.backend.domain.audit.AuditTarget
 import com.invohub.backend.domain.common.InvalidInputException
 import com.invohub.backend.domain.common.NotAllowedException
+import com.invohub.backend.domain.common.optionalText
+import com.invohub.backend.domain.common.requiredText
 import com.invohub.backend.domain.company.country.Countries
 import com.invohub.backend.domain.company.country.CountryRulesRegistry
-import com.invohub.backend.domain.company.country.TaxIdProblem
+import com.invohub.backend.domain.company.country.checkedTaxId
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -83,14 +85,7 @@ class CompanySettingsService(
         val company = companyRepository.findById(access.companyId).orElseThrow()
         val rules = countryRules.forCountry(company.country)
 
-        val taxId =
-            input.taxId?.let(rules::normalizeTaxId)?.ifEmpty { null }?.also { taxId ->
-                when (rules.validateTaxId(taxId)) {
-                    null -> {}
-                    TaxIdProblem.WRONG_CHECK_DIGIT -> throw InvalidInputException("taxId", "check_digit")
-                    else -> throw InvalidInputException("taxId", "invalid")
-                }
-            }
+        val taxId = rules.checkedTaxId(input.taxId)
         val details =
             rules.countryDetailKeys
                 .mapNotNull { key ->
@@ -102,10 +97,10 @@ class CompanySettingsService(
 
         val before = snapshot(company)
         company.updateBusinessDetails(
-            legalName = text(input.legalName, "legalName", MAX_LEGAL_NAME),
-            street = text(input.street, "street", MAX_STREET),
-            city = text(input.city, "city", MAX_CITY),
-            postalCode = text(input.postalCode, "postalCode", MAX_POSTAL_CODE),
+            legalName = optionalText(input.legalName, "legalName", MAX_LEGAL_NAME),
+            street = optionalText(input.street, "street", MAX_STREET),
+            city = optionalText(input.city, "city", MAX_CITY),
+            postalCode = optionalText(input.postalCode, "postalCode", MAX_POSTAL_CODE),
             taxId = taxId,
             countryDetails = details,
         )
@@ -130,7 +125,7 @@ class CompanySettingsService(
         rawIban: String,
     ): BankAccount {
         access.require(CompanyPermission.MANAGE_SETTINGS)
-        val name = text(bankName, "bankName", MAX_BANK_NAME) ?: throw InvalidInputException("bankName", "required")
+        val name = requiredText(bankName, "bankName", MAX_BANK_NAME)
         val iban = Iban.normalize(rawIban)
         if (!Iban.isValid(iban)) throw InvalidInputException("iban", "invalid")
         if (bankAccountRepository.existsByCompanyIdAndIban(access.companyId, iban)) {
@@ -162,17 +157,6 @@ class CompanySettingsService(
                 "bankAccount" to mapOf("from" to "${account.bankName} ${account.iban}", "to" to null),
             ),
         )
-    }
-
-    /** A trimmed text, or null when blank */
-    private fun text(
-        raw: String?,
-        field: String,
-        maxLength: Int,
-    ): String? {
-        val value = raw?.trim()?.ifEmpty { null } ?: return null
-        if (value.length > maxLength) throw InvalidInputException(field, "too_long")
-        return value
     }
 
     private fun snapshot(company: Company): Map<String, Any?> =
