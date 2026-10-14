@@ -49,6 +49,8 @@ function graphqlMessage(code: string, reason?: string): string {
       return m.error_member_not_found();
     case 'invitation_not_found':
       return m.error_invitation_not_found();
+    case 'contact_not_found':
+      return m.error_contact_not_found();
     case 'bank_account_not_found':
       return m.error_bank_account_not_found();
     case 'email_delivery_failed':

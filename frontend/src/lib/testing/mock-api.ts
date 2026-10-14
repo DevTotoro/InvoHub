@@ -2,6 +2,7 @@ import type { Page, Route } from '@playwright/test';
 import type { Language, User } from '#lib/api/auth.ts';
 import type { Company, Country, UserCompany } from '#lib/api/companies.ts';
 import type { Invitation } from '#lib/api/invitations.ts';
+import type { Contact, ContactInput } from '#lib/api/contacts.ts';
 import type { Member } from '#lib/api/members.ts';
 import type { OwnershipTransfer } from '#lib/api/ownership.ts';
 import type { BusinessDetails, CompanySettings } from '#lib/api/settings.ts';
@@ -61,6 +62,8 @@ export interface MockApiOptions {
   ownershipOffers?: OwnershipTransfer[];
   /** Saved settings of the user's companies, by company ID; nothing filled in otherwise */
   settings?: Record<string, Partial<CompanySettings>>;
+  /** The contacts of the user's companies, by company ID */
+  contacts?: Record<string, Contact[]>;
 }
 
 /** An invitation to [company] for [email] */
@@ -150,13 +153,18 @@ export async function mockApi(
     invitations = [],
     companyInvitations = {},
     ownershipOffers = [],
-    settings = {}
+    settings = {},
+    contacts = {}
   }: MockApiOptions = {}
 ) {
   const myInvitations = [...invitations];
   const myOffers = [...ownershipOffers];
   /** The open ownership offer of each of the user's companies (as its owner), by company ID */
   const offersMade: Record<string, OwnershipTransfer> = {};
+  const contactsOf: Record<string, Contact[]> = Object.fromEntries(
+    Object.entries(contacts).map(([id, list]) => [id, list.map((c) => ({ ...c }))])
+  );
+  let contactsAdded = 0;
   const openInvitations: Record<string, Invitation[]> = Object.fromEntries(
     Object.entries(companyInvitations).map(([id, list]) => [id, [...list]])
   );
@@ -279,6 +287,11 @@ export async function mockApi(
       target.role = variables!.role!;
       return route.fulfill({ json: { data: { changeMemberRole: target } } });
     }
+    const operation = query.match(/^\s*(?:query|mutation) (\w+)/)?.[1];
+    if (operation && /^(Contacts|Contact|CreateContact|UpdateContact|ArchiveContact|RestoreContact)$/.test(operation)) {
+      if (!access) return graphqlError(route, 'not_found');
+      return contact(route, operation, access, variables as Record<string, unknown>);
+    }
     if (/OwnershipTransfer|OfferOwnership|AcceptOwnership|DeclineOwnership|CloseCompany|ReopenCompany/.test(query)) {
       return ownership(route, query, access, variables as Record<string, string>);
     }
@@ -342,6 +355,57 @@ export async function mockApi(
     const closing = query.includes('CloseCompany');
     access.company = { ...access.company, closedAt: closing ? '2026-10-13T10:00:00Z' : null };
     return route.fulfill({ json: { data: { [closing ? 'closeCompany' : 'reopenCompany']: access.company } } });
+  }
+
+  function contact(route: Route, operation: string, access: UserCompany, variables: Record<string, unknown>) {
+    const list = (contactsOf[access.company.id] ??= []);
+    if (operation === 'Contacts') {
+      const query = String(variables.query ?? '').toLowerCase();
+      const offset = Number(variables.offset ?? 0);
+      const limit = Number(variables.limit ?? 50);
+      const matching = list
+        .filter((c) => Boolean(c.archivedAt) === Boolean(variables.archived))
+        .filter((c) => [c.name, c.taxId, c.email].some((v) => v?.toLowerCase().includes(query)))
+        .sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
+      return route.fulfill({
+        json: { data: { contacts: { total: matching.length, contacts: matching.slice(offset, offset + limit) } } }
+      });
+    }
+
+    const found = operation === 'CreateContact' ? undefined : list.find((c) => c.id === variables.contactId);
+    if (operation !== 'CreateContact' && !found) return graphqlError(route, 'contact_not_found');
+    if (operation === 'Contact') return route.fulfill({ json: { data: { contact: found } } });
+    if (operation === 'ArchiveContact' || operation === 'RestoreContact') {
+      found!.archivedAt = operation === 'ArchiveContact' ? '2026-10-14T10:00:00Z' : null;
+      return route.fulfill({ json: { data: { [operation[0].toLowerCase() + operation.slice(1)]: found } } });
+    }
+
+    if (access.role === 'VIEWER') return graphqlError(route, 'forbidden');
+    const input = variables.input as ContactInput;
+    if (!input.name.trim()) return invalid(route, 'name', 'required');
+    const country = input.country || access.company.country;
+    const taxId = country === 'GR' ? input.taxId.replace(/\W/g, '').replace(/^(EL|GR)/i, '') : input.taxId.trim();
+    if (taxId && country === 'GR' && !validAfm(taxId)) {
+      return invalid(route, 'taxId', /^\d{9}$/.test(taxId) ? 'check_digit' : 'invalid');
+    }
+    const text = (value: string) => value.trim() || null;
+    const saved: Contact = {
+      id: found?.id ?? `0CONTACT${String(++contactsAdded).padStart(5, '0')}`,
+      kind: input.kind,
+      name: input.name.trim(),
+      country,
+      taxId: taxId || null,
+      email: text(input.email),
+      phone: text(input.phone),
+      address: { street: text(input.street), city: text(input.city), postalCode: text(input.postalCode) },
+      notes: text(input.notes),
+      archivedAt: found?.archivedAt ?? null
+    };
+    if (found) Object.assign(found, saved);
+    else list.push(saved);
+    return route.fulfill({
+      json: { data: { [operation === 'CreateContact' ? 'createContact' : 'updateContact']: saved } }
+    });
   }
 
   function invalid(route: Route, field: string, reason: string) {
