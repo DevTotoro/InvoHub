@@ -28,6 +28,8 @@ data class AuditTarget(
         fun invitation(id: Long) = AuditTarget("invitation", id)
 
         fun ownershipTransfer(id: Long) = AuditTarget("ownership_transfer", id)
+
+        fun contact(id: Long) = AuditTarget("contact", id)
     }
 }
 
@@ -49,6 +51,10 @@ enum class AuditAction(
     OWNERSHIP_OFFERED("ownership.offered"),
     OWNERSHIP_OFFER_CANCELLED("ownership.cancelled"),
     OWNERSHIP_OFFER_DECLINED("ownership.declined"),
+    CONTACT_CREATED("contact.created"),
+    CONTACT_UPDATED("contact.updated"),
+    CONTACT_ARCHIVED("contact.archived"),
+    CONTACT_RESTORED("contact.restored"),
     MEMBER_ADDED("member.added"),
     MEMBER_ROLE_CHANGED("member.role_changed"),
     MEMBER_REMOVED("member.removed"),

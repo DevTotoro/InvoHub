@@ -21,6 +21,13 @@ type Query {
     companySettings(companyId: ID!): CompanySettings
     "The company's open ownership offer, if any. Owner only."
     ownershipTransfer(companyId: ID!): OwnershipTransfer
+    """
+    The company's contacts by name, one page at a time (limit at most 100). query matches anywhere in the name,
+    tax ID or email, ignoring case. Archived ones only with archived: true.
+    """
+    contacts(companyId: ID!, query: String, archived: Boolean = false, offset: Int = 0, limit: Int = 50): ContactPage!
+    "Otherwise contact_not_found"
+    contact(companyId: ID!, contactId: ID!): Contact!
 }
 
 type Mutation {
@@ -105,6 +112,16 @@ type Mutation {
     closeCompany(companyId: ID!): Company!
     "Owner only"
     reopenCompany(companyId: ID!): Company!
+    """
+    Owner, admins and members. invalid_input with the field ("name", "country", "taxId", "email", "phone",
+    "street", "city", "postalCode", "notes") and the reason (required, too_long, unknown, invalid, check_digit).
+    """
+    createContact(companyId: ID!, input: ContactInput!): Contact!
+    "Replaces every detail. As createContact; otherwise contact_not_found."
+    updateContact(companyId: ID!, contactId: ID!, input: ContactInput!): Contact!
+    "Hidden from the list and from pickers, kept for the documents that name it"
+    archiveContact(companyId: ID!, contactId: ID!): Contact!
+    restoreContact(companyId: ID!, contactId: ID!): Contact!
 }
 
 type User {
@@ -298,4 +315,47 @@ input CreateCompanyInput {
     name: String!
     "ISO 3166-1 alpha-2"
     country: String!
+}
+
+enum ContactKind {
+    BUSINESS
+    "An individual, e.g. a retail customer or a freelancer"
+    PERSON
+}
+
+"Someone the company sells to or buys from"
+type Contact {
+    id: ID!
+    kind: ContactKind!
+    name: String!
+    "ISO 3166-1 alpha-2"
+    country: String!
+    "Cleaned up and checked by the country's rules"
+    taxId: String
+    email: String
+    phone: String
+    address: Address!
+    notes: String
+    "ISO-8601, or null while in use"
+    archivedAt: String
+}
+
+type ContactPage {
+    contacts: [Contact!]!
+    "All that match, on every page"
+    total: Int!
+}
+
+"Blank means none. The country defaults to the company's."
+input ContactInput {
+    kind: ContactKind!
+    name: String!
+    country: String
+    taxId: String
+    email: String
+    phone: String
+    street: String
+    city: String
+    postalCode: String
+    notes: String
 }
